@@ -10,6 +10,10 @@ This guide walks you through running the project locally in **VS Code**.
 
 ## TL;DR — what to run
 
+> **Use `yarn`, not `npm`, for the frontend.** This project pins `react@19` and a couple
+> of UI libs haven't bumped their npm peer-range yet. Yarn handles it; `npm install`
+> will fail with `ERESOLVE` errors. If you must use npm, run `npm install --legacy-peer-deps` instead.
+
 Once you've finished sections 1–6 (one-time setup), every future startup is just **three terminals**:
 
 ```bash
@@ -236,6 +240,7 @@ gen-c-health/
 | `ECONNREFUSED 127.0.0.1:27017` | MongoDB isn't running. Start the MongoDB service. |
 | `uvicorn: command not found` | The virtual environment isn't activated. Re-run the activate command. |
 | `yarn: command not found` | Run `npm install -g yarn`. |
+| `npm ERR! ERESOLVE could not resolve` (react-day-picker / eslint peer dep) | Use **`yarn install`** instead of `npm install`. If you must use npm, run `npm install --legacy-peer-deps`. |
 | `python: command not found` (macOS) | Use `python3` and `pip3` instead. |
 | `Module not found: @/...` | Run `yarn install` inside the `frontend/` folder. |
 | Backend starts but frontend can't reach it | Check `frontend/.env` contains exactly `REACT_APP_BACKEND_URL=http://localhost:8001` (no quotes, no trailing slash). |
