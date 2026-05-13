@@ -86,19 +86,48 @@ body {
 }
 
 .bg-mesh {
+  position: relative;
+  background-color: #060608;
+}
+
+.bg-mesh::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
   background:
-    radial-gradient(60% 50% at 20% 0%, rgba(52, 211, 153, 0.12) 0%, transparent 60%),
+    radial-gradient(60% 50% at 20% 0%, rgba(52, 211, 153, 0.14) 0%, transparent 60%),
     radial-gradient(40% 40% at 80% 10%, rgba(94, 234, 212, 0.10) 0%, transparent 60%),
-    radial-gradient(50% 60% at 50% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 70%),
-    #060608;
+    radial-gradient(50% 60% at 50% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+}
+
+.bg-mesh > * {
+  position: relative;
+  z-index: 1;
 }
 
 .bg-grid-soft {
+  position: relative;
+}
+
+.bg-grid-soft::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, #000 50%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, #000 50%, transparent 100%);
+}
+
+.bg-grid-soft > * {
+  position: relative;
+  z-index: 1;
 }
 
 .btn-primary-modern {
