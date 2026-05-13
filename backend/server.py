@@ -3,7 +3,7 @@ Gen C dApp Backend
 Decentralized Medical Records (Privacy by Design, RA 10173)
 Hybrid Encryption (AES-256 + simulated CP-ABE) + LPA Merkle Anchoring
 """
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Request, Response, Cookie
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -103,12 +103,12 @@ class SigPayload(BaseModel):
 
 
 class UserRegister(BaseModel):
+    """Self-registration. User signs with their OWN wallet (or session cookie)."""
     actor_address: str
-    actor_signature: str
-    actor_message: str
+    actor_signature: Optional[str] = None
+    actor_message: Optional[str] = None
     role: str  # 'doctor' | 'patient'
     name: str
-    address: str
     department: Optional[str] = None
     did: Optional[str] = None
     extra: Optional[Dict[str, Any]] = None
@@ -149,6 +149,40 @@ class DecryptKeyReq(BaseModel):
     message: str
 
 
+# ---------- Google Auth Session Helper ----------
+SESSION_TTL_DAYS = 7
+
+def derive_user_wallet(google_sub: str) -> Dict[str, str]:
+    """Deterministic Ethereum wallet from Google sub + server seed."""
+    pk_bytes = hashlib.sha256(("genc-user::" + ADMIN_SEED + "::" + google_sub).encode()).digest()
+    acct = Account.from_key(pk_bytes)
+    return {"address": acct.address, "private_key": "0x" + pk_bytes.hex()}
+
+
+async def _session_user(session_token: str) -> Optional[Dict[str, Any]]:
+    if not session_token:
+        return None
+    sess = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
+    if not sess:
+        return None
+    exp = sess.get("expires_at")
+    if isinstance(exp, str):
+        exp = datetime.fromisoformat(exp)
+    if exp and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp and exp < datetime.now(timezone.utc):
+        return None
+    return sess
+
+
+async def _require_session(request: Request) -> Dict[str, Any]:
+    token = request.cookies.get("session_token") or request.headers.get("authorization", "").replace("Bearer ", "").strip()
+    sess = await _session_user(token)
+    if not sess:
+        raise HTTPException(401, "Not authenticated")
+    return sess
+
+
 # ---------- Auth & Users ----------
 @api.get("/")
 async def root():
@@ -183,22 +217,171 @@ async def auth_verify(p: SigPayload):
     return {"address": p.address, "role": user["role"], "profile": user}
 
 
+# ---------- Google Auth Endpoints ----------
+class GoogleSessionReq(BaseModel):
+    session_id: str
+
+
+@api.post("/auth/google/session")
+async def google_session_exchange(body: GoogleSessionReq, response: Response):
+    """Exchange the OAuth session_id for our own session_token cookie."""
+    try:
+        r = requests.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": body.session_id},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        raise HTTPException(401, f"OAuth exchange failed: {e}")
+    email = data.get("email")
+    name = data.get("name") or email
+    picture = data.get("picture")
+    google_sub = data.get("id") or email
+    if not email:
+        raise HTTPException(400, "OAuth response missing email")
+
+    # Derive deterministic wallet for this Google identity
+    wallet = derive_user_wallet(google_sub)
+
+    # Upsert auth_user record
+    existing = await db.auth_users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        await db.auth_users.update_one(
+            {"email": email},
+            {"$set": {
+                "name": name,
+                "picture": picture,
+                "google_sub": google_sub,
+                "wallet_address": wallet["address"],
+                "wallet_private_key": wallet["private_key"],
+                "updated_at": utcnow(),
+            }},
+        )
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.auth_users.insert_one({
+            "user_id": user_id,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "google_sub": google_sub,
+            "wallet_address": wallet["address"],
+            "wallet_private_key": wallet["private_key"],
+            "created_at": utcnow(),
+        })
+
+    session_token = data.get("session_token") or uuid.uuid4().hex
+    expires_at = datetime.now(timezone.utc).replace(microsecond=0)
+    from datetime import timedelta
+    expires_at = expires_at + timedelta(days=SESSION_TTL_DAYS)
+    await db.user_sessions.insert_one({
+        "user_id": user_id,
+        "email": email,
+        "wallet_address": wallet["address"],
+        "session_token": session_token,
+        "expires_at": expires_at,
+        "created_at": datetime.now(timezone.utc),
+    })
+
+    # Cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        max_age=SESSION_TTL_DAYS * 24 * 3600,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+    )
+
+    # Check if there's a registered Gen C profile for this wallet
+    profile = await db.users.find_one({"address_lower": wallet["address"].lower()}, {"_id": 0})
+    role = profile["role"] if profile else "unregistered"
+
+    return {
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "picture": picture,
+        "wallet": wallet,  # Includes private_key for client-side signing
+        "session_token": session_token,
+        "role": role,
+        "profile": profile,
+    }
+
+
+@api.get("/auth/me")
+async def auth_me(request: Request):
+    sess = await _require_session(request)
+    user = await db.auth_users.find_one({"user_id": sess["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    profile = await db.users.find_one({"address_lower": user["wallet_address"].lower()}, {"_id": 0})
+    return {
+        "user_id": user["user_id"],
+        "email": user["email"],
+        "name": user["name"],
+        "picture": user.get("picture"),
+        "wallet": {"address": user["wallet_address"], "private_key": user["wallet_private_key"]},
+        "role": profile["role"] if profile else "unregistered",
+        "profile": profile,
+    }
+
+
+@api.post("/auth/logout")
+async def auth_logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token:
+        await db.user_sessions.delete_one({"session_token": token})
+    response.delete_cookie("session_token", path="/")
+    return {"ok": True}
+
+
 @api.post("/users/register")
-async def users_register(p: UserRegister):
-    if not verify_sig(p.actor_address, p.actor_message, p.actor_signature):
-        raise HTTPException(401, "Invalid actor signature")
-    if addr_norm(p.actor_address) != ADMIN["address"].lower():
-        raise HTTPException(403, "Only admin can register users")
+async def users_register(p: UserRegister, request: Request):
+    """Self-registration. Caller proves ownership of actor_address via
+    EITHER (a) signature over actor_message, OR (b) a valid Google session cookie."""
     if p.role not in ("doctor", "patient"):
         raise HTTPException(400, "role must be doctor or patient")
-    addr = addr_norm(p.address)
+    addr = addr_norm(p.actor_address)
+    if not addr:
+        raise HTTPException(400, "actor_address required")
+
+    # Path A: signature
+    sig_ok = bool(p.actor_signature and p.actor_message and verify_sig(p.actor_address, p.actor_message, p.actor_signature))
+    # Path B: session cookie tied to this address
+    session_ok = False
+    if not sig_ok:
+        token = request.cookies.get("session_token") or request.headers.get("authorization", "").replace("Bearer ", "").strip()
+        if token:
+            sess = await _session_user(token)
+            if sess and addr_norm(sess.get("wallet_address")) == addr:
+                session_ok = True
+    if not (sig_ok or session_ok):
+        raise HTTPException(401, "Must sign with the wallet OR present a valid Google session")
+
     exists = await db.users.find_one({"address_lower": addr})
     if exists:
-        raise HTTPException(409, "Address already registered")
+        # Allow profile updates for the same address (e.g., user finishes onboarding twice)
+        await db.users.update_one(
+            {"address_lower": addr},
+            {"$set": {
+                "role": p.role,
+                "name": p.name,
+                "department": p.department,
+                "did": p.did or exists.get("did"),
+                "updated_at": utcnow(),
+            }},
+        )
+        u = await db.users.find_one({"address_lower": addr}, {"_id": 0})
+        return u
     did = p.did or f"did:genc:{p.role}:{addr[2:10]}"
     doc = {
         "id": str(uuid.uuid4()),
-        "address": p.address,
+        "address": p.actor_address,
         "address_lower": addr,
         "role": p.role,
         "name": p.name,

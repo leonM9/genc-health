@@ -5,8 +5,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        display: ["Unbounded", "sans-serif"],
-        mono: ["'IBM Plex Mono'", "monospace"],
+        display: ["'Plus Jakarta Sans'", "sans-serif"],
+        sans: ["'Plus Jakarta Sans'", "ui-sans-serif", "system-ui"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -21,32 +22,49 @@ module.exports = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        terminal: "#00FF41",
-        amber: "#FFBF00",
-        danger: "#FF3B30",
+        // Modern Web3 palette
+        emerald: {
+          400: "#34d399",
+          500: "#10b981",
+          glow: "rgba(52, 211, 153, 0.4)",
+        },
+        teal: { 300: "#5eead4", 400: "#2dd4bf" },
+        amber: "#fbbf24",
+        rose: "#fb7185",
       },
       borderRadius: {
-        lg: "0",
-        md: "0",
-        sm: "0",
+        lg: "0.875rem",
+        md: "0.625rem",
+        sm: "0.375rem",
+      },
+      backdropBlur: { xs: "2px" },
+      boxShadow: {
+        glow: "0 0 24px rgba(52, 211, 153, 0.25)",
+        "glow-lg": "0 0 60px rgba(52, 211, 153, 0.35)",
+        "card": "0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px -16px rgba(0,0,0,0.6)",
       },
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
-        "grain-shift": {
-          "0%, 100%": { transform: "translate(0,0)" },
-          "50%": { transform: "translate(-2%, 2%)" },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(52,211,153,0.35)" },
+          "50%": { boxShadow: "0 0 0 10px rgba(52,211,153,0)" },
         },
-        "pulse-terminal": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(0,255,65,0.4)" },
-          "50%": { boxShadow: "0 0 0 8px rgba(0,255,65,0)" },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "grain-shift": "grain-shift 8s ease-in-out infinite",
-        "pulse-terminal": "pulse-terminal 2s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 2.2s ease-in-out infinite",
+        "shimmer": "shimmer 2.5s linear infinite",
+        "float": "float 6s ease-in-out infinite",
       },
     },
   },

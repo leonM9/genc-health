@@ -1,5 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;500;600;700;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,100 +7,143 @@
 
 body {
   margin: 0;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #09090b;
+  background: #060608;
   color: #fafafa;
 }
 
 @layer base {
   :root {
-    --background: 240 6% 6%;
+    --background: 240 7% 4%;
     --foreground: 0 0% 98%;
-    --card: 240 6% 8%;
+    --card: 240 6% 7%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 6% 8%;
+    --popover: 240 6% 7%;
     --popover-foreground: 0 0% 98%;
-    --primary: 137 100% 50%;
-    --primary-foreground: 0 0% 4%;
+    --primary: 160 84% 45%;
+    --primary-foreground: 240 10% 4%;
     --secondary: 240 5% 12%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 5% 14%;
+    --muted: 240 5% 12%;
     --muted-foreground: 240 5% 65%;
-    --accent: 240 5% 14%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84% 60%;
+    --accent: 160 84% 45%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 137 100% 50%;
-    --radius: 0px;
+    --border: 240 5% 14%;
+    --input: 240 6% 10%;
+    --ring: 160 84% 50%;
+    --radius: 0.875rem;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  /* Selection */
-  ::selection {
-    background: #00ff41;
-    color: #000;
-  }
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #09090b; }
-  ::-webkit-scrollbar-thumb { background: #27272a; border: 1px solid #18181b; }
-  ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+  ::selection { background: #34d399; color: #06060a; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1f1f24; border-radius: 999px; border: 2px solid #060608; }
+  ::-webkit-scrollbar-thumb:hover { background: #34d399; }
 }
 
-/* Crypto/terminal styles */
+/* === Modern Web3 utilities === */
+.glass {
+  background: rgba(20, 20, 24, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-strong {
+  background: rgba(15, 15, 18, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .crypto-text {
-  font-family: "IBM Plex Mono", monospace;
-  color: #00ff41;
+  font-family: "JetBrains Mono", monospace;
+  color: #5eead4;
+  font-size: 0.7rem;
+  letter-spacing: -0.01em;
   word-break: break-all;
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
 }
 
-.label-eyebrow {
-  font-family: "IBM Plex Mono", monospace;
+.eyebrow {
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.6875rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #71717a;
+  color: #6b7280;
 }
 
 .heading-display {
-  font-family: "Unbounded", sans-serif;
-  letter-spacing: -0.02em;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  letter-spacing: -0.03em;
 }
 
-/* Grid background overlay */
-.grid-bg {
+.bg-mesh {
+  background:
+    radial-gradient(60% 50% at 20% 0%, rgba(52, 211, 153, 0.12) 0%, transparent 60%),
+    radial-gradient(40% 40% at 80% 10%, rgba(94, 234, 212, 0.10) 0%, transparent 60%),
+    radial-gradient(50% 60% at 50% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 70%),
+    #060608;
+}
+
+.bg-grid-soft {
   background-image:
-    linear-gradient(rgba(0, 255, 65, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 65, 0.04) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 60%, transparent 100%);
 }
 
-.scanlines::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.012) 0,
-    rgba(255, 255, 255, 0.012) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+.btn-primary-modern {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  color: #04110b;
+  font-weight: 700;
+  border-radius: 0.625rem;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 8px 24px -10px rgba(52,211,153,0.6);
+}
+.btn-primary-modern:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 14px 28px -10px rgba(52,211,153,0.7);
+}
+.btn-primary-modern:active { transform: translateY(0); }
+.btn-primary-modern:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-ghost-modern {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e4e4e7;
+  border-radius: 0.625rem;
+  transition: all 0.18s ease;
+}
+.btn-ghost-modern:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(94, 234, 212, 0.35);
+  color: #5eead4;
+}
+
+.card-modern {
+  background: linear-gradient(180deg, rgba(24,24,28,0.6) 0%, rgba(14,14,18,0.6) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.stat-card {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(52, 211, 153, 0.08) 0%, transparent 60%),
+    rgba(20, 20, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
 }
 
 @layer base {

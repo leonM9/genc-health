@@ -3,33 +3,58 @@ import { ethers } from "ethers";
 import { api } from "@/lib/api";
 
 const WalletCtx = createContext(null);
-
 const STORAGE = "genc.session";
 const PK_STORAGE = "genc.demo.pk";
 
 export function WalletProvider({ children }) {
-  const [session, setSession] = useState(null); // {address, role, profile, wallet, demo}
+  const [session, setSession] = useState(null);
   const [adminInfo, setAdminInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Boot: try Google session first, then localStorage wallet
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE);
-      if (raw) {
-        const s = JSON.parse(raw);
-        const pk = localStorage.getItem(PK_STORAGE);
-        if (s.demo && pk) {
-          s.wallet = new ethers.Wallet(pk);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Skip /auth/me if we're handling an OAuth callback (hash contains session_id)
+        if (!window.location.hash?.includes("session_id=")) {
+          const r = await api.get("/auth/me").catch(() => null);
+          if (r && r.data && !cancelled) {
+            const w = new ethers.Wallet(r.data.wallet.private_key);
+            const s = {
+              address: r.data.wallet.address,
+              role: r.data.role,
+              profile: r.data.profile,
+              wallet: w,
+              auth: "google",
+              email: r.data.email,
+              name: r.data.name,
+              picture: r.data.picture,
+              demo: false,
+            };
+            setSession(s);
+            setLoading(false);
+            api.get("/admin/info").then((x) => !cancelled && setAdminInfo(x.data)).catch(() => {});
+            return;
+          }
         }
-        setSession(s);
+        // Wallet-based session restore
+        const raw = localStorage.getItem(STORAGE);
+        if (raw) {
+          const s = JSON.parse(raw);
+          const pk = localStorage.getItem(PK_STORAGE);
+          if (s.demo && pk) s.wallet = new ethers.Wallet(pk);
+          if (!cancelled) setSession(s);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+        api.get("/admin/info").then((r) => !cancelled && setAdminInfo(r.data)).catch(() => {});
       }
-    } catch (e) {
-      console.warn("session restore failed", e);
-    }
-    api.get("/admin/info").then((r) => setAdminInfo(r.data)).catch(() => {});
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  const persist = (s) => {
+  const persistLocal = (s) => {
     const clean = { ...s };
     delete clean.wallet;
     localStorage.setItem(STORAGE, JSON.stringify(clean));
@@ -37,13 +62,13 @@ export function WalletProvider({ children }) {
 
   const signMessage = useCallback(async (message) => {
     if (!session) throw new Error("No session");
-    if (session.demo) {
-      return await session.wallet.signMessage(message);
+    if (session.wallet) return await session.wallet.signMessage(message);
+    if (!session.demo && window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      return await signer.signMessage(message);
     }
-    // MetaMask path
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return await signer.signMessage(message);
+    throw new Error("No signing capability");
   }, [session]);
 
   const buildSig = useCallback(async (purpose) => {
@@ -59,14 +84,12 @@ export function WalletProvider({ children }) {
       const message = `Sign-In with Ethereum :: Gen C :: ${new Date().toISOString()}`;
       const signature = await wallet.signMessage(message);
       const r = await api.post("/auth/verify", { address: wallet.address, message, signature });
-      const s = { ...r.data, demo: true, wallet };
+      const s = { ...r.data, demo: true, wallet, auth: "demo" };
       localStorage.setItem(PK_STORAGE, wallet.privateKey);
-      persist(s);
+      persistLocal(s);
       setSession(s);
       return s;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const loginAsAdmin = async () => {
@@ -77,14 +100,12 @@ export function WalletProvider({ children }) {
       const message = `Sign-In with Ethereum :: Gen C :: ${new Date().toISOString()}`;
       const signature = await wallet.signMessage(message);
       const r = await api.post("/auth/verify", { address: wallet.address, message, signature });
-      const s = { ...r.data, demo: true, wallet };
+      const s = { ...r.data, demo: true, wallet, auth: "admin" };
       localStorage.setItem(PK_STORAGE, wallet.privateKey);
-      persist(s);
+      persistLocal(s);
       setSession(s);
       return s;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const loginWithPrivateKey = async (pk) => {
@@ -94,14 +115,12 @@ export function WalletProvider({ children }) {
       const message = `Sign-In with Ethereum :: Gen C :: ${new Date().toISOString()}`;
       const signature = await wallet.signMessage(message);
       const r = await api.post("/auth/verify", { address: wallet.address, message, signature });
-      const s = { ...r.data, demo: true, wallet };
+      const s = { ...r.data, demo: true, wallet, auth: "demo" };
       localStorage.setItem(PK_STORAGE, wallet.privateKey);
-      persist(s);
+      persistLocal(s);
       setSession(s);
       return s;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const loginMetaMask = async () => {
@@ -115,16 +134,39 @@ export function WalletProvider({ children }) {
       const message = `Sign-In with Ethereum :: Gen C :: ${new Date().toISOString()}`;
       const signature = await signer.signMessage(message);
       const r = await api.post("/auth/verify", { address, message, signature });
-      const s = { ...r.data, demo: false };
-      persist(s);
+      const s = { ...r.data, demo: false, auth: "metamask" };
+      persistLocal(s);
       setSession(s);
       return s;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const logout = () => {
+  // Called by AuthCallback after Google OAuth completes
+  const exchangeGoogleSession = async (sessionId) => {
+    setLoading(true);
+    try {
+      const r = await api.post("/auth/google/session", { session_id: sessionId });
+      const wallet = new ethers.Wallet(r.data.wallet.private_key);
+      const s = {
+        address: r.data.wallet.address,
+        role: r.data.role,
+        profile: r.data.profile,
+        wallet,
+        auth: "google",
+        email: r.data.email,
+        name: r.data.name,
+        picture: r.data.picture,
+        demo: false,
+      };
+      setSession(s);
+      return s;
+    } finally { setLoading(false); }
+  };
+
+  const logout = async () => {
+    try {
+      if (session?.auth === "google") await api.post("/auth/logout");
+    } catch {}
     localStorage.removeItem(STORAGE);
     localStorage.removeItem(PK_STORAGE);
     setSession(null);
@@ -135,20 +177,23 @@ export function WalletProvider({ children }) {
     const r = await api.get(`/users/${session.address}`).catch(() => null);
     if (r) {
       const updated = { ...session, profile: r.data, role: r.data.role || session.role };
-      persist(updated);
+      if (session.auth !== "google") persistLocal(updated);
       setSession(updated);
     }
   };
 
   return (
     <WalletCtx.Provider
-      value={{ session, adminInfo, loading, loginDemo, loginAsAdmin, loginWithPrivateKey, loginMetaMask, logout, signMessage, buildSig, refresh }}
+      value={{
+        session, adminInfo, loading,
+        loginDemo, loginAsAdmin, loginWithPrivateKey, loginMetaMask,
+        exchangeGoogleSession,
+        logout, signMessage, buildSig, refresh,
+      }}
     >
       {children}
     </WalletCtx.Provider>
   );
 }
 
-export function useWallet() {
-  return useContext(WalletCtx);
-}
+export function useWallet() { return useContext(WalletCtx); }

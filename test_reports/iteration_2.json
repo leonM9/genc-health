@@ -1,0 +1,33 @@
+{
+  "summary": "Backend regression after self-registration + Google auth refactor. Rewrote pytest suite (25 tests) — covers root, admin info, auth/verify (admin/unregistered/invalid sig), Google session error path, /auth/me cookie gate, /auth/logout, self-registration (sig path, mismatch rejection, bad-role rejection, idempotent update, missing-auth 401), Pinata real upload, records create + role gating, decrypt-key policy + grants, access request/respond/granted, LPA pending/preview/anchor/stats. All 25 tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/google/session, /api/ipfs/upload, /api/ipfs/gateway/{cid}", "issue": "Uses synchronous `requests` library inside async FastAPI handlers — blocks the event loop under load. Migrate to httpx.AsyncClient or run in a threadpool."},
+      {"endpoint": "/api/access/request", "issue": "Accepts any doctor_address without signature verification — a malicious actor could spam pending requests in a patient's inbox. Approval is still safe (sig-gated), but the inbox vector is open."},
+      {"endpoint": "server.py", "issue": "File is 834 lines (>700 guideline). Consider splitting into routers/auth.py, routers/records.py, routers/lpa.py."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_genc_backend.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional: add signature verification on POST /api/access/request to prevent inbox spam.",
+    "Optional: switch Pinata + Google OAuth exchange calls from `requests` to `httpx.AsyncClient` to avoid blocking the event loop.",
+    "Optional refactor: split server.py (834 lines) into modular routers."
+  ],
+  "critical_code_review_comments": [
+    "POST /api/access/request lacks signature verification — any caller can create pending requests for any doctor against any patient.",
+    "Synchronous `requests` calls inside async endpoints (google_session_exchange, ipfs_upload, ipfs_gateway) block the event loop.",
+    "server.py is 834 lines; should be split into routers per domain.",
+    "evaluate_policy() builds tokens twice (unused `tokens` regex on line 593) — dead code; remove.",
+    "Cookie set with samesite=none + secure=true is correct for cross-site preview, but requires HTTPS — confirmed via REACT_APP_BACKEND_URL."
+  ],
+  "updated_files": ["/app/backend/tests/test_genc_backend.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Admin: 0x12606Fa5e40FAd4D99D59Ee967aF4c418b6E5D8B / 0xb61123baee2bb96625cfeabf70835eff22b81427cd030ec78e804d03d2dc7759 (deterministic from ADMIN_SEED). Test doctor/patient wallets are derived per-run with a uuid suffix.",
+  "seed_data_creation": "Per-run unique TEST_doctor/TEST_patient/TEST_other_doc wallets are self-registered. Records, access grants, and LPA anchors are created during tests. Old TEST_* data persists in MongoDB across runs (no teardown) — acceptable for demo DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All backend endpoints are healthy (25/25 pytest). The registration model changed: use `actor_address`, `actor_message`, `actor_signature` (NO `address` field). Idempotent — re-POSTing same actor_address updates profile (no 409). Google session can only be tested for error path (401 on invalid session_id); end-to-end /auth/me + /auth/logout with a real session cannot be tested without a real Google OAuth handshake. Use `test_genc_backend.py` as regression baseline.",
+  "rca of the issue": "N/A — no failures."
+}

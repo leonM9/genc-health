@@ -6,4 +6,5 @@ export const API = `${BACKEND_URL}/api`;
 export const api = axios.create({
   baseURL: API,
   timeout: 60000,
+  withCredentials: true,
 });

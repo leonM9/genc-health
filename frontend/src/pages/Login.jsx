@@ -5,176 +5,206 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Wallet, Lightning, ShieldCheck, Cube, Fingerprint, Lock } from "@phosphor-icons/react";
+import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight } from "@phosphor-icons/react";
 
 export default function Login() {
   const { loginDemo, loginAsAdmin, loginMetaMask, loginWithPrivateKey, adminInfo, session } = useWallet();
   const [pk, setPk] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const nav = useNavigate();
 
-  if (session) {
-    nav("/dashboard");
-  }
+  if (session) nav("/dashboard");
 
-  const handle = async (fn) => {
+  const handle = async (fn, label) => {
     setBusy(true);
     try {
       const s = await fn();
-      toast.success(`Authenticated as ${s.role.toUpperCase()}`, {
-        description: s.role === "unregistered" ? "Wallet not registered. Ask admin to register you." : s.address,
-      });
-      setTimeout(() => nav("/dashboard"), 400);
+      toast.success(`Authenticated`, { description: s.role === "unregistered" ? "Complete your profile" : `Welcome, ${s.role}` });
+      setTimeout(() => nav(s.role === "unregistered" ? "/onboarding" : "/dashboard"), 300);
     } catch (e) {
-      toast.error("Sign-in failed", { description: e.message });
-    } finally {
-      setBusy(false);
-    }
+      toast.error(`${label} failed`, { description: e.message });
+    } finally { setBusy(false); }
+  };
+
+  const loginGoogle = () => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    const redirectUrl = window.location.origin + "/dashboard";
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 grid-bg relative overflow-hidden">
-      {/* Hero background image */}
-      <div
-        className="absolute inset-0 opacity-15 pointer-events-none"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1746470427586-66ed7b83a502?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBncmVlbiUyMG5lb24lMjBncmlkJTIwbWF0cml4JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3Nzg2NjgxNjl8MA&ixlib=rb-4.1.0&q=85')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#09090b]/40 to-[#09090b]" />
+    <div className="min-h-screen bg-mesh relative overflow-hidden">
+      <div className="absolute inset-0 bg-grid-soft pointer-events-none" />
+      {/* Floating orbs */}
+      <div className="absolute -top-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-emerald-500/15 blur-3xl pointer-events-none animate-float" />
+      <div className="absolute -bottom-32 -left-32 w-[24rem] h-[24rem] rounded-full bg-teal-400/10 blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
 
-      <div className="relative z-10 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 py-10 lg:py-16">
-        {/* Top bar */}
-        <div className="flex justify-between items-center mb-16">
+      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 py-8 lg:py-12 min-h-screen flex flex-col">
+        {/* Topbar */}
+        <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 border border-terminal/60 flex items-center justify-center">
-              <ShieldCheck size={22} weight="bold" className="text-terminal" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center shadow-glow">
+              <ShieldCheck size={20} weight="bold" className="text-zinc-950" />
             </div>
-            <div className="leading-none">
-              <div className="font-display font-bold text-2xl tracking-tighter">GEN_C</div>
-              <div className="label-eyebrow mt-1">v0.1 // prototype</div>
+            <div className="leading-tight">
+              <div className="font-display font-bold text-xl tracking-tight">Gen C</div>
+              <div className="eyebrow mt-0.5">v0.2 // privacy protocol</div>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 label-eyebrow">
-            <span className="w-2 h-2 bg-terminal animate-pulse-terminal rounded-full" />
-            <span>network online</span>
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-zinc-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-glow" />
+            network live
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
-          {/* Left: narrative */}
+        {/* Hero */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20 items-center py-12 lg:py-20">
           <motion.div
             className="lg:col-span-7"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="label-eyebrow mb-4">decentralized medical records // ra 10173 compliant</div>
-            <h1 className="heading-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.95] tracking-tighter">
-              your<br />
-              health,<br />
-              <span className="text-terminal">your keys.</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="eyebrow !text-zinc-300">RA 10173 // privacy by design</span>
+            </div>
+
+            <h1 className="heading-display text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold leading-[0.95]">
+              Your health,<br />
+              encrypted under{" "}
+              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+                your keys
+              </span>.
             </h1>
-            <p className="mt-8 max-w-xl text-zinc-400 leading-relaxed">
-              Hybrid AES-256 + CP-ABE encryption. Layered Proof Aggregation
-              anchors hashes to a private Hyperledger Besu chain. No plaintext
-              ever touches the ledger or the database.
+            <p className="mt-7 max-w-xl text-zinc-400 text-base sm:text-lg leading-relaxed">
+              A decentralized medical-record protocol that anchors hashes to a private Hyperledger Besu chain via Layered Proof Aggregation. No plaintext ever touches the database, ledger, or middleware.
             </p>
 
-            <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-px bg-zinc-800 border border-zinc-800 max-w-xl">
+            <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl">
               {[
-                { icon: Lock, label: "AES-256-GCM", k: "PAYLOAD" },
-                { icon: Fingerprint, label: "CP-ABE", k: "POLICY" },
-                { icon: Cube, label: "IPFS / Pinata", k: "STORAGE" },
-                { icon: ShieldCheck, label: "Merkle Anchor", k: "LEDGER" },
+                { icon: Lock, k: "Payload", v: "AES-256-GCM" },
+                { icon: Fingerprint, k: "Policy", v: "CP-ABE" },
+                { icon: Cube, k: "Storage", v: "IPFS / Pinata" },
+                { icon: ShieldCheck, k: "Ledger", v: "Merkle Anchor" },
               ].map((it) => (
-                <div key={it.k} className="bg-[#09090b] p-4">
-                  <it.icon size={18} weight="bold" className="text-terminal mb-2" />
-                  <div className="label-eyebrow">{it.k}</div>
-                  <div className="text-xs font-mono mt-1 text-zinc-200">{it.label}</div>
+                <div key={it.k} className="card-modern p-4">
+                  <it.icon size={20} weight="duotone" className="text-emerald-400 mb-3" />
+                  <div className="eyebrow text-[10px]">{it.k}</div>
+                  <div className="text-sm font-mono mt-1 text-zinc-100">{it.v}</div>
                 </div>
               ))}
             </div>
           </motion.div>
 
-          {/* Right: sign-in */}
+          {/* Right card */}
           <motion.div
             className="lg:col-span-5"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
           >
-            <div className="border border-zinc-800 bg-[#0c0c0e]/95 backdrop-blur p-6 sm:p-8">
-              <div className="label-eyebrow mb-2">step 01</div>
-              <div className="heading-display text-2xl font-semibold mb-1">Sign-In with Ethereum</div>
-              <div className="text-xs text-zinc-500 mb-6 font-mono">No password. Just a wallet signature.</div>
+            <div className="glass-strong rounded-3xl p-7 sm:p-9 shadow-card">
+              <div className="eyebrow mb-2">step 01 // identity</div>
+              <h2 className="heading-display text-3xl font-bold mb-1.5">Sign in</h2>
+              <p className="text-sm text-zinc-400 mb-7">No passwords. Wallet signature or Google.</p>
 
               <div className="space-y-3">
-                <Button
+                <button
+                  data-testid="login-google-btn"
+                  onClick={loginGoogle}
+                  disabled={busy}
+                  className="w-full h-12 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold tracking-tight"
+                >
+                  <GoogleLogo size={20} weight="bold" />
+                  Continue with Google
+                  <ArrowRight size={16} weight="bold" className="opacity-80" />
+                </button>
+
+                <button
                   data-testid="login-metamask-btn"
-                  onClick={() => handle(loginMetaMask)}
+                  onClick={() => handle(loginMetaMask, "MetaMask")}
                   disabled={busy}
-                  className="w-full rounded-none bg-terminal text-black font-mono font-bold uppercase tracking-widest text-sm hover:bg-[#00cc33] h-12"
+                  className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
                 >
-                  <Wallet size={18} weight="bold" className="mr-2" />
+                  <Wallet size={20} weight="duotone" className="text-emerald-400" />
                   Connect MetaMask
-                </Button>
-                <Button
+                </button>
+
+                <button
                   data-testid="login-demo-btn"
-                  onClick={() => handle(loginDemo)}
+                  onClick={() => handle(loginDemo, "Demo wallet")}
                   disabled={busy}
-                  variant="outline"
-                  className="w-full rounded-none border-zinc-700 text-zinc-200 font-mono uppercase tracking-widest text-sm hover:bg-zinc-900 hover:text-terminal h-12"
+                  className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
                 >
-                  <Lightning size={18} weight="bold" className="mr-2" />
+                  <Lightning size={20} weight="duotone" className="text-teal-300" />
                   Create Demo Wallet
-                </Button>
-                <Button
-                  data-testid="login-admin-btn"
-                  onClick={() => handle(loginAsAdmin)}
-                  disabled={busy || !adminInfo}
-                  variant="outline"
-                  className="w-full rounded-none border-amber/40 text-amber font-mono uppercase tracking-widest text-sm hover:bg-amber/10 h-12"
-                >
-                  <ShieldCheck size={18} weight="bold" className="mr-2" />
-                  Sign-in as Admin
-                </Button>
+                </button>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-zinc-800">
-                <div className="label-eyebrow mb-2">import existing</div>
-                <div className="flex gap-2">
-                  <Input
-                    data-testid="login-pk-input"
-                    placeholder="0x... private key"
-                    value={pk}
-                    onChange={(e) => setPk(e.target.value)}
-                    className="rounded-none bg-[#09090b] border-zinc-800 font-mono text-xs"
-                  />
-                  <Button
-                    data-testid="login-pk-btn"
-                    onClick={() => handle(() => loginWithPrivateKey(pk))}
-                    disabled={busy || !pk}
-                    className="rounded-none bg-zinc-800 hover:bg-zinc-700 text-white font-mono uppercase text-xs"
+              <div className="my-6 flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/5" />
+                <span className="eyebrow">or</span>
+                <div className="flex-1 h-px bg-white/5" />
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  data-testid="login-admin-btn"
+                  onClick={() => handle(loginAsAdmin, "Admin")}
+                  disabled={busy || !adminInfo}
+                  className="w-full h-11 rounded-lg border border-amber/30 bg-amber/5 text-amber font-semibold text-sm hover:bg-amber/10 transition flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck size={16} weight="bold" />
+                  Sign-in as Admin
+                </button>
+
+                {!showImport ? (
+                  <button
+                    onClick={() => setShowImport(true)}
+                    data-testid="show-import-btn"
+                    className="w-full text-xs font-mono text-zinc-500 hover:text-emerald-400 transition py-2"
                   >
-                    sign
-                  </Button>
-                </div>
+                    + import existing private key
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      data-testid="login-pk-input"
+                      placeholder="0x…"
+                      value={pk}
+                      onChange={(e) => setPk(e.target.value)}
+                      className="rounded-lg bg-zinc-900/60 border-white/5 font-mono text-xs h-11"
+                    />
+                    <Button
+                      data-testid="login-pk-btn"
+                      onClick={() => handle(() => loginWithPrivateKey(pk), "Import")}
+                      disabled={busy || !pk}
+                      className="rounded-lg btn-primary-modern h-11 px-5 text-xs"
+                    >
+                      Sign
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {adminInfo && (
-                <div className="mt-6 pt-6 border-t border-zinc-800">
-                  <div className="label-eyebrow mb-2 text-amber">admin wallet :: thesis demo only</div>
-                  <div className="crypto-text text-[10px] break-all" data-testid="admin-address-display">
+                <div className="mt-7 pt-6 border-t border-white/5">
+                  <div className="eyebrow mb-2 text-amber">admin wallet // thesis demo</div>
+                  <div className="crypto-text text-[10px]" data-testid="admin-address-display">
                     {adminInfo.address}
                   </div>
                 </div>
               )}
             </div>
           </motion.div>
+        </div>
+
+        {/* Footer strip */}
+        <div className="border-t border-white/5 pt-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-zinc-500 font-mono">
+          <div>Gen C // decentralized medical records protocol</div>
+          <div>Hyperledger Besu (sim) · IPFS · QBFT · LPA Merkle Anchoring</div>
         </div>
       </div>
     </div>
