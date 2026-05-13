@@ -2,26 +2,43 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { useWallet } from "@/lib/walletContext";
 import { Hash, StatusBadge } from "@/components/CryptoString";
 import { aesDecryptBlob, importKeyB64, shortAddr } from "@/lib/crypto";
 import { toast } from "sonner";
-import { Download, FileLock, BellRinging, X, Check, FolderLock } from "@phosphor-icons/react";
+import { motion } from "framer-motion";
+import { Download, FileLock, BellRinging, X, Check, FolderLock, UploadSimple, PaperPlaneTilt } from "@phosphor-icons/react";
 
 export default function PatientDashboard() {
   const { session, buildSig } = useWallet();
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [uploadReqs, setUploadReqs] = useState([]);
   const [decrypting, setDecrypting] = useState(null);
 
+  // form
+  const [doctorAddr, setDoctorAddr] = useState("");
+  const [title, setTitle] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   const load = async () => {
-    const [r, q] = await Promise.all([
+    const [r, q, u, ur] = await Promise.all([
       api.get(`/records/patient/${session.address}`),
       api.get(`/access/by-patient/${session.address}`),
+      api.get(`/users`),
+      api.get(`/upload-requests/patient/${session.address}`),
     ]);
     setRecords(r.data);
     setRequests(q.data);
+    setDoctors(u.data.filter((x) => x.role === "doctor"));
+    setUploadReqs(ur.data);
   };
   useEffect(() => { load(); }, []);
 
@@ -56,8 +73,30 @@ export default function PatientDashboard() {
     } finally { setDecrypting(null); }
   };
 
-  const pendingReq = requests.filter((r) => r.status === "pending");
-  const otherReq = requests.filter((r) => r.status !== "pending");
+  const submitUploadRequest = async () => {
+    if (!doctorAddr) return toast.error("Pick a doctor");
+    if (!title.trim()) return toast.error("Enter a title");
+    setSubmitting(true);
+    try {
+      const { message, signature } = await buildSig("upload-request");
+      await api.post("/upload-requests", {
+        patient_address: session.address,
+        patient_signature: signature,
+        patient_message: message,
+        doctor_address: doctorAddr,
+        title,
+        reason,
+      });
+      toast.success("Upload request sent", { description: "The doctor will be notified" });
+      setTitle(""); setReason(""); setDoctorAddr("");
+      load();
+    } catch (e) {
+      toast.error("Request failed", { description: e?.response?.data?.detail || e.message });
+    } finally { setSubmitting(false); }
+  };
+
+  const pendingAccess = requests.filter((r) => r.status === "pending");
+  const otherAccess = requests.filter((r) => r.status !== "pending");
 
   return (
     <Layout
@@ -70,19 +109,20 @@ export default function PatientDashboard() {
           <div className="eyebrow mb-2">your wallet</div>
           <Hash value={session.address} testId="patient-wallet" />
         </div>
-        {pendingReq.length > 0 && (
+        {pendingAccess.length > 0 && (
           <div className="flex items-center gap-2 text-amber font-mono text-sm">
             <BellRinging size={18} weight="fill" className="animate-pulse" />
-            {pendingReq.length} pending access request{pendingReq.length > 1 ? "s" : ""}
+            {pendingAccess.length} pending access request{pendingAccess.length > 1 ? "s" : ""}
           </div>
         )}
       </div>
 
       <Tabs defaultValue="records">
-        <TabsList className="bg-zinc-900/60 border border-white/5 rounded-xl p-1 mb-6">
+        <TabsList className="bg-zinc-900/60 border border-white/5 rounded-xl p-1 mb-6 flex-wrap">
           {[
             { v: "records", l: "Records", i: FolderLock },
-            { v: "requests", l: `Access (${pendingReq.length})`, i: BellRinging },
+            { v: "access", l: `Access (${pendingAccess.length})`, i: BellRinging },
+            { v: "upload", l: "Request Upload", i: UploadSimple },
           ].map((t) => (
             <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`}
               className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
@@ -108,7 +148,7 @@ export default function PatientDashboard() {
                 {records.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="py-16 text-center text-zinc-500 font-mono">
                     <FileLock size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
-                    No records yet. A doctor must upload them.
+                    No records yet. Use "Request Upload" to ask a doctor to add one.
                   </TableCell></TableRow>
                 )}
                 {records.map((r) => (
@@ -139,11 +179,11 @@ export default function PatientDashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="requests" className="space-y-4">
-          {pendingReq.length === 0 && otherReq.length === 0 && (
+        <TabsContent value="access" className="space-y-4">
+          {pendingAccess.length === 0 && otherAccess.length === 0 && (
             <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm">No access requests</div>
           )}
-          {pendingReq.map((req) => (
+          {pendingAccess.map((req) => (
             <div key={req.id} className="card-modern p-5 border-amber/30" data-testid={`req-${req.id}`}>
               <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -154,30 +194,20 @@ export default function PatientDashboard() {
                   <div className="text-[10px] text-zinc-500 mt-2 font-mono">{new Date(req.created_at).toLocaleString()}</div>
                 </div>
                 <div className="flex gap-2 sm:flex-col">
-                  <button
-                    onClick={() => respond(req, true)}
-                    data-testid={`approve-${req.id}-btn`}
-                    className="btn-primary-modern h-10 px-5 text-xs flex items-center gap-2"
-                  >
-                    <Check size={14} weight="bold" />Approve & Sign
-                  </button>
-                  <button
-                    onClick={() => respond(req, false)}
-                    data-testid={`deny-${req.id}-btn`}
-                    className="h-10 px-5 rounded-lg border border-rose/30 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/10 flex items-center gap-2"
-                  >
-                    <X size={14} weight="bold" />Deny
-                  </button>
+                  <button onClick={() => respond(req, true)} data-testid={`approve-${req.id}-btn`}
+                    className="btn-primary-modern h-10 px-5 text-xs flex items-center gap-2"><Check size={14} weight="bold" />Approve & Sign</button>
+                  <button onClick={() => respond(req, false)} data-testid={`deny-${req.id}-btn`}
+                    className="h-10 px-5 rounded-lg border border-rose/30 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/10 flex items-center gap-2"><X size={14} weight="bold" />Deny</button>
                 </div>
               </div>
             </div>
           ))}
-          {otherReq.length > 0 && (
+          {otherAccess.length > 0 && (
             <div className="card-modern overflow-hidden">
               <div className="eyebrow p-4 border-b border-white/5">history</div>
               <Table>
                 <TableBody>
-                  {otherReq.map((req) => (
+                  {otherAccess.map((req) => (
                     <TableRow key={req.id} className="border-white/5">
                       <TableCell><StatusBadge status={req.status} /></TableCell>
                       <TableCell><Hash value={req.doctor_address} testId={`hist-${req.id}`} /></TableCell>
@@ -188,6 +218,87 @@ export default function PatientDashboard() {
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="upload">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="card-modern p-6 lg:col-span-2">
+              <div className="eyebrow mb-1">step 01 // request</div>
+              <h3 className="heading-display text-xl font-bold mb-4">Ask a Doctor to Upload</h3>
+              <p className="text-zinc-400 text-sm mb-5">Send a signed request. The doctor receives it in their inbox and uploads the encrypted record on your behalf.</p>
+
+              <div className="space-y-4">
+                <div>
+                  <Label className="eyebrow">choose a doctor</Label>
+                  <Select value={doctorAddr} onValueChange={setDoctorAddr}>
+                    <SelectTrigger data-testid="ur-doctor-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                      <SelectValue placeholder="select a doctor" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                      {doctors.length === 0 && <SelectItem disabled value="none">No doctors registered yet</SelectItem>}
+                      {doctors.map((d) => (
+                        <SelectItem key={d.address} value={d.address}>
+                          {d.name} · {d.department} {d.hospital ? `· ${d.hospital}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="eyebrow">title</Label>
+                  <Input data-testid="ur-title-input" value={title} onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Lab results from last week"
+                    className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5" />
+                </div>
+
+                <div>
+                  <Label className="eyebrow">message</Label>
+                  <Textarea data-testid="ur-reason-input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+                    placeholder="Any notes for the doctor…"
+                    className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5" />
+                </div>
+
+                <button onClick={submitUploadRequest} disabled={submitting}
+                  data-testid="ur-submit-btn"
+                  className="btn-primary-modern w-full h-12 flex items-center justify-center gap-2 text-sm font-semibold">
+                  <PaperPlaneTilt size={16} weight="bold" />
+                  {submitting ? "signing & sending…" : "Sign & Send Request"}
+                </button>
+              </div>
+            </div>
+
+            <div className="card-modern p-6 lg:col-span-3">
+              <div className="eyebrow mb-1">step 02 // status</div>
+              <h3 className="heading-display text-xl font-bold mb-4">Your Upload Requests</h3>
+              <div className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/5 hover:bg-transparent">
+                      <TableHead className="eyebrow">When</TableHead>
+                      <TableHead className="eyebrow">Doctor</TableHead>
+                      <TableHead className="eyebrow">Title</TableHead>
+                      <TableHead className="eyebrow">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {uploadReqs.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-zinc-500 font-mono py-12">No upload requests yet</TableCell></TableRow>}
+                    {uploadReqs.map((u) => (
+                      <TableRow key={u.id} className="border-white/5" data-testid={`ur-row-${u.id}`}>
+                        <TableCell className="font-mono text-xs text-zinc-400">{new Date(u.created_at).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm">{u.doctor_name}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">{u.doctor_department}{u.doctor_hospital && ` · ${u.doctor_hospital}`}</div>
+                        </TableCell>
+                        <TableCell className="font-medium">{u.title}</TableCell>
+                        <TableCell><StatusBadge status={u.status === "fulfilled" ? "anchored" : u.status} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </Layout>

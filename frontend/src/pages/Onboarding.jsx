@@ -16,6 +16,7 @@ export default function Onboarding() {
   const [role, setRole] = useState(null);
   const [name, setName] = useState(session?.name || "");
   const [department, setDepartment] = useState("");
+  const [hospital, setHospital] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!session) {
@@ -37,6 +38,7 @@ export default function Onboarding() {
         role,
         name,
         department: role === "doctor" ? department || "General Medicine" : null,
+        hospital: role === "doctor" ? hospital || null : null,
       };
       // For wallet sessions, sign. For google sessions, cookie auth is used.
       if (session.auth !== "google") {
@@ -125,6 +127,24 @@ export default function Onboarding() {
                   placeholder="Cardiology, Pediatrics…"
                 />
               </div>
+            )}
+          </div>
+
+          <button
+            onClick={submit}
+            disabled={busy || !role || !name}
+            data-testid="onb-submit-btn"
+            className="mt-8 h-12 px-7 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold"
+          >
+            {busy ? "Creating identity…" : "Create my DID"}
+            <ArrowRight size={16} weight="bold" />
+          </button>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+           </>
             )}
           </div>
 

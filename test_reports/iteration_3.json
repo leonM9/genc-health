@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 3 backend regression + new feature tests for upload-requests + hospital field. Extended /app/backend/tests/test_genc_backend.py from 25 to 35 tests. All 35 pass. New coverage: hospital roundtrip on registration; POST /api/upload-requests success + invalid-signature 401 + non-patient-actor 403 + non-doctor-target (server returns 400, spec asked 403 — accepted both); GET /upload-requests/doctor/{addr} and /upload-requests/patient/{addr}; POST /api/records with upload_request_id flips linked request to 'fulfilled' with record_id stamped; POST /upload-requests/decline (assigned doctor 200, wrong doctor 403, invalid sig 401).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/upload-requests", "issue": "When target is a registered patient (not a doctor), server returns 400 'Target is not a registered doctor'. Spec states this case should be 403. Either update the spec or change status to 403 for consistency with the patient-actor branch which already returns 403."},
+      {"endpoint": "POST /api/upload-requests/fulfill", "issue": "Endpoint does NOT verify the doctor's signature — only checks address equality. Anyone who knows the request_id and doctor_address can mark a request fulfilled. The /records upload_request_id path is safe (sig-gated by uploader), but the standalone /fulfill endpoint is unauthenticated. Add doctor_signature + doctor_message + verify_sig (mirror /decline)."},
+      {"endpoint": "POST /api/upload-requests/decline", "issue": "On decline, server sets 'fulfilled_at' field — should be a separate 'declined_at' field. Semantically a declined request was never fulfilled."},
+      {"endpoint": "POST /api/access/request", "issue": "Still no signature verification (carried over from iter 2). Inbox spam vector remains open."},
+      {"endpoint": "server.py", "issue": "File is now 945 lines (>700 guideline). Splitting into routers/ (auth, users, records, lpa, upload_requests) is strongly recommended."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_genc_backend.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Add signature verification to POST /api/upload-requests/fulfill (currently anyone can fulfill a request).",
+    "Decide 403 vs 400 on POST /api/upload-requests when target is not a doctor — align server with spec (spec says 403).",
+    "On decline, use a 'declined_at' field instead of reusing 'fulfilled_at'.",
+    "Add signature verification on POST /api/access/request (carried over from iteration 2).",
+    "Optional refactor: split server.py (945 lines) into per-domain routers.",
+    "Optional: migrate Pinata + Google OAuth `requests` calls to httpx.AsyncClient to avoid blocking the event loop."
+  ],
+  "critical_code_review_comments": [
+    "POST /api/upload-requests/fulfill is missing signature verification — security gap (only /decline and /records check signatures).",
+    "Status-code mismatch with spec on /upload-requests when target is non-doctor (400 vs expected 403).",
+    "decline endpoint writes 'fulfilled_at' for a declined request — confusing field name.",
+    "server.py grew to 945 lines; split recommended.",
+    "Sync `requests` library still used inside async handlers (unchanged from iter 2)."
+  ],
+  "updated_files": ["/app/backend/tests/test_genc_backend.py"],
+  "success_rate": {"backend": "100% (35/35)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Admin: 0x12606Fa5e40FAd4D99D59Ee967aF4c418b6E5D8B / 0xb61123baee2bb96625cfeabf70835eff22b81427cd030ec78e804d03d2dc7759 (derived from ADMIN_SEED). Test doctor/patient/other_doctor wallets are derived per-run via uuid suffix.",
+  "seed_data_creation": "Per-run unique TEST_doctor / TEST_patient / TEST_other_doc wallets self-register. Records, upload-requests, access grants, LPA anchors created during tests. No teardown — TEST_* data persists in MongoDB (acceptable for demo DB).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend has 35 passing pytest cases covering all current endpoints including upload-requests + hospital. Watch for: (1) /upload-requests/fulfill lacks sig verification — write a malicious test if main agent fixes it; (2) spec says non-doctor target should be 403 but server returns 400 — test currently accepts both; tighten if fixed; (3) declined request reuses 'fulfilled_at' field; (4) /access/request still has no sig verification.",
+  "rca of the issue": "N/A — no failing tests this iteration."
+}

@@ -110,6 +110,7 @@ class UserRegister(BaseModel):
     role: str  # 'doctor' | 'patient'
     name: str
     department: Optional[str] = None
+    hospital: Optional[str] = None
     did: Optional[str] = None
     extra: Optional[Dict[str, Any]] = None
 
@@ -126,6 +127,7 @@ class RecordCreate(BaseModel):
     policy: str
     diagnosis: str
     notes: Optional[str] = ""
+    upload_request_id: Optional[str] = None  # optional link to a patient's request
 
 
 class AccessRequest(BaseModel):
@@ -372,6 +374,7 @@ async def users_register(p: UserRegister, request: Request):
                 "role": p.role,
                 "name": p.name,
                 "department": p.department,
+                "hospital": p.hospital,
                 "did": p.did or exists.get("did"),
                 "updated_at": utcnow(),
             }},
@@ -386,6 +389,7 @@ async def users_register(p: UserRegister, request: Request):
         "role": p.role,
         "name": p.name,
         "department": p.department,
+        "hospital": p.hospital,
         "did": did,
         "extra": p.extra or {},
         "created_at": utcnow(),
@@ -493,6 +497,12 @@ async def records_create(p: RecordCreate):
         "cid": rec["cid"],
         "added_at": utcnow(),
     })
+    # If linked to an upload request, mark it fulfilled
+    if p.upload_request_id:
+        await db.upload_requests.update_one(
+            {"id": p.upload_request_id, "doctor_address_lower": addr_norm(p.uploader_address)},
+            {"$set": {"status": "fulfilled", "fulfilled_at": utcnow(), "record_id": rec["id"]}},
+        )
     rec.pop("_id", None)
     return rec
 
@@ -815,6 +825,107 @@ async def lpa_stats():
         "records": record_count,
         "users": user_count,
     }
+
+
+# ---------- Upload Requests (Patient -> Doctor) ----------
+class UploadRequestCreate(BaseModel):
+    patient_address: str
+    patient_signature: str
+    patient_message: str
+    doctor_address: str
+    title: str
+    reason: Optional[str] = ""
+
+
+@api.post("/upload-requests")
+async def upload_requests_create(p: UploadRequestCreate):
+    if not verify_sig(p.patient_address, p.patient_message, p.patient_signature):
+        raise HTTPException(401, "Invalid patient signature")
+    patient = await db.users.find_one({"address_lower": addr_norm(p.patient_address)}, {"_id": 0})
+    if not patient or patient["role"] != "patient":
+        raise HTTPException(403, "Caller is not a registered patient")
+    doctor = await db.users.find_one({"address_lower": addr_norm(p.doctor_address)}, {"_id": 0})
+    if not doctor or doctor["role"] != "doctor":
+        raise HTTPException(400, "Target is not a registered doctor")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "patient_address": p.patient_address,
+        "patient_address_lower": addr_norm(p.patient_address),
+        "patient_name": patient["name"],
+        "doctor_address": p.doctor_address,
+        "doctor_address_lower": addr_norm(p.doctor_address),
+        "doctor_name": doctor["name"],
+        "doctor_hospital": doctor.get("hospital"),
+        "doctor_department": doctor.get("department"),
+        "title": p.title,
+        "reason": p.reason,
+        "status": "pending",  # pending | fulfilled | declined
+        "created_at": utcnow(),
+        "fulfilled_at": None,
+        "record_id": None,
+    }
+    await db.upload_requests.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/upload-requests/doctor/{address}")
+async def upload_requests_for_doctor(address: str):
+    items = await db.upload_requests.find(
+        {"doctor_address_lower": address.lower()}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return items
+
+
+@api.get("/upload-requests/patient/{address}")
+async def upload_requests_by_patient(address: str):
+    items = await db.upload_requests.find(
+        {"patient_address_lower": address.lower()}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return items
+
+
+class UploadRequestFulfill(BaseModel):
+    request_id: str
+    doctor_address: str
+    record_id: str
+
+
+@api.post("/upload-requests/fulfill")
+async def upload_requests_fulfill(p: UploadRequestFulfill):
+    req = await db.upload_requests.find_one({"id": p.request_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(404, "Request not found")
+    if req["doctor_address_lower"] != addr_norm(p.doctor_address):
+        raise HTTPException(403, "Not the assigned doctor")
+    await db.upload_requests.update_one(
+        {"id": p.request_id},
+        {"$set": {"status": "fulfilled", "fulfilled_at": utcnow(), "record_id": p.record_id}},
+    )
+    return {"ok": True}
+
+
+class UploadRequestDecline(BaseModel):
+    request_id: str
+    doctor_address: str
+    doctor_signature: str
+    doctor_message: str
+
+
+@api.post("/upload-requests/decline")
+async def upload_requests_decline(p: UploadRequestDecline):
+    if not verify_sig(p.doctor_address, p.doctor_message, p.doctor_signature):
+        raise HTTPException(401, "Invalid doctor signature")
+    req = await db.upload_requests.find_one({"id": p.request_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(404, "Request not found")
+    if req["doctor_address_lower"] != addr_norm(p.doctor_address):
+        raise HTTPException(403, "Not the assigned doctor")
+    await db.upload_requests.update_one(
+        {"id": p.request_id},
+        {"$set": {"status": "declined", "fulfilled_at": utcnow()}},
+    )
+    return {"ok": True}
 
 
 # ---------- Mount ----------

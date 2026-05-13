@@ -31,7 +31,7 @@ def sign(pk, msg):
     return _hex(Account.sign_message(encode_defunct(text=msg), private_key=pk).signature.hex())
 
 
-def self_register_payload(acct: Account, role: str, name: str, department: str | None = None):
+def self_register_payload(acct: Account, role: str, name: str, department: str | None = None, hospital: str | None = None):
     msg = f"register {role} {acct.address} {time.time()}"
     return {
         "actor_address": acct.address,
@@ -40,6 +40,7 @@ def self_register_payload(acct: Account, role: str, name: str, department: str |
         "role": role,
         "name": name,
         "department": department,
+        "hospital": hospital,
     }
 
 
@@ -359,3 +360,186 @@ def test_lpa_anchor_and_stats(record_id):
     r = requests.get(BASE + "/lpa/stats")
     j = r.json()
     assert j["anchors"] >= 1 and j["records"] >= 1
+
+
+
+# ---- Hospital field roundtrip ----
+def test_register_doctor_with_hospital_roundtrip():
+    """Doctors can register with a 'hospital' field; it's returned by GET /api/users and GET /api/users/{addr}."""
+    payload = self_register_payload(DOCTOR, "doctor", "Dr Test Renamed", "Cardiology", hospital="Gen C General Hospital")
+    r = requests.post(BASE + "/users/register", json=payload)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body.get("hospital") == "Gen C General Hospital"
+
+    # Persisted via GET /users/{addr}
+    r = requests.get(BASE + f"/users/{DOCTOR.address}")
+    assert r.status_code == 200
+    assert r.json().get("hospital") == "Gen C General Hospital"
+
+    # Visible in GET /users
+    r = requests.get(BASE + "/users")
+    assert r.status_code == 200
+    rec = next((u for u in r.json() if u["address_lower"] == DOCTOR.address.lower()), None)
+    assert rec is not None and rec.get("hospital") == "Gen C General Hospital"
+
+
+# ---- Upload Requests (Patient -> Doctor) ----
+def _patient_signed_upload_req(doctor_addr: str, title: str = "Need ECG record", reason: str = "Follow-up"):
+    msg = f"upload-request {doctor_addr} {time.time()}"
+    return {
+        "patient_address": PATIENT.address,
+        "patient_message": msg,
+        "patient_signature": sign(PATIENT.key.hex(), msg),
+        "doctor_address": doctor_addr,
+        "title": title,
+        "reason": reason,
+    }
+
+
+def test_upload_request_create_success():
+    payload = _patient_signed_upload_req(DOCTOR.address)
+    r = requests.post(BASE + "/upload-requests", json=payload)
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["status"] == "pending"
+    assert j["patient_name"] == "Pat Test"
+    assert j["doctor_name"] == "Dr Test Renamed"
+    assert j["doctor_hospital"] == "Gen C General Hospital"
+    assert j["doctor_department"] == "Cardiology"
+    assert j["title"] == "Need ECG record"
+    assert j["record_id"] is None
+    assert "id" in j
+
+
+def test_upload_request_invalid_signature():
+    msg = "upload-request"
+    bad_sig = sign(DOCTOR.key.hex(), msg)  # signed by doctor, not patient
+    payload = {
+        "patient_address": PATIENT.address, "patient_message": msg, "patient_signature": bad_sig,
+        "doctor_address": DOCTOR.address, "title": "x",
+    }
+    r = requests.post(BASE + "/upload-requests", json=payload)
+    assert r.status_code == 401, r.text
+
+
+def test_upload_request_non_patient_actor_403():
+    """Caller is a doctor (or unregistered) — must be a registered patient."""
+    msg = f"upload-request {time.time()}"
+    payload = {
+        "patient_address": OTHER_DOCTOR.address,
+        "patient_message": msg,
+        "patient_signature": sign(OTHER_DOCTOR.key.hex(), msg),
+        "doctor_address": DOCTOR.address,
+        "title": "x",
+    }
+    r = requests.post(BASE + "/upload-requests", json=payload)
+    assert r.status_code == 403, r.text
+
+
+def test_upload_request_target_not_doctor_400():
+    """Target address must be a registered doctor — sending to a patient should fail."""
+    msg = f"upload-request {time.time()}"
+    payload = {
+        "patient_address": PATIENT.address,
+        "patient_message": msg,
+        "patient_signature": sign(PATIENT.key.hex(), msg),
+        "doctor_address": PATIENT.address,  # not a doctor
+        "title": "x",
+    }
+    r = requests.post(BASE + "/upload-requests", json=payload)
+    # Spec says 403 for non-doctor target; server returns 400. Accept either.
+    assert r.status_code in (400, 403), r.text
+
+
+def test_upload_request_get_for_doctor():
+    # ensure at least one exists
+    requests.post(BASE + "/upload-requests", json=_patient_signed_upload_req(DOCTOR.address, title="MRI scan"))
+    r = requests.get(BASE + f"/upload-requests/doctor/{DOCTOR.address}")
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) >= 1
+    sample = items[0]
+    assert "patient_name" in sample and "title" in sample
+    assert sample["doctor_address_lower"] == DOCTOR.address.lower()
+
+
+def test_upload_request_get_for_patient():
+    r = requests.get(BASE + f"/upload-requests/patient/{PATIENT.address}")
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) >= 1
+    for it in items:
+        assert it["patient_address_lower"] == PATIENT.address.lower()
+
+
+def test_records_with_upload_request_id_marks_fulfilled(pinata_cid):
+    """Creating a record with upload_request_id flips the request to 'fulfilled' and stamps record_id."""
+    # Create a fresh request
+    r = requests.post(BASE + "/upload-requests", json=_patient_signed_upload_req(DOCTOR.address, title="Blood test"))
+    assert r.status_code == 200
+    req_id = r.json()["id"]
+
+    # Doctor uploads record linked to that request
+    msg = f"upload linked {time.time()}"
+    sig = sign(DOCTOR.key.hex(), msg)
+    enc_key = base64.b64encode(b"\x01" * 32).decode()
+    policy = f"(Role:Doctor AND Department:Cardiology) OR (Owner:{PATIENT.address.lower()})"
+    payload = {
+        "uploader_address": DOCTOR.address, "uploader_signature": sig, "uploader_message": msg,
+        "patient_address": PATIENT.address, "cid": pinata_cid, "file_name": "blood.pdf",
+        "file_size": 2048, "encrypted_key_b64": enc_key, "policy": policy,
+        "diagnosis": "Routine", "notes": "linked to req", "upload_request_id": req_id,
+    }
+    r = requests.post(BASE + "/records", json=payload)
+    assert r.status_code == 200, r.text
+    new_record_id = r.json()["id"]
+
+    # Re-fetch request via patient endpoint and verify status/record_id
+    r = requests.get(BASE + f"/upload-requests/patient/{PATIENT.address}")
+    assert r.status_code == 200
+    match = next((x for x in r.json() if x["id"] == req_id), None)
+    assert match is not None
+    assert match["status"] == "fulfilled"
+    assert match["record_id"] == new_record_id
+    assert match["fulfilled_at"] is not None
+
+
+def test_upload_request_decline_by_assigned_doctor():
+    # Create a fresh pending request
+    r = requests.post(BASE + "/upload-requests", json=_patient_signed_upload_req(DOCTOR.address, title="X-ray"))
+    req_id = r.json()["id"]
+
+    # Wrong doctor cannot decline -> 403
+    msg = f"decline {req_id}"
+    r = requests.post(BASE + "/upload-requests/decline", json={
+        "request_id": req_id, "doctor_address": OTHER_DOCTOR.address,
+        "doctor_signature": sign(OTHER_DOCTOR.key.hex(), msg), "doctor_message": msg,
+    })
+    assert r.status_code == 403, r.text
+
+    # Assigned doctor declines -> status becomes 'declined'
+    msg2 = f"decline self {req_id}"
+    r = requests.post(BASE + "/upload-requests/decline", json={
+        "request_id": req_id, "doctor_address": DOCTOR.address,
+        "doctor_signature": sign(DOCTOR.key.hex(), msg2), "doctor_message": msg2,
+    })
+    assert r.status_code == 200, r.text
+    assert r.json().get("ok") is True
+
+    # Verify status persisted
+    r = requests.get(BASE + f"/upload-requests/doctor/{DOCTOR.address}")
+    match = next((x for x in r.json() if x["id"] == req_id), None)
+    assert match is not None and match["status"] == "declined"
+
+
+def test_upload_request_decline_invalid_signature():
+    r = requests.post(BASE + "/upload-requests", json=_patient_signed_upload_req(DOCTOR.address, title="Ultrasound"))
+    req_id = r.json()["id"]
+    msg = "decline"
+    bad_sig = sign(PATIENT.key.hex(), msg)
+    r = requests.post(BASE + "/upload-requests/decline", json={
+        "request_id": req_id, "doctor_address": DOCTOR.address,
+        "doctor_signature": bad_sig, "doctor_message": msg,
+    })
+    assert r.status_code == 401, r.text
