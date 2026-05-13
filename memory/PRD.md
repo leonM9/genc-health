@@ -36,10 +36,11 @@ A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy A
 - Admin can **register Patients** (name + wallet) — generates demo wallet on-the-fly
 - Admin can **attach a medical file** to any registered patient (full AES+IPFS+LPA pipeline, marked uploader_role=admin)
 - **LpaCostChart** component visualizes gas cost per record dropping as batch size grows (with/without LPA overlay + savings %)
-- **Seed Demo Roster** button (`POST /api/admin/seed-roster`): one-click adds 5 demo doctors + 10 demo patients to registry for thesis defense
-- **Clear Seeded Users** (`POST /api/admin/clear-seeded`): removes only `extra.seeded=true` users — keeps real registrations intact
 - Sky-blue/cyan theme retained (replaced earlier emerald)
 - SETUP.md TL;DR section + run commands for friend's local VS Code
+
+## Removed (per user request, 2026-02-13)
+- Defense Roster seed buttons (`/api/admin/seed-roster`, `/api/admin/clear-seeded`) — user did not want auto-seeding
 
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle

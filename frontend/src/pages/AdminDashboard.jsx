@@ -91,32 +91,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const [seeding, setSeeding] = useState(false);
-  const seedRoster = async () => {
-    setSeeding(true);
-    try {
-      const { message, signature } = await buildSig("seed-demo-roster");
-      const r = await api.post("/admin/seed-roster", { admin_address: session.address, signature, message, count: 0 });
-      toast.success(`Seeded ${r.data.doctors_added} doctors + ${r.data.patients_added} patients`, {
-        description: "Ready for thesis defense",
-      });
-      load();
-    } catch (e) {
-      toast.error("Seed failed", { description: e?.response?.data?.detail || e.message });
-    } finally { setSeeding(false); }
-  };
-
-  const clearSeeded = async () => {
-    try {
-      const { message, signature } = await buildSig("clear-seeded-users");
-      const r = await api.post("/admin/clear-seeded", { admin_address: session.address, signature, message, count: 0 });
-      toast.success(`Removed ${r.data.removed_users} seeded users`);
-      load();
-    } catch (e) {
-      toast.error("Clear failed", { description: e?.response?.data?.detail || e.message });
-    }
-  };
-
   const generateWallet = (kind) => {
     const w = ethers.Wallet.createRandom();
     if (kind === "doctor") {
@@ -295,23 +269,6 @@ export default function AdminDashboard() {
                 <button onClick={clearSim} data-testid="clear-sim-btn"
                   className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
                   <Trash size={11} weight="bold" />clear simulated
-                </button>
-              </div>
-
-              {/* Seed thesis-defense roster */}
-              <div className="mt-3 rounded-lg border border-sky-400/30 bg-sky-400/5 p-4" data-testid="seed-roster-card">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={16} weight="duotone" className="text-sky-400" />
-                  <div className="eyebrow text-sky-400">defense roster</div>
-                </div>
-                <p className="text-xs text-zinc-400 mb-3">One-click populate the registry with 5 demo doctors + 10 demo patients for your thesis defense.</p>
-                <button onClick={seedRoster} disabled={seeding} data-testid="seed-roster-btn"
-                  className="w-full h-10 rounded-lg border border-sky-400/40 bg-sky-400/10 text-sky-200 font-mono uppercase text-[11px] hover:bg-sky-400/15 transition flex items-center justify-center gap-2">
-                  <Sparkle size={12} weight="bold" />{seeding ? "seeding..." : "seed demo roster"}
-                </button>
-                <button onClick={clearSeeded} data-testid="clear-seeded-btn"
-                  className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
-                  <Trash size={11} weight="bold" />clear seeded users
                 </button>
               </div>
             </div>
