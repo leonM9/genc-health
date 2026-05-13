@@ -8,6 +8,34 @@ This guide walks you through running the project locally in **VS Code**.
 
 ---
 
+## TL;DR — what to run
+
+Once you've finished sections 1–6 (one-time setup), every future startup is just **three terminals**:
+
+```bash
+# Terminal 1 — MongoDB (skip if it's already a system service)
+mongod
+```
+
+```bash
+# Terminal 2 — Backend
+cd backend
+source venv/bin/activate            # Windows: venv\Scripts\activate
+uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+```
+
+```bash
+# Terminal 3 — Frontend
+cd frontend
+yarn start
+```
+
+Then open **http://localhost:3000** and click **"Sign-in as Admin"** to enter the LPA console.
+
+> First-time setup? Keep reading section 1.
+
+---
+
 ## 1. Prerequisites (one-time installs)
 
 Install these on your machine before doing anything else:

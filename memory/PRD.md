@@ -27,9 +27,17 @@ A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy A
 - ✅ Pinata IPFS real upload + gateway proxy
 
 ## Test Status (2026-02-13)
-- Backend: 35/35 pytest passing (iter 3) — includes upload-requests + hospital + new fulfill/decline endpoints
-- Frontend: iter 4 visual smoke verified Admin, Onboarding, Patient, Doctor portals render correctly with all data-testids present
-- Verified flows end-to-end: self-register → encrypt → Pinata → LPA pending → admin Merkle anchor → patient decrypt → doctor access grant → cross-specialist decrypt; patient upload request → doctor inbox → fulfill via upload form prefill
+- Backend: **56/56 pytest passing (iter 6)** — 45 base + 11 new admin-feature tests
+- Frontend: iter 6 verified login → admin → register doctor → register patient → attach file pipeline → LpaCostChart end-to-end
+- Verified flows: admin-register doctor/patient (signed by ADMIN), admin-upload encrypted record on behalf of patient (AES → Pinata → CP-ABE → LPA), Merkle anchor, cost-per-record chart updates with batch size
+
+## Recently Added (2026-02-13)
+- Admin can **register Doctors** (name + dept + hospital + wallet) — generates demo wallet on-the-fly
+- Admin can **register Patients** (name + wallet) — generates demo wallet on-the-fly
+- Admin can **attach a medical file** to any registered patient (full AES+IPFS+LPA pipeline, marked uploader_role=admin)
+- **LpaCostChart** component visualizes gas cost per record dropping as batch size grows (with/without LPA overlay + savings %)
+- Sky-blue/cyan theme retained (replaced earlier emerald)
+- SETUP.md TL;DR section + run commands for friend's local VS Code
 
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
