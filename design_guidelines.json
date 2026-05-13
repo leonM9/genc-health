@@ -1,0 +1,97 @@
+{
+  "project_name": "Gen C - Decentralized Medical Records dApp",
+  "theme": "dark",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) + Retro-Futurism/Terminal Variant",
+  "typography": {
+    "fonts": {
+      "headings": "Unbounded, sans-serif",
+      "body": "IBM Plex Mono, monospace",
+      "imports": [
+        "@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700;900&display=swap');",
+        "@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');"
+      ]
+    },
+    "hierarchy": {
+      "h1": "font-['Unbounded'] text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-bold",
+      "h2": "font-['Unbounded'] text-2xl sm:text-3xl lg:text-4xl tracking-tight font-semibold",
+      "h3": "font-['Unbounded'] text-xl sm:text-2xl tracking-tight font-medium",
+      "h4": "font-['Unbounded'] text-lg sm:text-xl font-medium",
+      "body": "font-['IBM_Plex_Mono'] text-sm md:text-base leading-relaxed text-zinc-300",
+      "label": "font-['IBM_Plex_Mono'] text-xs tracking-[0.2em] uppercase text-zinc-500",
+      "crypto_data": "font-['IBM_Plex_Mono'] text-xs text-[#00FF41] break-all"
+    }
+  },
+  "colors": {
+    "background": {
+      "base": "#09090B",
+      "surface": "#121214",
+      "surface_elevated": "#18181B",
+      "glass": "bg-black/80 backdrop-blur-xl border-b border-zinc-800"
+    },
+    "text": {
+      "primary": "#FAFAFA",
+      "secondary": "#A1A1AA",
+      "accent": "#00FF41"
+    },
+    "accents": {
+      "terminal_green": "#00FF41",
+      "amber_warning": "#FFBF00",
+      "error_red": "#FF3B30",
+      "border": "border-zinc-800",
+      "border_active": "border-[#00FF41]/50"
+    }
+  },
+  "surfaces": {
+    "cards": "bg-[#121214] border border-zinc-800 rounded-none shadow-none",
+    "nav": "fixed top-0 w-full z-50 bg-[#09090B]/90 backdrop-blur-md border-b border-zinc-800",
+    "inputs": "bg-[#09090B] border border-zinc-800 rounded-none text-white focus:ring-1 focus:ring-[#00FF41] focus:border-[#00FF41] font-['IBM_Plex_Mono'] text-sm",
+    "crypto_badges": "inline-flex items-center bg-zinc-900 border border-zinc-700 text-[#00FF41] px-2 py-0.5 text-[10px] sm:text-xs font-['IBM_Plex_Mono'] uppercase"
+  },
+  "layout_and_spacing": {
+    "philosophy": "Control Room Grid (Dense, technical, scan-able). Expose the skeleton with visible grid borders.",
+    "padding": "p-4 md:p-6 lg:p-8",
+    "grid_classes": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"
+  },
+  "components_strategy": {
+    "charts": "Recharts for analytics. Custom SVG for Merkle tree node visualizations.",
+    "tables": "Dense rows, 1px bottom border border-zinc-800, text-sm. Hover state: hover:bg-zinc-900.",
+    "buttons": {
+      "primary": "bg-[#00FF41] text-black font-['IBM_Plex_Mono'] font-bold rounded-none hover:bg-[#00cc33] uppercase text-sm tracking-widest px-6 py-3 transition-colors",
+      "secondary": "bg-transparent border border-zinc-800 text-zinc-300 font-['IBM_Plex_Mono'] rounded-none hover:bg-zinc-900 hover:text-white uppercase text-sm px-6 py-3 transition-colors",
+      "ghost": "bg-transparent text-zinc-400 hover:text-white font-['IBM_Plex_Mono'] text-sm px-4 py-2 transition-colors"
+    },
+    "badges": "Square edges. Color-coded by state (e.g., #FFBF00 for Batching/Pending, #00FF41 for Anchored/Decrypted)",
+    "icons": "Use Phosphor Icons (@phosphor-icons/react) with weight='bold' or 'regular' for a distinct technical feel."
+  },
+  "media": {
+    "backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1746470427586-66ed7b83a502?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBncmVlbiUyMG5lb24lMjBncmlkJTIwbWF0cml4JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3Nzg2NjgxNjl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract green matrix light lines, ideal for the login page hero background.",
+        "category": "login_background"
+      }
+    ],
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1633395376963-468a414f76e2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwzfHxtZWRpY2FsJTIwZG9jdG9yJTIwcG9ydHJhaXQlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3Nzg2NjgxNTF8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Doctor portrait in dark background, useful for doctor dashboard profile or registry.",
+        "category": "doctor_avatar"
+      }
+    ]
+  },
+  "accessibility_and_testing": {
+    "test_ids": "MANDATORY: All interactive elements (buttons, inputs, toggles, table rows, badges) MUST include a data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "INSTALLATION: Run `yarn add @phosphor-icons/react framer-motion lucide-react clsx tailwind-merge`.",
+    "TAILWIND CONFIG: Extend font families to include 'Unbounded' (sans) and 'IBM Plex Mono' (mono). Add custom colors like #00FF41.",
+    "THEME: Apply an aggressively technical dark mode. Avoid soft shadows, heavy gradients, or purple/violet completely.",
+    "TYPOGRAPHY: Use 'Unbounded' for large headers and prominent labels. Use 'IBM Plex Mono' for body text, numbers, wallet addresses, CIDs, buttons, and navigation.",
+    "CRYPTOGRAPHY CELEBRATION: Create specific UI components for hash strings, CIDs, and wallet addresses. They should look like terminal outputs (e.g. bg-zinc-900 border-zinc-800 text-terminal-green).",
+    "LAYOUT: Use 'Grid Borders' layout pattern. Most dashboard cards should lack rounded corners (rounded-none) to enhance the brutalist/technical aesthetic.",
+    "FLOWS: Build out 4 distinct pages/views: (1) Login via Wallet, (2) Admin Dashboard (Registry + LPA Batch viewer), (3) Patient Dashboard (decrypted records + signatures), (4) Doctor Dashboard (Search DID + encrypt/upload pipeline).",
+    "VISUALS: For the Doctor upload flow, explicitly visualize the sequence: 'AES-256 Encrypting -> Pinata IPFS Uploading -> CP-ABE Policy -> LPA Enqueueing'. Use staggered micro-animations (framer-motion) to show this progression.",
+    "MERKLE TREE: For the Admin LPA Batch viewer, implement a basic visual representation of a Merkle Tree showing CIDs rolling up into a single Root Hash.",
+    "TESTING: Add data-testid to every button, link, and input (e.g. data-testid='wallet-connect-btn', data-testid='upload-medical-record-btn')."
+  ]
+}
