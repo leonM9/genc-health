@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useWallet } from "@/lib/walletContext";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -40,7 +39,6 @@ export default function Onboarding() {
         department: role === "doctor" ? department || "General Medicine" : null,
         hospital: role === "doctor" ? hospital || null : null,
       };
-      // For wallet sessions, sign. For google sessions, cookie auth is used.
       if (session.auth !== "google") {
         const { message, signature } = await buildSig("self-register");
         payload.actor_signature = signature;
@@ -84,7 +82,6 @@ export default function Onboarding() {
             </div>
           </div>
 
-          {/* Role select */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
             {[
               { id: "patient", icon: UserCircle, label: "Patient", desc: "Own your medical history. Approve or deny doctor access via wallet signature." },
@@ -128,23 +125,17 @@ export default function Onboarding() {
                 />
               </div>
             )}
-          </div>
-
-          <button
-            onClick={submit}
-            disabled={busy || !role || !name}
-            data-testid="onb-submit-btn"
-            className="mt-8 h-12 px-7 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold"
-          >
-            {busy ? "Creating identity…" : "Create my DID"}
-            <ArrowRight size={16} weight="bold" />
-          </button>
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-           </>
+            {role === "doctor" && (
+              <div className="sm:col-span-2">
+                <Label className="eyebrow">hospital / clinic</Label>
+                <Input
+                  data-testid="onb-hospital-input"
+                  value={hospital}
+                  onChange={(e) => setHospital(e.target.value)}
+                  className="mt-2 rounded-lg bg-zinc-900/60 border-white/5 font-mono"
+                  placeholder="St. Luke's Medical Center, Makati Med…"
+                />
+              </div>
             )}
           </div>
 

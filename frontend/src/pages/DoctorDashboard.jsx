@@ -11,7 +11,7 @@ import { Hash, StatusBadge } from "@/components/CryptoString";
 import { aesEncryptFile, generateAesKey, exportKeyB64, buildPolicy, shortAddr } from "@/lib/crypto";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Inbox, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Tray, X } from "@phosphor-icons/react";
 
 const STAGE_ICONS = {
   encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor,
@@ -151,7 +151,7 @@ export default function DoctorDashboard() {
         <TabsList className="bg-zinc-900/60 border border-white/5 rounded-xl p-1 mb-6 flex-wrap">
           {[
             { v: "search", l: "Patients", i: MagnifyingGlass },
-            { v: "inbox", l: `Inbox (${pendingInbox.length})`, i: Inbox },
+            { v: "inbox", l: `Inbox (${pendingInbox.length})`, i: Tray },
             { v: "upload", l: "Upload", i: UploadSimple },
             { v: "records", l: "My Records", i: FileLock },
           ].map((t) => (
@@ -204,7 +204,7 @@ export default function DoctorDashboard() {
         <TabsContent value="inbox" className="space-y-3">
           {uploadReqs.length === 0 && (
             <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm">
-              <Inbox size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
+              <Tray size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
               No upload requests
             </div>
           )}

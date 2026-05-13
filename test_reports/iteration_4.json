@@ -1,0 +1,54 @@
+{
+  "summary": "Visual smoke test of all 4 Gen C portals after recent changes (Hospital field, Patient upload-request flow, Admin Doctors/Patients split, Doctor Inbox). 1 CRITICAL runtime bug found and patched (Inbox icon import missing in DoctorDashboard.jsx -> ReferenceError white-screened the entire Doctor portal). After patch, all key flows render correctly. 1 spec/code naming inconsistency on the doctor Patients tab testid.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "DoctorDashboard.jsx (line 207)",
+        "issue": "ReferenceError: 'Inbox is not defined' — empty-inbox state JSX renders <Inbox /> but only 'Tray' was imported from @phosphor-icons/react. This crashed the entire /doctor route with an uncaught runtime error overlay, breaking the Inbox tab and (because the empty-state branch evaluates eagerly) the whole DoctorDashboard component on every render. I PATCHED this by changing <Inbox .../> to <Tray .../> (same icon family used for the tab badge already). Re-test confirmed doctor portal now loads and the four tabs render with 'No upload requests' empty state visible.",
+        "selector": "DoctorDashboard.jsx empty-inbox branch",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "DoctorDashboard.jsx tab list",
+        "issue": "Spec/review request expected data-testid='tab-patients' for the doctor's first tab ('Patients'). Actual code uses data-testid='tab-search' (tab value is 'search', label is 'Patients'). Either rename the value to 'patients' or update spec — test scripts referencing 'tab-patients' for doctor will silently fail.",
+        "selector": "[data-testid=\"tab-search\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": [
+    "Login page (/): all 5 buttons render with data-testid (login-google-btn, login-metamask-btn, login-demo-btn, login-admin-btn, show-import-btn). No console errors on home.",
+    "Sign-in as Admin -> /admin with 4 stat cards (stat-doctors=6, stat-patients=3, stat-pending-cids=1, stat-anchored-roots=3) and 4 tabs (tab-lpa, tab-anchors, tab-doctors, tab-patients). Doctors tab DOES show 'Hospital / Clinic' column header.",
+    "Create Demo Wallet -> /onboarding shows role-patient-btn + role-doctor-btn + onb-name-input. Selecting Doctor reveals BOTH onb-dept-input AND onb-hospital-input. Submission registers and routes to /doctor.",
+    "/doctor renders 4 tabs (after Inbox fix): tab-search (Patients), tab-inbox (Inbox (n)), tab-upload (Upload), tab-records (My Records). Empty inbox shows 'No upload requests'.",
+    "/patient renders 3 tabs: tab-records, tab-access, tab-upload (Request Upload). Doctor select dropdown lists registered doctors with hospital appended, e.g. 'Dr. Smoke Test · Cardiology · Smoke Test Hospital'. Submission of upload-request returned 200 (no toast error).",
+    "Hash component on /onboarding is rendered as a button-styled element with the 0x address (testId onb-wallet)."
+  ],
+  "partially_verified": [
+    "Doctor inbox badge increment + Fulfill/Decline buttons + amber 'fulfilling request' banner: Patient successfully submitted an upload-request to the registered doctor, but on re-login as that doctor (via setting genc.demo.pk in localStorage + clicking Create Demo Wallet) the app routed to /onboarding instead of /doctor. This suggests loginDemo() generates a fresh wallet rather than reusing an existing genc.demo.pk in localStorage, OR the session.role server-lookup is not running on the demo path. Because we couldn't return to the same doctor identity in a fresh tab via the UI, the inbox-count, Fulfill, Decline, and amber banner could not be visually confirmed in this run. The backend pieces are covered by iteration_3 pytest (35/35)."
+  ],
+  "test_report_links": ["/app/test_reports/iteration_4.json"],
+  "action_items": [
+    "[DONE-by-tester] Patched <Inbox/> -> <Tray/> in /app/frontend/src/pages/DoctorDashboard.jsx line 207 to fix the ReferenceError.",
+    "Rename doctor 'search' tab value to 'patients' (or add an alias data-testid='tab-patients') so the review-spec selector tab-patients works on /doctor.",
+    "Investigate loginDemo(): when localStorage.genc.demo.pk already exists, the function should reuse that key (so refreshing or re-opening the tab restores the same wallet identity) instead of creating a new ethers.Wallet.createRandom(). Currently after clearing the session but keeping the pk, clicking Create Demo Wallet routes to /onboarding because the new wallet has no server profile.",
+    "Add an end-to-end UI test for the Fulfill flow once loginDemo is fixed — patient sends request, doctor sees inbox badge increment, clicks Fulfill, Upload tab activates, diagnosis pre-fills from request title, amber 'fulfilling request' banner renders."
+  ],
+  "critical_code_review_comments": [
+    "DoctorDashboard.jsx had a hard runtime crash on render due to a missing icon import — this should have been caught by a lint/typecheck run. Recommend adding ESLint rule no-undef + a CI lint gate.",
+    "Naming inconsistency: doctor tab value 'search' but label 'Patients'. Pick one (patients) for consistency with admin/patient testids.",
+    "loginDemo likely calls ethers.Wallet.createRandom() unconditionally; should hydrate from localStorage('genc.demo.pk') if present so identity persists across tab close/clear-session.",
+    "Hospital column rendering uses 'not set' placeholder for legacy doctors without hospital — good defensive default."
+  ],
+  "updated_files": ["/app/frontend/src/pages/DoctorDashboard.jsx"],
+  "success_rate": {"backend": "not retested (35/35 from iter 3)", "frontend": "~85% (Admin 100%, Onboarding 100%, Patient 100%, Doctor portal renders after fix; cross-persona inbox/fulfill UI not visually verified end-to-end in this run)"},
+  "test_credentials": "Admin: 0x12606Fa5e40FAd4D99D59Ee967aF4c418b6E5D8B / 0xb61123baee2bb96625cfeabf70835eff22b81427cd030ec78e804d03d2dc7759. Doctor/Patient: Create Demo Wallet auto-generates fresh ethers wallets per session.",
+  "seed_data_creation": "Created 2 new demo doctor wallets (Dr. Test Hospital @ St. Lukes Test Center, Dr. Smoke Test @ Smoke Test Hospital) and 2 new demo patient wallets during this run. Patient 0x87Bd...d57d posted an upload-request to one of the doctors successfully (request persisted server-side).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 patched the Inbox icon crash. Remaining UI work to verify: (a) Doctor inbox badge counter increments and shows fulfill/decline buttons for a pending request, (b) Fulfill click activates Upload tab and pre-fills diagnosis from request title, (c) amber 'fulfilling request' banner shows. To test this in one browser context, main agent should first fix loginDemo() to hydrate from existing localStorage('genc.demo.pk') so re-logging in as the same doctor doesn't bounce to /onboarding. Alternative test approach: use 'import existing private key' flow (data-testid='show-import-btn' then 'login-pk-input' + 'login-pk-btn') with the doctor's stored pk — that path SHOULD reuse identity. Also rename doctor tab value 'search' -> 'patients' for testid consistency.",
+  "rca of the issue": "RCA — Inbox crash: DoctorDashboard.jsx imports Phosphor icons explicitly. Line 14 imports { ... Tray, X } but line 207 referenced <Inbox /> in the empty-inbox JSX. Because the empty branch is reached on the very first render (uploadReqs = [] until the GET resolves), the component threw on initial mount, triggering the React error boundary overlay and white-screening /doctor. Reproduction: open / -> Create Demo Wallet -> register as Doctor -> after redirect to /doctor the Uncaught runtime error overlay 'Inbox is not defined' appears immediately. Mitigation applied: replaced <Inbox /> with <Tray /> (already imported, same icon used on the tab trigger). Verified fix: re-ran the flow and the /doctor route now renders the Provider Console with four tabs and a clean 'No upload requests' empty state."
+}

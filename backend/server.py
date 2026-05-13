@@ -888,11 +888,15 @@ async def upload_requests_by_patient(address: str):
 class UploadRequestFulfill(BaseModel):
     request_id: str
     doctor_address: str
+    doctor_signature: str
+    doctor_message: str
     record_id: str
 
 
 @api.post("/upload-requests/fulfill")
 async def upload_requests_fulfill(p: UploadRequestFulfill):
+    if not verify_sig(p.doctor_address, p.doctor_message, p.doctor_signature):
+        raise HTTPException(401, "Invalid doctor signature")
     req = await db.upload_requests.find_one({"id": p.request_id}, {"_id": 0})
     if not req:
         raise HTTPException(404, "Request not found")
