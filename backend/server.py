@@ -859,6 +859,84 @@ async def lpa_anchors():
     return items
 
 
+class SimulateReq(BaseModel):
+    admin_address: str
+    signature: str
+    message: str
+    count: int = 10
+
+
+@api.post("/lpa/simulate")
+async def lpa_simulate(p: SimulateReq):
+    """Admin-only: enqueue N synthetic records to the LPA pending batch for demo purposes.
+    Useful for showing how the per-record cost drops as the batch grows."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    n = max(1, min(p.count, 100))
+    sample_names = ["Maria Santos", "Juan dela Cruz", "Aileen Reyes", "Mark Bautista", "Sofia Ramos",
+                    "Carlo Mendoza", "Lyka Aquino", "Paolo Tan", "Rhea Garcia", "Miguel Cruz",
+                    "Bea Lim", "Joey Villanueva", "Camille Torres", "Diego Pascual", "Andrea Lopez"]
+    sample_dx = ["Annual physical", "Hypertension follow-up", "Lab panel", "Chest X-ray review",
+                 "Diabetes management", "Cardiology consult", "ECG result", "Vaccination record",
+                 "Blood test", "Allergy panel"]
+    inserted = []
+    for i in range(n):
+        cid = "QmSim" + hashlib.sha256(f"{utcnow()}-{i}-{uuid.uuid4()}".encode()).hexdigest()[:42]
+        record_id = str(uuid.uuid4())
+        patient_name = sample_names[(i + n) % len(sample_names)] + f" #{i+1}"
+        diagnosis = sample_dx[i % len(sample_dx)]
+        # Insert a synthetic record AND a pending entry
+        await db.records.insert_one({
+            "id": record_id,
+            "cid": cid,
+            "file_name": f"sim-{i+1}.pdf.enc",
+            "file_size": 12345,
+            "encrypted_key_b64": "sim",
+            "policy": "(Role:Doctor AND Department:Simulation) OR (Owner:simulated)",
+            "diagnosis": diagnosis,
+            "notes": "Synthetic demo record",
+            "uploader_address": ADMIN["address"],
+            "uploader_address_lower": ADMIN["address"].lower(),
+            "uploader_name": "Simulation",
+            "uploader_department": "Demo",
+            "uploader_role": "simulation",
+            "patient_address": "0xsimulated",
+            "patient_address_lower": "0xsimulated",
+            "patient_name": patient_name,
+            "created_at": utcnow(),
+            "anchor_status": "pending",
+            "merkle_root": None, "anchor_tx": None, "anchor_block": None,
+            "simulated": True,
+        })
+        await db.lpa_pending.insert_one({
+            "id": str(uuid.uuid4()),
+            "record_id": record_id,
+            "cid": cid,
+            "added_at": utcnow(),
+            "patient_name": patient_name,
+            "uploader_name": "Simulation",
+            "diagnosis": diagnosis,
+            "file_name": f"sim-{i+1}.pdf",
+            "simulated": True,
+        })
+        inserted.append({"cid": cid, "record_id": record_id, "patient": patient_name})
+    return {"inserted": len(inserted), "items": inserted}
+
+
+@api.post("/lpa/clear-simulated")
+async def lpa_clear_sim(p: SimulateReq):
+    """Remove only simulated records (kept for demo cleanup)."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    a = await db.records.delete_many({"simulated": True})
+    b = await db.lpa_pending.delete_many({"simulated": True})
+    return {"removed_records": a.deleted_count, "removed_pending": b.deleted_count}
+
+
 @api.get("/lpa/stats")
 async def lpa_stats():
     pending_count = await db.lpa_pending.count_documents({})

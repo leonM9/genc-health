@@ -17,7 +17,7 @@ import { merklePreview, aesEncryptFile, generateAesKey, exportKeyB64, buildPolic
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy } from "@phosphor-icons/react";
+import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy, Lightning, Trash } from "@phosphor-icons/react";
 
 const STAGE_ICONS = { encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor };
 
@@ -65,6 +65,30 @@ export default function AdminDashboard() {
     } catch (e) {
       toast.error("Anchor failed", { description: e?.response?.data?.detail || e.message });
     } finally { setAnchoring(false); }
+  };
+
+  const [simulating, setSimulating] = useState(false);
+  const simulate = async (count = 10) => {
+    setSimulating(true);
+    try {
+      const { message, signature } = await buildSig("simulate-lpa-batch");
+      const r = await api.post("/lpa/simulate", { admin_address: session.address, signature, message, count });
+      toast.success(`+${r.data.inserted} synthetic records queued`, { description: "Watch the cost chart update" });
+      load();
+    } catch (e) {
+      toast.error("Simulate failed", { description: e?.response?.data?.detail || e.message });
+    } finally { setSimulating(false); }
+  };
+
+  const clearSim = async () => {
+    try {
+      const { message, signature } = await buildSig("clear-sim-records");
+      const r = await api.post("/lpa/clear-simulated", { admin_address: session.address, signature, message, count: 0 });
+      toast.success(`Cleared ${r.data.removed_pending} simulated records`);
+      load();
+    } catch (e) {
+      toast.error("Clear failed", { description: e?.response?.data?.detail || e.message });
+    }
   };
 
   const generateWallet = (kind) => {
@@ -222,6 +246,31 @@ export default function AdminDashboard() {
                 <Anchor size={16} weight="bold" />
                 {anchoring ? "Anchoring…" : `Anchor Merkle Root (${pending.length})`}
               </button>
+
+              {/* LPA Simulator */}
+              <div className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 p-4" data-testid="lpa-simulator">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightning size={16} weight="duotone" className="text-cyan-300" />
+                  <div className="eyebrow text-cyan-300">demo simulator</div>
+                </div>
+                <p className="text-xs text-zinc-400 mb-3">Inject synthetic patient records into the pending batch to demo how per-record cost drops in real time.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => simulate(10)} disabled={simulating}
+                    data-testid="simulate-10-btn"
+                    className="h-10 rounded-lg border border-cyan-300/40 bg-cyan-300/10 text-cyan-200 font-mono uppercase text-[11px] hover:bg-cyan-300/15 transition flex items-center justify-center gap-2">
+                    <Sparkle size={12} weight="bold" />{simulating ? "..." : "+10 patients"}
+                  </button>
+                  <button onClick={() => simulate(50)} disabled={simulating}
+                    data-testid="simulate-50-btn"
+                    className="h-10 rounded-lg border border-cyan-300/40 bg-cyan-300/10 text-cyan-200 font-mono uppercase text-[11px] hover:bg-cyan-300/15 transition flex items-center justify-center gap-2">
+                    <Sparkle size={12} weight="bold" />{simulating ? "..." : "+50 patients"}
+                  </button>
+                </div>
+                <button onClick={clearSim} data-testid="clear-sim-btn"
+                  className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
+                  <Trash size={11} weight="bold" />clear simulated
+                </button>
+              </div>
             </div>
 
             <div className="card-modern p-6 lg:col-span-3">
@@ -442,105 +491,135 @@ export default function AdminDashboard() {
 
         {/* Anchors */}
         <TabsContent value="anchors">
-          <div className="card-modern overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/5 hover:bg-transparent">
-                  <TableHead className="eyebrow">Block</TableHead>
-                  <TableHead className="eyebrow">Anchored At</TableHead>
-                  <TableHead className="eyebrow">Merkle Root</TableHead>
-                  <TableHead className="eyebrow">Tx Hash</TableHead>
-                  <TableHead className="eyebrow">Leaves</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {anchors.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-16">No anchors yet</TableCell></TableRow>}
-                {anchors.map((a) => (
-                  <TableRow key={a.id} className="border-white/5 hover:bg-white/[0.02]" data-testid={`anchor-row-${a.block_number}`}>
-                    <TableCell className="font-mono text-sm text-sky-400">#{a.block_number}</TableCell>
-                    <TableCell className="font-mono text-xs text-zinc-400">{new Date(a.anchored_at).toLocaleString()}</TableCell>
-                    <TableCell><Hash value={a.root} testId={`root-${a.id}`} /></TableCell>
-                    <TableCell><Hash value={a.tx_hash} testId={`tx-${a.id}`} /></TableCell>
-                    <TableCell className="font-mono text-sm">{a.leaf_count}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <div className="eyebrow mb-1">on-chain provenance</div>
+              <h3 className="heading-display text-2xl font-bold">Anchored Merkle Roots</h3>
+            </div>
+            <Button onClick={load} variant="ghost" data-testid="refresh-anchors-btn" className="rounded-lg text-zinc-400 hover:text-sky-400 font-mono text-xs">
+              <ArrowsClockwise size={14} weight="bold" className="mr-1.5" /> refresh
+            </Button>
           </div>
+          {anchors.length === 0 ? (
+            <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm" data-testid="anchors-empty">
+              <Anchor size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
+              No anchors yet — queue records then click <span className="text-sky-300">Anchor Merkle Root</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {anchors.map((a) => (
+                <motion.div key={a.id} className="card-modern p-5 hover:border-sky-400/40 transition" whileHover={{ y: -2 }}
+                  data-testid={`anchor-card-${a.block_number}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Anchor size={20} weight="duotone" className="text-sky-400" />
+                      <div>
+                        <div className="eyebrow !text-[9px]">block</div>
+                        <div className="font-display font-bold text-2xl text-sky-400 leading-none">#{a.block_number}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="eyebrow !text-[9px]">leaves</div>
+                      <div className="font-display font-bold text-xl text-cyan-300">{a.leaf_count}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Hash value={a.root} label="root" testId={`root-${a.id}`} />
+                    <Hash value={a.tx_hash} label="tx" testId={`tx-${a.id}`} />
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-[10px] text-zinc-500 font-mono">
+                    <span>anchored</span>
+                    <span>{new Date(a.anchored_at).toLocaleString()}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Doctors */}
         <TabsContent value="doctors">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="heading-display text-2xl font-bold">Registered Doctors</h3>
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <div className="eyebrow mb-1">network members</div>
+              <h3 className="heading-display text-2xl font-bold">Registered Doctors ({doctors.length})</h3>
+            </div>
             <Button onClick={load} variant="ghost" data-testid="refresh-doctors-btn" className="rounded-lg text-zinc-400 hover:text-sky-400 font-mono text-xs">
               <ArrowsClockwise size={14} weight="bold" className="mr-1.5" /> refresh
             </Button>
           </div>
-          <div className="card-modern overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/5 hover:bg-transparent">
-                  <TableHead className="eyebrow">Name</TableHead>
-                  <TableHead className="eyebrow">Department</TableHead>
-                  <TableHead className="eyebrow">Hospital / Clinic</TableHead>
-                  <TableHead className="eyebrow">DID</TableHead>
-                  <TableHead className="eyebrow">Wallet</TableHead>
-                  <TableHead className="eyebrow">Joined</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {doctors.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-zinc-500 font-mono py-16">No registered doctors yet.</TableCell></TableRow>}
-                {doctors.map((u) => (
-                  <TableRow key={u.address} className="border-white/5 hover:bg-white/[0.02]" data-testid={`doctor-row-${u.address_lower}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2"><Stethoscope size={14} weight="duotone" className="text-cyan-300" />{u.name}</div>
-                    </TableCell>
-                    <TableCell className="text-zinc-300 text-sm">{u.department || "—"}</TableCell>
-                    <TableCell className="text-zinc-300 text-sm">{u.hospital || <span className="text-zinc-600">not set</span>}</TableCell>
-                    <TableCell className="font-mono text-[11px] text-sky-400">{u.did}</TableCell>
-                    <TableCell className="max-w-[220px]"><Hash value={u.address} testId={`d-addr-${u.address_lower}`} /></TableCell>
-                    <TableCell className="font-mono text-[10px] text-zinc-500">{u.created_at?.slice(0, 10)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {doctors.length === 0 ? (
+            <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm" data-testid="doctors-empty">
+              <Stethoscope size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
+              No registered doctors yet — use the <span className="text-sky-300">Register Doctor</span> tab
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {doctors.map((u) => (
+                <motion.div key={u.address} className="card-modern p-5 hover:border-cyan-300/40 transition" whileHover={{ y: -2 }}
+                  data-testid={`doctor-row-${u.address_lower}`}>
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400/20 to-sky-500/20 border border-cyan-300/30 flex items-center justify-center shrink-0">
+                      <Stethoscope size={22} weight="duotone" className="text-cyan-300" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-display font-bold text-lg leading-tight truncate">{u.name}</div>
+                      <div className="text-xs text-zinc-400 mt-0.5 truncate">{u.department || "—"}</div>
+                      {u.hospital && <div className="text-[10px] text-zinc-500 mt-0.5 truncate">{u.hospital}</div>}
+                    </div>
+                    <StatusBadge status="doctor" />
+                  </div>
+                  <div className="space-y-2">
+                    <Hash value={u.did} label="did" testId={`d-did-${u.address_lower}`} />
+                    <Hash value={u.address} label="wallet" testId={`d-addr-${u.address_lower}`} />
+                  </div>
+                  <div className="mt-3 text-[10px] text-zinc-600 font-mono">joined · {u.created_at?.slice(0, 10)}</div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Patients */}
         <TabsContent value="patients">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="heading-display text-2xl font-bold">Registered Patients</h3>
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <div className="eyebrow mb-1">network members</div>
+              <h3 className="heading-display text-2xl font-bold">Registered Patients ({patients.length})</h3>
+            </div>
             <Button onClick={load} variant="ghost" data-testid="refresh-patients-btn" className="rounded-lg text-zinc-400 hover:text-sky-400 font-mono text-xs">
               <ArrowsClockwise size={14} weight="bold" className="mr-1.5" /> refresh
             </Button>
           </div>
-          <div className="card-modern overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/5 hover:bg-transparent">
-                  <TableHead className="eyebrow">Name</TableHead>
-                  <TableHead className="eyebrow">DID</TableHead>
-                  <TableHead className="eyebrow">Wallet</TableHead>
-                  <TableHead className="eyebrow">Joined</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {patients.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-zinc-500 font-mono py-16">No registered patients yet.</TableCell></TableRow>}
-                {patients.map((u) => (
-                  <TableRow key={u.address} className="border-white/5 hover:bg-white/[0.02]" data-testid={`patient-row-${u.address_lower}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2"><UserCircle size={14} weight="duotone" className="text-sky-400" />{u.name}</div>
-                    </TableCell>
-                    <TableCell className="font-mono text-[11px] text-sky-400">{u.did}</TableCell>
-                    <TableCell className="max-w-[260px]"><Hash value={u.address} testId={`p-addr-${u.address_lower}`} /></TableCell>
-                    <TableCell className="font-mono text-[10px] text-zinc-500">{u.created_at?.slice(0, 10)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {patients.length === 0 ? (
+            <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm" data-testid="patients-empty">
+              <UserCircle size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
+              No registered patients yet — use the <span className="text-sky-300">Register Patient</span> tab
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {patients.map((u) => (
+                <motion.div key={u.address} className="card-modern p-5 hover:border-sky-400/40 transition" whileHover={{ y: -2 }}
+                  data-testid={`patient-row-${u.address_lower}`}>
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-400/20 to-sky-500/30 border border-sky-400/30 flex items-center justify-center shrink-0">
+                      <UserCircle size={22} weight="duotone" className="text-sky-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-display font-bold text-base leading-tight truncate">{u.name}</div>
+                      <div className="text-[10px] text-zinc-500 mt-1 font-mono uppercase tracking-wider">patient</div>
+                    </div>
+                    <StatusBadge status="patient" />
+                  </div>
+                  <div className="space-y-2">
+                    <Hash value={u.did} label="did" testId={`p-did-${u.address_lower}`} />
+                    <Hash value={u.address} label="wallet" testId={`p-addr-${u.address_lower}`} />
+                  </div>
+                  <div className="mt-3 text-[10px] text-zinc-600 font-mono">joined · {u.created_at?.slice(0, 10)}</div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </Layout>
