@@ -937,6 +937,89 @@ async def lpa_clear_sim(p: SimulateReq):
     return {"removed_records": a.deleted_count, "removed_pending": b.deleted_count}
 
 
+@api.post("/admin/seed-roster")
+async def admin_seed_roster(p: SimulateReq):
+    """Admin-only: seed a realistic roster of demo doctors and patients into
+    the registry (real registered users — not synthetic pending records).
+    Idempotent-ish: each call appends new wallets with the 'seeded' tag."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+
+    doctor_pool = [
+        ("Dr. Ana Reyes", "Cardiology", "St. Luke's Medical Center"),
+        ("Dr. Benigno Cruz", "Endocrinology", "Makati Medical Center"),
+        ("Dr. Carmen Lopez", "Pediatrics", "The Medical City"),
+        ("Dr. Dario Mendoza", "Neurology", "Asian Hospital"),
+        ("Dr. Elena Villanueva", "Oncology", "St. Luke's Medical Center"),
+    ]
+    patient_pool = [
+        "Mateo Aquino", "Sofia Bautista", "Lucas Garcia", "Isabela Tan",
+        "Rafael Pascual", "Camila Reyes", "Sebastian Lim", "Valeria Cruz",
+        "Mateo Santos", "Olivia dela Cruz",
+    ]
+
+    created_doctors, created_patients = [], []
+    for name, dept, hosp in doctor_pool:
+        w = Account.create()
+        addr = w.address
+        if await db.users.find_one({"address_lower": addr.lower()}):
+            continue
+        doc = {
+            "id": str(uuid.uuid4()),
+            "address": addr,
+            "address_lower": addr.lower(),
+            "role": "doctor",
+            "name": name,
+            "department": dept,
+            "hospital": hosp,
+            "did": f"did:genc:doctor:{addr[2:10]}",
+            "extra": {"seeded": True, "demo_pk": w.key.hex()},
+            "created_at": utcnow(),
+        }
+        await db.users.insert_one(doc)
+        created_doctors.append({"address": addr, "name": name, "department": dept})
+
+    for name in patient_pool:
+        w = Account.create()
+        addr = w.address
+        if await db.users.find_one({"address_lower": addr.lower()}):
+            continue
+        doc = {
+            "id": str(uuid.uuid4()),
+            "address": addr,
+            "address_lower": addr.lower(),
+            "role": "patient",
+            "name": name,
+            "department": None,
+            "hospital": None,
+            "did": f"did:genc:patient:{addr[2:10]}",
+            "extra": {"seeded": True, "demo_pk": w.key.hex()},
+            "created_at": utcnow(),
+        }
+        await db.users.insert_one(doc)
+        created_patients.append({"address": addr, "name": name})
+
+    return {
+        "doctors_added": len(created_doctors),
+        "patients_added": len(created_patients),
+        "doctors": created_doctors,
+        "patients": created_patients,
+    }
+
+
+@api.post("/admin/clear-seeded")
+async def admin_clear_seeded(p: SimulateReq):
+    """Remove only seeded demo users (tagged extra.seeded=True)."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    r = await db.users.delete_many({"extra.seeded": True})
+    return {"removed_users": r.deleted_count}
+
+
 @api.get("/lpa/stats")
 async def lpa_stats():
     pending_count = await db.lpa_pending.count_documents({})
