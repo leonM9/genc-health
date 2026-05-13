@@ -19,7 +19,7 @@ const STAGE_ICONS = {
 
 export default function DoctorDashboard() {
   const { session, buildSig } = useWallet();
-  const [tab, setTab] = useState("search");
+  const [tab, setTab] = useState("patients");
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -150,7 +150,7 @@ export default function DoctorDashboard() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-zinc-900/60 border border-white/5 rounded-xl p-1 mb-6 flex-wrap">
           {[
-            { v: "search", l: "Patients", i: MagnifyingGlass },
+            { v: "patients", l: "Patients", i: MagnifyingGlass },
             { v: "inbox", l: `Inbox (${pendingInbox.length})`, i: Tray },
             { v: "upload", l: "Upload", i: UploadSimple },
             { v: "records", l: "My Records", i: FileLock },
@@ -162,7 +162,7 @@ export default function DoctorDashboard() {
           ))}
         </TabsList>
 
-        <TabsContent value="search">
+        <TabsContent value="patients">
           <div className="card-modern p-4 mb-6 flex items-center gap-3">
             <MagnifyingGlass size={18} weight="bold" className="text-emerald-400 ml-1" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)}

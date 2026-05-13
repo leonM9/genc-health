@@ -80,7 +80,9 @@ export function WalletProvider({ children }) {
   const loginDemo = async () => {
     setLoading(true);
     try {
-      const wallet = ethers.Wallet.createRandom();
+      // Reuse existing in-browser pk if present so re-login keeps identity
+      const existingPk = localStorage.getItem(PK_STORAGE);
+      const wallet = existingPk ? new ethers.Wallet(existingPk) : ethers.Wallet.createRandom();
       const message = `Sign-In with Ethereum :: Gen C :: ${new Date().toISOString()}`;
       const signature = await wallet.signMessage(message);
       const r = await api.post("/auth/verify", { address: wallet.address, message, signature });

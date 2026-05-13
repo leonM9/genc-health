@@ -1,54 +1,51 @@
 # Gen C dApp — Product Requirements
 
 ## Original Problem Statement
-A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy Act (RA 10173). Stack envisioned: React + Ethers + Node + Hyperledger Besu (QBFT) + IPFS (Pinata) + AES-256 + CP-ABE + LPA (Merkle batching).
+A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy Act (RA 10173).
 
-## Adapted Stack (Confirmed with user)
-- **Frontend**: React + ethers.js (modern Web3 UI)
-- **Backend**: FastAPI (Python) + eth_account for sig verification
+## Adapted Stack (Confirmed)
+- **Frontend**: React + ethers.js (modern Web3 UI — Plus Jakarta Sans + JetBrains Mono, glass cards, emerald/teal accents)
+- **Backend**: FastAPI (Python) + eth_account (signature verification) + httpx/requests
 - **Storage**: MongoDB (motor) + Pinata IPFS (real, JWT in .env)
-- **Blockchain**: simulated (Merkle anchoring + tx_hash + block_number stored in DB)
-- **Encryption**: AES-256-GCM (Web Crypto) + simulated CP-ABE policy evaluation server-side
-- **Auth**: Emergent Google OAuth + MetaMask Sign-In with Ethereum + in-browser demo wallet + deterministic admin
+- **Blockchain**: Simulated (Merkle anchoring + tx_hash + block_number stored in DB)
+- **Encryption**: AES-256-GCM (Web Crypto) + simulated CP-ABE policy evaluation (shunting-yard parser)
+- **Auth**: Emergent Google OAuth + MetaMask + in-browser demo wallet (deterministic from localStorage) + deterministic admin
 
 ## User Personas
-- **Admin** (deterministic wallet from ADMIN_SEED) — operates the LPA console, anchors Merkle roots, views read-only registry
-- **Doctor** — self-registers with role + department, searches patients, requests access, uploads encrypted records
-- **Patient** — self-registers with role, owns records, approves/denies access via wallet signature, decrypts records client-side
+- **Admin**: Operates LPA console only — Pending Batch, Merkle Anchoring, Anchored Roots history, read-only Doctors list (with hospital), read-only Patients list
+- **Doctor**: Self-registers (Name + Department + Hospital). Searches patients, requests access, receives upload requests in Inbox, uploads encrypted records (AES-256 + Pinata + LPA)
+- **Patient**: Self-registers (Name). Owns records, decrypts client-side, approves/denies doctor access via signature, sends Upload Requests to specific doctors
 
-## Core Requirements (Static)
-- No plaintext ever stored in DB or "on-chain"
-- Every action that proves authorship uses an Ethereum personal_sign signature verified server-side
-- IPFS CIDs aggregated into Merkle trees; only roots anchored
-- CP-ABE policies bind decryption to attributes: `(Role:Doctor AND Department:X) OR (Owner:patient)`
-- Patient-signed grants override department mismatch for cross-specialist access
+## Implemented (latest)
+- ✅ Login (Google + MetaMask + Demo + Admin + import-PK)
+- ✅ Self-onboarding (role select, name, doctor adds Department + Hospital)
+- ✅ Admin: LPA Batch, Merkle Tree Visualizer, Anchored Roots, Doctors tab (w/ Hospital column), Patients tab
+- ✅ Doctor: Patients search, Inbox (upload requests w/ Fulfill+Decline), Upload pipeline (AES → IPFS → CP-ABE → LPA), My Records
+- ✅ Patient: Records w/ client-side decrypt, Access requests inbox, Request Upload tab (signed request to a chosen doctor)
+- ✅ Hybrid signature/cookie auth on user registration
+- ✅ Deterministic demo wallet rehydration from localStorage
+- ✅ Pinata IPFS real upload + gateway proxy
 
-## Implemented (2026-02-13)
-- ✅ Login screen with 4 sign-in paths (Google OAuth, MetaMask, Demo Wallet, Admin)
-- ✅ Self-onboarding page (role + name + department)
-- ✅ Admin LPA Console (pending batch, Merkle tree SVG viz, anchor button, anchors history, read-only registry)
-- ✅ Patient vault (record list, decrypt-and-download, access request inbox with sign-to-approve)
-- ✅ Doctor portal (patient search by DID/wallet, access request flow, encrypted upload with live pipeline animation)
-- ✅ AES-256-GCM client-side encryption + Pinata IPFS pinning (real)
-- ✅ Simulated CP-ABE policy evaluator (shunting-yard parser, supports AND/OR/parens, Role/Department/Owner atoms)
-- ✅ Merkle tree builder (keccak256, matches frontend preview)
-- ✅ Self-registration endpoint (signature OR cookie auth, idempotent)
-- ✅ Google OAuth via Emergent Auth → deterministic wallet derivation from Google sub ID
-- ✅ Session cookie management with 7-day TTL
-- ✅ Modern Web3 design: Plus Jakarta Sans + JetBrains Mono, glass cards, emerald/teal accents, mesh gradients
-- ✅ 25/25 backend pytest tests pass
+## Test Status (2026-02-13)
+- Backend: 35/35 pytest passing (iter 3) — includes upload-requests + hospital + new fulfill/decline endpoints
+- Frontend: iter 4 visual smoke verified Admin, Onboarding, Patient, Doctor portals render correctly with all data-testids present
+- Verified flows end-to-end: self-register → encrypt → Pinata → LPA pending → admin Merkle anchor → patient decrypt → doctor access grant → cross-specialist decrypt; patient upload request → doctor inbox → fulfill via upload form prefill
 
 ## Prioritized Backlog
-- **P1**: Split server.py (834 lines) into routers/auth, routers/records, routers/lpa
-- **P1**: Signature gate on POST /api/access/request to prevent inbox spam
-- **P2**: Replace `requests` with `httpx.AsyncClient` for non-blocking I/O
-- **P2**: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet deployment toggle
-- **P2**: Doctor's "Upload Request" flow for patients (patient initiates record upload to a chosen doctor)
-- **P3**: Audit log table per record (every decrypt-key request)
-- **P3**: PDF preview before download
-- **P3**: Multi-language UI (Filipino/English toggle)
-- **P3**: Patient export of entire vault as encrypted bundle
+- P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
+- P2: Replace blocking `requests` with `httpx.AsyncClient` in Pinata + Google handlers
+- P2: Split server.py (~970 LOC) into per-domain routers
+- P3: Audit log per decrypt-key request
+- P3: Signature gating on /access/request and /upload-requests/fulfill (sig verification added to fulfill in latest patch)
+- P3: PDF preview in patient vault
+- P3: Multi-language UI (Filipino/English)
+- P3: Public verification proof certificate generator (patient generates redacted Merkle proof receipt)
 
-## Next Tasks
-- Wait for user feedback (defense rehearsal pass?)
-- Optionally implement P1 items if asked
+## Files of Note
+- /app/backend/server.py — all API endpoints
+- /app/backend/.env — PINATA_JWT, ADMIN_SEED, MONGO_URL
+- /app/frontend/src/pages/{Login,Onboarding,AdminDashboard,DoctorDashboard,PatientDashboard,AuthCallback}.jsx
+- /app/frontend/src/lib/{walletContext,crypto,api}.{jsx,js}
+- /app/frontend/src/components/{Layout,CryptoString,MerkleVisualizer}.jsx
+- /app/memory/test_credentials.md — admin private key
+- /app/auth_testing.md — auth testing playbook
