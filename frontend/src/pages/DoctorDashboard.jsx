@@ -156,7 +156,7 @@ export default function DoctorDashboard() {
             { v: "records", l: "My Records", i: FileLock },
           ].map((t) => (
             <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`}
-              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
+              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-sky-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
               <t.i size={14} weight="bold" className="mr-2" />{t.l}
             </TabsTrigger>
           ))}
@@ -164,7 +164,7 @@ export default function DoctorDashboard() {
 
         <TabsContent value="patients">
           <div className="card-modern p-4 mb-6 flex items-center gap-3">
-            <MagnifyingGlass size={18} weight="bold" className="text-emerald-400 ml-1" />
+            <MagnifyingGlass size={18} weight="bold" className="text-sky-400 ml-1" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, DID, or wallet 0x…"
               data-testid="patient-search-input"
@@ -175,7 +175,7 @@ export default function DoctorDashboard() {
             {filtered.map((p) => {
               const grant = accessGrants.find((g) => g.patient_address_lower === p.address.toLowerCase());
               return (
-                <motion.div key={p.address} className="card-modern p-5 hover:border-emerald-400/40 transition" whileHover={{ y: -3 }}
+                <motion.div key={p.address} className="card-modern p-5 hover:border-sky-400/40 transition" whileHover={{ y: -3 }}
                   data-testid={`patient-card-${p.address.toLowerCase()}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -262,7 +262,7 @@ export default function DoctorDashboard() {
                     {selected ? (
                       <div>
                         <div className="font-medium text-sm">{selected.name}</div>
-                        <div className="text-[10px] text-emerald-400 font-mono">{selected.did}</div>
+                        <div className="text-[10px] text-sky-400 font-mono">{selected.did}</div>
                       </div>
                     ) : (<div className="text-zinc-500 font-mono text-xs">choose a patient from the patients tab</div>)}
                   </div>
@@ -284,7 +284,7 @@ export default function DoctorDashboard() {
                 <div>
                   <Label className="eyebrow">file (pdf / abstract)</Label>
                   <Input data-testid="file-input" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="rounded-lg bg-zinc-900/60 border-white/5 mt-1.5 file:bg-emerald-500/20 file:text-emerald-300 file:border-0 file:px-3 file:py-1 file:mr-3 file:rounded-md file:font-mono file:text-[10px] file:uppercase" />
+                    className="rounded-lg bg-zinc-900/60 border-white/5 mt-1.5 file:bg-sky-500/20 file:text-sky-300 file:border-0 file:px-3 file:py-1 file:mr-3 file:rounded-md file:font-mono file:text-[10px] file:uppercase" />
                   {file && <div className="text-[10px] text-zinc-500 font-mono mt-1">{file.name} · {(file.size / 1024).toFixed(1)} KB</div>}
                 </div>
 
@@ -308,10 +308,10 @@ export default function DoctorDashboard() {
                   {pipeline.map((s, i) => {
                     const Icon = STAGE_ICONS[s.stage] || FileLock;
                     const tone = s.status === "active" ? "border-amber/40 bg-amber/5"
-                      : s.status === "done" ? "border-emerald-400/30 bg-emerald-500/5"
+                      : s.status === "done" ? "border-sky-400/30 bg-sky-500/5"
                       : s.status === "error" ? "border-rose/40 bg-rose/5" : "border-white/5";
                     const iconColor = s.status === "active" ? "text-amber animate-pulse"
-                      : s.status === "done" ? "text-emerald-400"
+                      : s.status === "done" ? "text-sky-400"
                       : s.status === "error" ? "text-rose" : "text-zinc-500";
                     return (
                       <motion.div key={s.stage} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}

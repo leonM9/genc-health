@@ -174,7 +174,7 @@ export default function PatientDashboard() {
             { v: "upload", l: "Request Upload", i: UploadSimple },
           ].map((t) => (
             <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`}
-              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
+              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-sky-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
               <t.i size={14} weight="bold" className="mr-2" />{t.l}
             </TabsTrigger>
           ))}
@@ -226,7 +226,7 @@ export default function PatientDashboard() {
                             onClick={() => generateCertificate(r)}
                             data-testid={`cert-${r.id}-btn`}
                             disabled={certBusy}
-                            className="h-8 px-3 rounded-lg border border-emerald-400/30 bg-emerald-500/5 text-emerald-300 font-mono uppercase tracking-wider text-[11px] hover:bg-emerald-500/10 flex items-center gap-1.5"
+                            className="h-8 px-3 rounded-lg border border-sky-400/30 bg-sky-500/5 text-sky-300 font-mono uppercase tracking-wider text-[11px] hover:bg-sky-500/10 flex items-center gap-1.5"
                           >
                             <Certificate size={12} weight="bold" />
                             certify
@@ -369,7 +369,7 @@ export default function PatientDashboard() {
           <DialogHeader>
             <div className="eyebrow mb-1">zero-knowledge attestation</div>
             <DialogTitle className="heading-display text-2xl font-bold flex items-center gap-2">
-              <Certificate size={24} weight="duotone" className="text-emerald-400" />
+              <Certificate size={24} weight="duotone" className="text-sky-400" />
               Verification Certificate
             </DialogTitle>
           </DialogHeader>
@@ -393,7 +393,7 @@ export default function PatientDashboard() {
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
                     <div className="eyebrow !text-[9px]">block</div>
-                    <div className="font-mono text-emerald-400 mt-1">#{certData.record.block_number}</div>
+                    <div className="font-mono text-sky-400 mt-1">#{certData.record.block_number}</div>
                   </div>
                   <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
                     <div className="eyebrow !text-[9px]">leaves</div>

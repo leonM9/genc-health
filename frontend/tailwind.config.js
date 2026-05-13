@@ -22,13 +22,14 @@ module.exports = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        // Modern Web3 palette
-        emerald: {
-          400: "#34d399",
-          500: "#10b981",
-          glow: "rgba(52, 211, 153, 0.4)",
+        // Modern Web3 palette — sky/electric blue
+        sky: {
+          300: "#7dd3fc",
+          400: "#38bdf8",
+          500: "#0ea5e9",
+          glow: "rgba(56, 189, 248, 0.4)",
         },
-        teal: { 300: "#5eead4", 400: "#2dd4bf" },
+        cyan: { 300: "#67e8f9", 400: "#22d3ee" },
         amber: "#fbbf24",
         rose: "#fb7185",
       },
@@ -39,16 +40,16 @@ module.exports = {
       },
       backdropBlur: { xs: "2px" },
       boxShadow: {
-        glow: "0 0 24px rgba(52, 211, 153, 0.25)",
-        "glow-lg": "0 0 60px rgba(52, 211, 153, 0.35)",
+        glow: "0 0 24px rgba(56, 189, 248, 0.25)",
+        "glow-lg": "0 0 60px rgba(56, 189, 248, 0.35)",
         "card": "0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px -16px rgba(0,0,0,0.6)",
       },
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(52,211,153,0.35)" },
-          "50%": { boxShadow: "0 0 0 10px rgba(52,211,153,0)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(56,189,248,0.35)" },
+          "50%": { boxShadow: "0 0 0 10px rgba(56,189,248,0)" },
         },
         "shimmer": {
           "0%": { backgroundPosition: "-200% 0" },

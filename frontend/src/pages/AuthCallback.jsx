@@ -39,7 +39,7 @@ export default function AuthCallback() {
     <div className="min-h-screen bg-mesh flex items-center justify-center">
       <div className="card-modern px-8 py-6 text-center">
         <div className="font-mono text-xs eyebrow mb-2">authenticating</div>
-        <div className="text-emerald-400 font-mono text-sm animate-pulse">verifying google identity…</div>
+        <div className="text-sky-400 font-mono text-sm animate-pulse">verifying google identity…</div>
       </div>
     </div>
   );

@@ -11,8 +11,8 @@ export default function Layout({ children, title, subtitle, role }) {
 
   const roleAccent = {
     admin: { text: "text-amber", dot: "bg-amber" },
-    doctor: { text: "text-teal-300", dot: "bg-teal-300" },
-    patient: { text: "text-emerald-400", dot: "bg-emerald-400" },
+    doctor: { text: "text-cyan-300", dot: "bg-cyan-300" },
+    patient: { text: "text-sky-400", dot: "bg-sky-400" },
   }[session.role] || { text: "text-zinc-300", dot: "bg-zinc-400" };
 
   return (
@@ -21,7 +21,7 @@ export default function Layout({ children, title, subtitle, role }) {
         <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
           <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between">
             <button onClick={() => nav("/dashboard")} className="flex items-center gap-3" data-testid="brand-logo">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center shadow-glow">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 flex items-center justify-center shadow-glow">
                 <ShieldCheck size={18} weight="bold" className="text-zinc-950" />
               </div>
               <div className="leading-tight text-left">

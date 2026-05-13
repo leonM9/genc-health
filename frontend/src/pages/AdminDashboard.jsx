@@ -47,10 +47,10 @@ export default function AdminDashboard() {
   const patients = users.filter((u) => u.role === "patient");
 
   const statCards = [
-    { k: "Doctors", v: doctors.length, color: "text-teal-300", icon: Stethoscope },
-    { k: "Patients", v: patients.length, color: "text-emerald-400", icon: UserCircle },
+    { k: "Doctors", v: doctors.length, color: "text-cyan-300", icon: Stethoscope },
+    { k: "Patients", v: patients.length, color: "text-sky-400", icon: UserCircle },
     { k: "Pending CIDs", v: stats.pending || 0, color: "text-amber", icon: Cube },
-    { k: "Anchored Roots", v: stats.anchors || 0, color: "text-emerald-400", icon: TreeStructure },
+    { k: "Anchored Roots", v: stats.anchors || 0, color: "text-sky-400", icon: TreeStructure },
   ];
 
   return (
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
             { v: "patients", l: `Patients (${patients.length})`, i: UserCircle },
           ].map((t) => (
             <TabsTrigger key={t.v} value={t.v} data-testid={`tab-${t.v}`}
-              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
+              className="rounded-lg font-medium text-xs uppercase tracking-wider data-[state=active]:bg-sky-500 data-[state=active]:text-zinc-950 data-[state=active]:shadow-glow px-5 py-2">
               <t.i size={14} weight="bold" className="mr-2" />{t.l}
             </TabsTrigger>
           ))}
@@ -92,7 +92,7 @@ export default function AdminDashboard() {
                   <motion.div key={p.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                     className="rounded-lg border border-white/5 bg-zinc-900/40 p-3" data-testid={`lpa-pending-${p.cid}`}>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <Checkbox checked disabled className="rounded border-emerald-400 data-[state=checked]:bg-emerald-400 data-[state=checked]:text-zinc-950" />
+                      <Checkbox checked disabled className="rounded border-sky-400 data-[state=checked]:bg-sky-400 data-[state=checked]:text-zinc-950" />
                       <span className="eyebrow !text-amber">queued</span>
                       <span className="text-zinc-500 text-[10px] font-mono ml-auto">{p.added_at?.slice(11, 19)}</span>
                     </div>
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
                 {anchors.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-16">No anchors yet</TableCell></TableRow>}
                 {anchors.map((a) => (
                   <TableRow key={a.id} className="border-white/5 hover:bg-white/[0.02]" data-testid={`anchor-row-${a.block_number}`}>
-                    <TableCell className="font-mono text-sm text-emerald-400">#{a.block_number}</TableCell>
+                    <TableCell className="font-mono text-sm text-sky-400">#{a.block_number}</TableCell>
                     <TableCell className="font-mono text-xs text-zinc-400">{new Date(a.anchored_at).toLocaleString()}</TableCell>
                     <TableCell><Hash value={a.root} testId={`root-${a.id}`} /></TableCell>
                     <TableCell><Hash value={a.tx_hash} testId={`tx-${a.id}`} /></TableCell>
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
         <TabsContent value="doctors">
           <div className="flex justify-between items-center mb-4">
             <h3 className="heading-display text-2xl font-bold">Registered Doctors</h3>
-            <Button onClick={load} variant="ghost" data-testid="refresh-doctors-btn" className="rounded-lg text-zinc-400 hover:text-emerald-400 font-mono text-xs">
+            <Button onClick={load} variant="ghost" data-testid="refresh-doctors-btn" className="rounded-lg text-zinc-400 hover:text-sky-400 font-mono text-xs">
               <ArrowsClockwise size={14} weight="bold" className="mr-1.5" /> refresh
             </Button>
           </div>
@@ -175,11 +175,11 @@ export default function AdminDashboard() {
                 {doctors.map((u) => (
                   <TableRow key={u.address} className="border-white/5 hover:bg-white/[0.02]" data-testid={`doctor-row-${u.address_lower}`}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2"><Stethoscope size={14} weight="duotone" className="text-teal-300" />{u.name}</div>
+                      <div className="flex items-center gap-2"><Stethoscope size={14} weight="duotone" className="text-cyan-300" />{u.name}</div>
                     </TableCell>
                     <TableCell className="text-zinc-300 text-sm">{u.department || "—"}</TableCell>
                     <TableCell className="text-zinc-300 text-sm">{u.hospital || <span className="text-zinc-600">not set</span>}</TableCell>
-                    <TableCell className="font-mono text-[11px] text-emerald-400">{u.did}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-sky-400">{u.did}</TableCell>
                     <TableCell className="max-w-[220px]"><Hash value={u.address} testId={`d-addr-${u.address_lower}`} /></TableCell>
                     <TableCell className="font-mono text-[10px] text-zinc-500">{u.created_at?.slice(0, 10)}</TableCell>
                   </TableRow>
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
         <TabsContent value="patients">
           <div className="flex justify-between items-center mb-4">
             <h3 className="heading-display text-2xl font-bold">Registered Patients</h3>
-            <Button onClick={load} variant="ghost" data-testid="refresh-patients-btn" className="rounded-lg text-zinc-400 hover:text-emerald-400 font-mono text-xs">
+            <Button onClick={load} variant="ghost" data-testid="refresh-patients-btn" className="rounded-lg text-zinc-400 hover:text-sky-400 font-mono text-xs">
               <ArrowsClockwise size={14} weight="bold" className="mr-1.5" /> refresh
             </Button>
           </div>
@@ -213,9 +213,9 @@ export default function AdminDashboard() {
                 {patients.map((u) => (
                   <TableRow key={u.address} className="border-white/5 hover:bg-white/[0.02]" data-testid={`patient-row-${u.address_lower}`}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2"><UserCircle size={14} weight="duotone" className="text-emerald-400" />{u.name}</div>
+                      <div className="flex items-center gap-2"><UserCircle size={14} weight="duotone" className="text-sky-400" />{u.name}</div>
                     </TableCell>
-                    <TableCell className="font-mono text-[11px] text-emerald-400">{u.did}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-sky-400">{u.did}</TableCell>
                     <TableCell className="max-w-[260px]"><Hash value={u.address} testId={`p-addr-${u.address_lower}`} /></TableCell>
                     <TableCell className="font-mono text-[10px] text-zinc-500">{u.created_at?.slice(0, 10)}</TableCell>
                   </TableRow>

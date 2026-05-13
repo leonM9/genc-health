@@ -13,7 +13,7 @@ export function Hash({ value, label, testId }) {
       <span className="crypto-text truncate flex-1">{value}</span>
       <button
         onClick={copy}
-        className="text-zinc-500 hover:text-emerald-400 opacity-60 group-hover:opacity-100 transition"
+        className="text-zinc-500 hover:text-sky-400 opacity-60 group-hover:opacity-100 transition"
         data-testid={`copy-${testId || "hash"}-btn`}
         aria-label="copy"
       >
@@ -26,13 +26,13 @@ export function Hash({ value, label, testId }) {
 export function StatusBadge({ status }) {
   const map = {
     pending: "bg-amber/10 text-amber border-amber/30",
-    anchored: "bg-emerald-500/10 text-emerald-400 border-emerald-400/30",
-    approved: "bg-emerald-500/10 text-emerald-400 border-emerald-400/30",
+    anchored: "bg-sky-500/10 text-sky-400 border-sky-400/30",
+    approved: "bg-sky-500/10 text-sky-400 border-sky-400/30",
     denied: "bg-rose/10 text-rose border-rose/30",
-    encrypted: "bg-teal-400/10 text-teal-300 border-teal-300/30",
+    encrypted: "bg-cyan-400/10 text-cyan-300 border-cyan-300/30",
     admin: "bg-amber/10 text-amber border-amber/30",
-    doctor: "bg-teal-400/10 text-teal-300 border-teal-300/30",
-    patient: "bg-emerald-500/10 text-emerald-400 border-emerald-400/30",
+    doctor: "bg-cyan-400/10 text-cyan-300 border-cyan-300/30",
+    patient: "bg-sky-500/10 text-sky-400 border-sky-400/30",
   };
   return (
     <span

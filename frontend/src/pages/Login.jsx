@@ -37,14 +37,14 @@ export default function Login() {
     <div className="min-h-screen bg-mesh relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-soft pointer-events-none" />
       {/* Floating orbs */}
-      <div className="absolute -top-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-emerald-500/15 blur-3xl pointer-events-none animate-float" />
-      <div className="absolute -bottom-32 -left-32 w-[24rem] h-[24rem] rounded-full bg-teal-400/10 blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
+      <div className="absolute -top-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-sky-500/15 blur-3xl pointer-events-none animate-float" />
+      <div className="absolute -bottom-32 -left-32 w-[24rem] h-[24rem] rounded-full bg-cyan-400/10 blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
 
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 py-8 lg:py-12 min-h-screen flex flex-col">
         {/* Topbar */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 flex items-center justify-center shadow-glow">
               <ShieldCheck size={20} weight="bold" className="text-zinc-950" />
             </div>
             <div className="leading-tight">
@@ -53,7 +53,7 @@ export default function Login() {
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-glow" />
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
             network live
           </div>
         </div>
@@ -67,14 +67,14 @@ export default function Login() {
             transition={{ duration: 0.6 }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
               <span className="eyebrow !text-zinc-300">RA 10173 // privacy by design</span>
             </div>
 
             <h1 className="heading-display text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold leading-[0.95]">
               Your health,<br />
               encrypted under{" "}
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">
                 your keys
               </span>.
             </h1>
@@ -90,7 +90,7 @@ export default function Login() {
                 { icon: ShieldCheck, k: "Ledger", v: "Merkle Anchor" },
               ].map((it) => (
                 <div key={it.k} className="card-modern p-4">
-                  <it.icon size={20} weight="duotone" className="text-emerald-400 mb-3" />
+                  <it.icon size={20} weight="duotone" className="text-sky-400 mb-3" />
                   <div className="eyebrow text-[10px]">{it.k}</div>
                   <div className="text-sm font-mono mt-1 text-zinc-100">{it.v}</div>
                 </div>
@@ -128,7 +128,7 @@ export default function Login() {
                   disabled={busy}
                   className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
                 >
-                  <Wallet size={20} weight="duotone" className="text-emerald-400" />
+                  <Wallet size={20} weight="duotone" className="text-sky-400" />
                   Connect MetaMask
                 </button>
 
@@ -138,7 +138,7 @@ export default function Login() {
                   disabled={busy}
                   className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
                 >
-                  <Lightning size={20} weight="duotone" className="text-teal-300" />
+                  <Lightning size={20} weight="duotone" className="text-cyan-300" />
                   Create Demo Wallet
                 </button>
               </div>
@@ -164,7 +164,7 @@ export default function Login() {
                   <button
                     onClick={() => setShowImport(true)}
                     data-testid="show-import-btn"
-                    className="w-full text-xs font-mono text-zinc-500 hover:text-emerald-400 transition py-2"
+                    className="w-full text-xs font-mono text-zinc-500 hover:text-sky-400 transition py-2"
                   >
                     + import existing private key
                   </button>
@@ -205,7 +205,7 @@ export default function Login() {
         <div className="border-t border-white/5 pt-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-zinc-500 font-mono">
           <div>Gen C // decentralized medical records protocol</div>
           <div className="flex gap-4 items-center">
-            <a href="/verify" data-testid="footer-verify-link" className="hover:text-emerald-400 transition">verify a certificate →</a>
+            <a href="/verify" data-testid="footer-verify-link" className="hover:text-sky-400 transition">verify a certificate →</a>
             <span>Hyperledger Besu (sim) · IPFS · QBFT · LPA</span>
           </div>
         </div>

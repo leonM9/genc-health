@@ -31,7 +31,7 @@ function Protected({ role, children }) {
 function BootLoader() {
   return (
     <div className="min-h-screen bg-mesh flex items-center justify-center">
-      <div className="text-emerald-400 font-mono text-sm tracking-widest animate-pulse">LOADING…</div>
+      <div className="text-sky-400 font-mono text-sm tracking-widest animate-pulse">LOADING…</div>
     </div>
   );
 }

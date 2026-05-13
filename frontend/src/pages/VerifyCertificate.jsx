@@ -55,12 +55,12 @@ export default function VerifyCertificate() {
   return (
     <div className="min-h-screen bg-mesh relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-soft pointer-events-none" />
-      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[34rem] h-[34rem] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[34rem] h-[34rem] rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-10 lg:py-14">
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 flex items-center justify-center shadow-glow">
               <ShieldCheck size={20} weight="bold" className="text-zinc-950" />
             </div>
             <div className="leading-tight">
@@ -68,7 +68,7 @@ export default function VerifyCertificate() {
               <div className="eyebrow mt-0.5">public verification</div>
             </div>
           </div>
-          <button onClick={() => nav("/")} className="text-xs font-mono text-zinc-500 hover:text-emerald-400 flex items-center gap-1.5">
+          <button onClick={() => nav("/")} className="text-xs font-mono text-zinc-500 hover:text-sky-400 flex items-center gap-1.5">
             <ArrowLeft size={14} weight="bold" /> back to sign-in
           </button>
         </div>
@@ -76,7 +76,7 @@ export default function VerifyCertificate() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="eyebrow mb-3">zero-knowledge attestation</div>
           <h1 className="heading-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.02] mb-3">
-            Verify a Gen C <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">certificate</span>.
+            Verify a Gen C <span className="bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent">certificate</span>.
           </h1>
           <p className="text-zinc-400 max-w-2xl text-sm sm:text-base">Paste a JSON certificate or drop a file. We recompute the Merkle proof and confirm the root is anchored on the chain — without ever decrypting the underlying record.</p>
         </motion.div>
@@ -120,23 +120,23 @@ export default function VerifyCertificate() {
             )}
             {result && result.valid && (
               <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
-                className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-5" data-testid="verify-result-valid">
+                className="rounded-lg border border-sky-400/30 bg-sky-500/5 p-5" data-testid="verify-result-valid">
                 <div className="flex items-center gap-3 mb-4">
-                  <CheckCircle size={32} weight="fill" className="text-emerald-400" />
+                  <CheckCircle size={32} weight="fill" className="text-sky-400" />
                   <div>
-                    <div className="font-display text-2xl font-bold text-emerald-400">Valid</div>
+                    <div className="font-display text-2xl font-bold text-sky-400">Valid</div>
                     <div className="text-xs font-mono text-zinc-400">anchored on-chain</div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div><span className="eyebrow">block</span> <div className="font-mono text-emerald-400 mt-1">#{result.anchor.block_number}</div></div>
+                  <div><span className="eyebrow">block</span> <div className="font-mono text-sky-400 mt-1">#{result.anchor.block_number}</div></div>
                   <div><span className="eyebrow">anchored at</span> <div className="font-mono text-xs text-zinc-300 mt-1">{new Date(result.anchor.anchored_at).toLocaleString()}</div></div>
                   <div className="pt-2"><Hash value={result.anchor.merkle_root} label="root" testId="result-root" /></div>
                   <div><Hash value={result.anchor.tx_hash} label="tx" testId="result-tx" /></div>
                   <div className="pt-3 border-t border-white/5 mt-3">
                     <div className="eyebrow">subject</div>
                     <div className="text-sm font-medium mt-1">{result.subject.diagnosis}</div>
-                    {result.subject.patient_did && <div className="text-[10px] font-mono text-emerald-400 mt-0.5">{result.subject.patient_did}</div>}
+                    {result.subject.patient_did && <div className="text-[10px] font-mono text-sky-400 mt-0.5">{result.subject.patient_did}</div>}
                     {result.subject.provider && !result.subject.provider.REDACTED && (
                       <div className="text-[11px] font-mono text-zinc-400 mt-1">{result.subject.provider.name} · {result.subject.provider.department}</div>
                     )}

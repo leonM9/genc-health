@@ -56,17 +56,17 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-mesh relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-soft pointer-events-none" />
-      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[34rem] h-[34rem] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[34rem] h-[34rem] rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
 
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-12 lg:py-20">
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 flex items-center justify-center shadow-glow">
               <ShieldCheck size={20} weight="bold" className="text-zinc-950" />
             </div>
             <div className="font-display font-bold text-xl">Gen C</div>
           </div>
-          <button onClick={async () => { await logout(); nav("/"); }} className="text-xs font-mono text-zinc-500 hover:text-emerald-400" data-testid="onb-logout">cancel</button>
+          <button onClick={async () => { await logout(); nav("/"); }} className="text-xs font-mono text-zinc-500 hover:text-sky-400" data-testid="onb-logout">cancel</button>
         </div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -91,11 +91,11 @@ export default function Onboarding() {
                 key={r.id}
                 onClick={() => setRole(r.id)}
                 data-testid={`role-${r.id}-btn`}
-                className={`card-modern p-5 text-left transition hover:border-emerald-400/50 ${
-                  role === r.id ? "border-emerald-400/80 shadow-glow" : ""
+                className={`card-modern p-5 text-left transition hover:border-sky-400/50 ${
+                  role === r.id ? "border-sky-400/80 shadow-glow" : ""
                 }`}
               >
-                <r.icon size={32} weight="duotone" className={role === r.id ? "text-emerald-400" : "text-zinc-400"} />
+                <r.icon size={32} weight="duotone" className={role === r.id ? "text-sky-400" : "text-zinc-400"} />
                 <div className="mt-3 font-display font-bold text-xl">{r.label}</div>
                 <div className="text-sm text-zinc-400 mt-1">{r.desc}</div>
               </button>
