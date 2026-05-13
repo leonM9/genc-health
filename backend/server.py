@@ -364,10 +364,12 @@ async def users_register(p: UserRegister, request: Request):
                 session_ok = True
     if not (sig_ok or session_ok):
         raise HTTPException(401, "Must sign with the wallet OR present a valid Google session")
+    return await _upsert_user(p, addr)
 
+
+async def _upsert_user(p, addr: str):
     exists = await db.users.find_one({"address_lower": addr})
     if exists:
-        # Allow profile updates for the same address (e.g., user finishes onboarding twice)
         await db.users.update_one(
             {"address_lower": addr},
             {"$set": {
@@ -397,6 +399,46 @@ async def users_register(p: UserRegister, request: Request):
     await db.users.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+class AdminRegister(BaseModel):
+    """Admin registers a user on behalf — for in-clinic onboarding flows."""
+    admin_address: str
+    admin_signature: str
+    admin_message: str
+    target_address: str  # the wallet that will own this profile
+    role: str
+    name: str
+    department: Optional[str] = None
+    hospital: Optional[str] = None
+    did: Optional[str] = None
+
+
+@api.post("/users/admin-register")
+async def users_admin_register(p: AdminRegister):
+    """Admin-initiated registration. The admin signs a message; we trust the
+    admin to enter the patient/doctor's wallet address."""
+    if not verify_sig(p.admin_address, p.admin_message, p.admin_signature):
+        raise HTTPException(401, "Invalid admin signature")
+    if addr_norm(p.admin_address) != ADMIN["address"].lower():
+        raise HTTPException(403, "Only admin can use this endpoint")
+    if p.role not in ("doctor", "patient"):
+        raise HTTPException(400, "role must be doctor or patient")
+    addr = addr_norm(p.target_address)
+    if not addr or not addr.startswith("0x") or len(addr) != 42:
+        raise HTTPException(400, "Invalid target wallet address")
+    # Mock the UserRegister-shaped object for _upsert_user
+    class _P:
+        pass
+    fake = _P()
+    fake.actor_address = p.target_address
+    fake.role = p.role
+    fake.name = p.name
+    fake.department = p.department
+    fake.hospital = p.hospital
+    fake.did = p.did
+    fake.extra = {"admin_registered": True}
+    return await _upsert_user(fake, addr)
 
 
 @api.get("/users")
@@ -462,11 +504,14 @@ async def records_create(p: RecordCreate):
     if not verify_sig(p.uploader_address, p.uploader_message, p.uploader_signature):
         raise HTTPException(401, "Invalid uploader signature")
     uploader = await db.users.find_one({"address_lower": addr_norm(p.uploader_address)}, {"_id": 0})
-    if not uploader or uploader["role"] != "doctor":
-        raise HTTPException(403, "Only registered doctors can upload records")
+    is_admin = addr_norm(p.uploader_address) == ADMIN["address"].lower()
+    if not is_admin and (not uploader or uploader["role"] != "doctor"):
+        raise HTTPException(403, "Only registered doctors or admin can upload records")
     patient = await db.users.find_one({"address_lower": addr_norm(p.patient_address)}, {"_id": 0})
     if not patient or patient["role"] != "patient":
         raise HTTPException(400, "Target patient not registered")
+    uploader_name = uploader["name"] if uploader else "System Administrator"
+    uploader_department = (uploader.get("department") if uploader else "Admin") or "Admin"
     rec = {
         "id": str(uuid.uuid4()),
         "cid": p.cid,
@@ -478,13 +523,14 @@ async def records_create(p: RecordCreate):
         "notes": p.notes,
         "uploader_address": p.uploader_address,
         "uploader_address_lower": addr_norm(p.uploader_address),
-        "uploader_name": uploader["name"],
-        "uploader_department": uploader.get("department"),
+        "uploader_name": uploader_name,
+        "uploader_department": uploader_department,
+        "uploader_role": "admin" if is_admin else "doctor",
         "patient_address": p.patient_address,
         "patient_address_lower": addr_norm(p.patient_address),
         "patient_name": patient["name"],
         "created_at": utcnow(),
-        "anchor_status": "pending",  # pending -> anchored
+        "anchor_status": "pending",
         "merkle_root": None,
         "anchor_tx": None,
         "anchor_block": None,
