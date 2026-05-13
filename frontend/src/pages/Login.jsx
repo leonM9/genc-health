@@ -204,7 +204,10 @@ export default function Login() {
         {/* Footer strip */}
         <div className="border-t border-white/5 pt-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-zinc-500 font-mono">
           <div>Gen C // decentralized medical records protocol</div>
-          <div>Hyperledger Besu (sim) · IPFS · QBFT · LPA Merkle Anchoring</div>
+          <div className="flex gap-4 items-center">
+            <a href="/verify" data-testid="footer-verify-link" className="hover:text-emerald-400 transition">verify a certificate →</a>
+            <span>Hyperledger Besu (sim) · IPFS · QBFT · LPA</span>
+          </div>
         </div>
       </div>
     </div>

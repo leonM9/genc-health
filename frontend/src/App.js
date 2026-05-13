@@ -8,6 +8,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import PatientDashboard from "@/pages/PatientDashboard";
 import DoctorDashboard from "@/pages/DoctorDashboard";
 import AuthCallback from "@/pages/AuthCallback";
+import VerifyCertificate from "@/pages/VerifyCertificate";
 
 function RoleRoute() {
   const { session, loading } = useWallet();
@@ -42,6 +43,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/verify" element={<VerifyCertificate />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/dashboard" element={<RoleRoute />} />
       <Route path="/admin" element={<Protected role="admin"><AdminDashboard /></Protected>} />

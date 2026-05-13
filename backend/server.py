@@ -827,6 +827,159 @@ async def lpa_stats():
     }
 
 
+# ---------- Verification Certificates ----------
+def _merkle_proof(layers: List[List[str]], leaf_index: int) -> List[Dict[str, str]]:
+    """Build a sibling proof path from leaf to root."""
+    proof = []
+    idx = leaf_index
+    for li in range(len(layers) - 1):
+        layer = layers[li]
+        if idx % 2 == 0:
+            sib_idx = idx + 1 if idx + 1 < len(layer) else idx
+            position = "right"  # sibling is on the right (concat self+sib)
+        else:
+            sib_idx = idx - 1
+            position = "left"
+        proof.append({"hash": layer[sib_idx], "position": position})
+        idx = idx // 2
+    return proof
+
+
+class CertificateBody(BaseModel):
+    record_id: Optional[str] = None
+    cid: Optional[str] = None
+    requester_address: str
+    signature: str
+    message: str
+    redact_provider: bool = False
+    redact_diagnosis: bool = False
+
+
+@api.post("/certificate/generate")
+async def certificate_generate(p: CertificateBody):
+    """Patient (or admin) generates a verification certificate for one of their anchored records."""
+    if not verify_sig(p.requester_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    rec = None
+    if p.record_id:
+        rec = await db.records.find_one({"id": p.record_id}, {"_id": 0})
+    elif p.cid:
+        rec = await db.records.find_one({"cid": p.cid}, {"_id": 0})
+    if not rec:
+        raise HTTPException(404, "Record not found")
+    # Authorization: requester must be the patient (owner) OR the admin
+    req_addr = addr_norm(p.requester_address)
+    is_owner = req_addr == rec["patient_address_lower"]
+    is_admin = req_addr == ADMIN["address"].lower()
+    if not (is_owner or is_admin):
+        raise HTTPException(403, "Only the record owner or admin may generate a certificate")
+    if rec.get("anchor_status") != "anchored" or not rec.get("merkle_root"):
+        raise HTTPException(400, "Record is not yet anchored on-chain")
+
+    anchor = await db.lpa_anchors.find_one({"root": rec["merkle_root"]}, {"_id": 0})
+    if not anchor:
+        raise HTTPException(404, "Anchor not found for this record")
+
+    leaves = anchor["leaves"]
+    layers = anchor["layers"]
+    try:
+        leaf_index = leaves.index(rec["cid"])
+    except ValueError:
+        raise HTTPException(500, "CID not in anchor leaves (data inconsistency)")
+
+    leaf_hash = layers[0][leaf_index]
+    proof = _merkle_proof(layers, leaf_index)
+
+    cert = {
+        "kind": "GenC.MedicalRecordCertificate",
+        "version": "1.0",
+        "issued_at": utcnow(),
+        "network": "gen-c-sim",
+        "record": {
+            "cid": rec["cid"],
+            "leaf_hash": leaf_hash,
+            "anchored_at": anchor["anchored_at"],
+            "block_number": anchor["block_number"],
+            "tx_hash": anchor["tx_hash"],
+            "merkle_root": anchor["root"],
+            "leaf_count": anchor["leaf_count"],
+        },
+        "merkle_proof": proof,
+        "patient": {
+            "did": (await db.users.find_one({"address_lower": rec["patient_address_lower"]}, {"_id": 0}) or {}).get("did"),
+            "address": rec["patient_address"],
+        },
+        "provider": ({"REDACTED": True} if p.redact_provider else {
+            "name": rec["uploader_name"],
+            "department": rec.get("uploader_department"),
+            "address": rec["uploader_address"],
+        }),
+        "diagnosis": ("REDACTED" if p.redact_diagnosis else rec["diagnosis"]),
+        "verification_url": "/verify",
+    }
+    return cert
+
+
+class CertVerifyBody(BaseModel):
+    certificate: Dict[str, Any]
+
+
+@api.post("/certificate/verify")
+async def certificate_verify(body: CertVerifyBody):
+    """Public endpoint. Re-derives the Merkle root from the certificate's leaf + proof
+    and confirms it matches an anchor stored on the chain."""
+    from eth_utils import keccak
+    cert = body.certificate or {}
+    try:
+        rec = cert["record"]
+        proof = cert["merkle_proof"]
+        claimed_root = rec["merkle_root"]
+        leaf_hash = rec["leaf_hash"]
+        cid = rec["cid"]
+    except Exception:
+        raise HTTPException(400, "Malformed certificate")
+
+    # 1. Re-derive leaf_hash from the CID
+    derived_leaf = "0x" + keccak(text=cid).hex()
+    if derived_leaf.lower() != leaf_hash.lower():
+        return {"valid": False, "reason": "Leaf hash does not match keccak256(cid)"}
+
+    # 2. Walk the proof to compute the root
+    current = bytes.fromhex(leaf_hash[2:])
+    for step in proof:
+        sib = bytes.fromhex(step["hash"][2:])
+        if step["position"] == "right":
+            current = keccak(current + sib)
+        else:
+            current = keccak(sib + current)
+    derived_root = "0x" + current.hex()
+
+    if derived_root.lower() != claimed_root.lower():
+        return {"valid": False, "reason": "Recomputed root does not match certificate root", "derived_root": derived_root, "claimed_root": claimed_root}
+
+    # 3. Confirm anchor exists on the chain
+    anchor = await db.lpa_anchors.find_one({"root": claimed_root}, {"_id": 0})
+    if not anchor:
+        return {"valid": False, "reason": "Merkle root not found on the chain"}
+
+    return {
+        "valid": True,
+        "anchor": {
+            "block_number": anchor["block_number"],
+            "tx_hash": anchor["tx_hash"],
+            "anchored_at": anchor["anchored_at"],
+            "leaf_count": anchor["leaf_count"],
+            "merkle_root": anchor["root"],
+        },
+        "subject": {
+            "cid": cid,
+            "diagnosis": cert.get("diagnosis"),
+            "patient_did": cert.get("patient", {}).get("did"),
+            "provider": cert.get("provider"),
+        },
+    }
+
+
 # ---------- Upload Requests (Patient -> Doctor) ----------
 class UploadRequestCreate(BaseModel):
     patient_address: str

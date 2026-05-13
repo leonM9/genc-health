@@ -12,7 +12,9 @@ import { Hash, StatusBadge } from "@/components/CryptoString";
 import { aesDecryptBlob, importKeyB64, shortAddr } from "@/lib/crypto";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Download, FileLock, BellRinging, X, Check, FolderLock, UploadSimple, PaperPlaneTilt } from "@phosphor-icons/react";
+import { Download, FileLock, BellRinging, X, Check, FolderLock, UploadSimple, PaperPlaneTilt, Certificate, Copy } from "@phosphor-icons/react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 export default function PatientDashboard() {
   const { session, buildSig } = useWallet();
@@ -21,6 +23,12 @@ export default function PatientDashboard() {
   const [doctors, setDoctors] = useState([]);
   const [uploadReqs, setUploadReqs] = useState([]);
   const [decrypting, setDecrypting] = useState(null);
+  const [certOpen, setCertOpen] = useState(false);
+  const [certData, setCertData] = useState(null);
+  const [certBusy, setCertBusy] = useState(false);
+  const [redactProvider, setRedactProvider] = useState(false);
+  const [redactDiagnosis, setRedactDiagnosis] = useState(false);
+  const [certRecord, setCertRecord] = useState(null);
 
   // form
   const [doctorAddr, setDoctorAddr] = useState("");
@@ -95,6 +103,47 @@ export default function PatientDashboard() {
     } finally { setSubmitting(false); }
   };
 
+  const generateCertificate = async (rec) => {
+    setCertBusy(true);
+    setCertRecord(rec);
+    try {
+      const { message, signature } = await buildSig("issue-certificate");
+      const r = await api.post("/certificate/generate", {
+        record_id: rec.id,
+        requester_address: session.address,
+        signature, message,
+        redact_provider: redactProvider,
+        redact_diagnosis: redactDiagnosis,
+      });
+      setCertData(r.data);
+      setCertOpen(true);
+    } catch (e) {
+      toast.error("Certificate failed", { description: e?.response?.data?.detail || e.message });
+    } finally { setCertBusy(false); }
+  };
+
+  const downloadCert = () => {
+    if (!certData) return;
+    const blob = new Blob([JSON.stringify(certData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `gen-c-cert-${certData.record.cid.slice(0, 10)}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copyShareLink = () => {
+    if (!certData) return;
+    const b64 = btoa(JSON.stringify(certData));
+    const url = `${window.location.origin}/verify#cert=${encodeURIComponent(b64)}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Share link copied", { description: "Anyone with this link can verify the proof" });
+  };
+
+  const regenerate = async () => {
+    if (!certRecord) return;
+    await generateCertificate(certRecord);
+  };
+
   const pendingAccess = requests.filter((r) => r.status === "pending");
   const otherAccess = requests.filter((r) => r.status !== "pending");
 
@@ -162,15 +211,28 @@ export default function PatientDashboard() {
                     <TableCell className="max-w-[220px]"><Hash value={r.cid} testId={`rec-cid-${r.id}`} /></TableCell>
                     <TableCell><StatusBadge status={r.anchor_status} /></TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => decryptAndDownload(r)}
-                        disabled={decrypting === r.id}
-                        data-testid={`decrypt-${r.id}-btn`}
-                        className="btn-primary-modern h-8 px-3 text-[11px] flex items-center gap-1.5"
-                      >
-                        <Download size={12} weight="bold" />
-                        {decrypting === r.id ? "decrypting…" : "decrypt"}
-                      </button>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => decryptAndDownload(r)}
+                          disabled={decrypting === r.id}
+                          data-testid={`decrypt-${r.id}-btn`}
+                          className="btn-primary-modern h-8 px-3 text-[11px] flex items-center gap-1.5"
+                        >
+                          <Download size={12} weight="bold" />
+                          {decrypting === r.id ? "decrypting…" : "decrypt"}
+                        </button>
+                        {r.anchor_status === "anchored" && (
+                          <button
+                            onClick={() => generateCertificate(r)}
+                            data-testid={`cert-${r.id}-btn`}
+                            disabled={certBusy}
+                            className="h-8 px-3 rounded-lg border border-emerald-400/30 bg-emerald-500/5 text-emerald-300 font-mono uppercase tracking-wider text-[11px] hover:bg-emerald-500/10 flex items-center gap-1.5"
+                          >
+                            <Certificate size={12} weight="bold" />
+                            certify
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -301,6 +363,64 @@ export default function PatientDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={certOpen} onOpenChange={setCertOpen}>
+        <DialogContent className="bg-zinc-950 border border-white/10 rounded-2xl max-w-2xl text-zinc-100">
+          <DialogHeader>
+            <div className="eyebrow mb-1">zero-knowledge attestation</div>
+            <DialogTitle className="heading-display text-2xl font-bold flex items-center gap-2">
+              <Certificate size={24} weight="duotone" className="text-emerald-400" />
+              Verification Certificate
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-white/5">
+              <div className="text-xs text-zinc-300">Redact provider identity</div>
+              <Switch checked={redactProvider} onCheckedChange={setRedactProvider} data-testid="redact-provider-switch" />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-white/5">
+              <div className="text-xs text-zinc-300">Redact diagnosis</div>
+              <Switch checked={redactDiagnosis} onCheckedChange={setRedactDiagnosis} data-testid="redact-diagnosis-switch" />
+            </div>
+            <button onClick={regenerate} disabled={certBusy} data-testid="regen-cert-btn"
+              className="w-full h-9 btn-ghost-modern text-xs font-semibold">
+              {certBusy ? "regenerating…" : "Regenerate with current settings"}
+            </button>
+
+            {certData && (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+                    <div className="eyebrow !text-[9px]">block</div>
+                    <div className="font-mono text-emerald-400 mt-1">#{certData.record.block_number}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+                    <div className="eyebrow !text-[9px]">leaves</div>
+                    <div className="font-mono mt-1">{certData.record.leaf_count}</div>
+                  </div>
+                </div>
+                <Hash value={certData.record.merkle_root} label="root" testId="cert-root" />
+                <Hash value={certData.record.tx_hash} label="tx" testId="cert-tx" />
+                <div className="rounded-lg bg-zinc-900/80 border border-white/5 p-3 max-h-[180px] overflow-auto">
+                  <pre className="text-[10px] font-mono text-zinc-300">{JSON.stringify(certData, null, 2)}</pre>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 mt-2">
+            <button onClick={copyShareLink} disabled={!certData} data-testid="copy-share-btn"
+              className="btn-ghost-modern h-10 px-4 text-xs font-semibold flex items-center gap-2">
+              <Copy size={14} weight="bold" /> Copy share link
+            </button>
+            <button onClick={downloadCert} disabled={!certData} data-testid="download-cert-btn"
+              className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2">
+              <Download size={14} weight="bold" /> Download .json
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

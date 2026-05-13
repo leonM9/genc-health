@@ -1,0 +1,37 @@
+{
+  "summary": "Backend-only verification of new Verification Certificate feature (POST /api/certificate/generate + POST /api/certificate/verify). Wrote 10 new pytest tests in /app/backend/tests/test_certificate.py covering full E2E: register patient + doctor, upload pending record, verify pending->400, anchor LPA, generate cert (patient + admin paths), verify happy path, tamper detection (root + leaf), unknown-anchor rejection, redaction, invalid signature, non-owner forbidden. All 10 new tests PASS. Existing 35 tests in test_genc_backend.py still PASS (no regressions). Total: 45/45.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_flows": [
+    "POST /api/certificate/generate returns full cert (kind=GenC.MedicalRecordCertificate, version, record.cid, record.leaf_hash, record.merkle_root, record.block_number, record.tx_hash, merkle_proof[{hash,position}], patient.did, provider, diagnosis) for the patient owner on an anchored record.",
+    "POST /api/certificate/generate returns 403 when requester is a different patient (not owner, not admin).",
+    "POST /api/certificate/generate returns 400 when record anchor_status='pending'.",
+    "POST /api/certificate/generate returns 401 on invalid signature (sig from different wallet than requester_address).",
+    "POST /api/certificate/generate with redact_provider=true returns provider={REDACTED:true}; redact_diagnosis=true returns diagnosis='REDACTED'.",
+    "POST /api/certificate/generate works for admin signature on any patient's record (is_admin path).",
+    "POST /api/certificate/verify returns valid=true for an untampered cert and surfaces anchor.block_number, anchor.tx_hash, anchor.merkle_root, subject.diagnosis.",
+    "POST /api/certificate/verify returns valid=false when one nibble of record.merkle_root is flipped (root mismatch / unknown-anchor branch).",
+    "POST /api/certificate/verify returns valid=false when leaf_hash is tampered (keccak256(cid) mismatch with reason mentioning 'leaf').",
+    "POST /api/certificate/verify returns valid=false when merkle_root is not present in lpa_anchors collection."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_certificate.py",
+    "/app/test_reports/pytest/cert_results.xml",
+    "/app/test_reports/pytest/full_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Certificate verify endpoint correctly imports eth_utils.keccak and recomputes leaf=keccak256(text=cid) and walks the proof as raw 32-byte concatenations (left||right) — matches the build_merkle producer.",
+    "Authorization check uses addr_norm for case-insensitive comparison and an explicit is_admin check, which is appropriate.",
+    "Minor robustness: certificate_generate's 'anchor not found' branch returns 404 but the upstream anchor_status='anchored' check should make this unreachable; current code is fine.",
+    "Minor: _merkle_proof handles odd-leaf duplication via 'if idx+1 < len(layer) else idx', producing position='right' with sibling==self — verify path correctly recomputes keccak(self+self) at that step. Confirmed by passing tests.",
+    "Verification endpoint is intentionally public (no signature required) — correct for zero-knowledge style verification."
+  ],
+  "updated_files": ["/app/backend/tests/test_certificate.py"],
+  "success_rate": {"backend": "100% (45/45 tests, including 10 new certificate tests)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Admin: 0x12606Fa5e40FAd4D99D59Ee967aF4c418b6E5D8B / 0xb61123baee2bb96625cfeabf70835eff22b81427cd030ec78e804d03d2dc7759. Doctor/Patient: deterministically derived per-run from RUN_SUFFIX.",
+  "seed_data_creation": "Each pytest run registers a fresh doctor + 2 patients with TEST_cert_ prefix derived from a per-run uuid suffix, uploads one record, and triggers one LPA anchor. State is left in DB (idempotent on re-run because suffix changes).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Certificate feature is fully covered by /app/backend/tests/test_certificate.py. Run via: pytest /app/backend/tests/ -v. The test file uses module-scoped fixtures (pinata_cid -> setup_users -> pending_record -> anchored_record -> certificate) so the E2E chain runs exactly once per session. If frontend UI for the certificate flow is added later (e.g., a 'Generate Certificate' button on the patient record card and a /verify page), retest end-to-end including JSON download + paste-to-verify."
+}
