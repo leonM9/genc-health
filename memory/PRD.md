@@ -37,10 +37,8 @@ A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy A
 - Admin can **attach a medical file** to any registered patient (full AES+IPFS+LPA pipeline, marked uploader_role=admin)
 - **LpaCostChart** component visualizes gas cost per record dropping as batch size grows (with/without LPA overlay + savings %)
 - Sky-blue/cyan theme retained (replaced earlier emerald)
-- SETUP.md TL;DR section + run commands for friend's local VS Code
-
-## Removed (per user request, 2026-02-13)
-- Defense Roster seed buttons (`/api/admin/seed-roster`, `/api/admin/clear-seeded`) — user did not want auto-seeding
+- **SETUP.md fully rewritten** with two parts: (A) deploy to a real public domain via Emergent + MongoDB Atlas; (B) local VS Code dev. Includes "proof it's on a domain" checklist for thesis defense.
+- Moved `@emergentbase/visual-edits` to `optionalDependencies` in package.json so install never fails on networks that can't reach Emergent CDN.
 
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
