@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gen C — Thesis Presentation Preview</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0a0a0a;color:#e4e4e7;font-family:'Inter','Plus Jakarta Sans',-apple-system,sans-serif;padding:40px 60px;min-height:100vh;line-height:1.6;}
+  header{margin-bottom:60px;padding-bottom:40px;border-bottom:1px solid #27272a;}
+  header .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;color:#71717a;letter-spacing:.25em;text-transform:uppercase;margin-bottom:14px;}
+  header h1{font-size:54px;font-weight:800;letter-spacing:-0.03em;color:#fafafa;margin-bottom:16px;}
+  header h1 span{color:#7dd3fc;}
+  header p{font-size:18px;color:#a1a1aa;max-width:800px;}
+  .nav{margin-top:24px;display:flex;flex-wrap:wrap;gap:10px;}
+  .nav a{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a1a1aa;text-decoration:none;padding:6px 12px;border:1px solid #27272a;border-radius:6px;transition:all .15s;}
+  .nav a:hover{color:#7dd3fc;border-color:#38bdf8;}
+  .chapter{margin-top:80px;padding-top:30px;border-top:2px solid #38bdf8;}
+  .chapter .label{font-family:'JetBrains Mono',monospace;font-size:13px;color:#7dd3fc;letter-spacing:.25em;text-transform:uppercase;margin-bottom:8px;}
+  .chapter h2{font-size:44px;font-weight:800;color:#fafafa;letter-spacing:-0.025em;margin-bottom:40px;}
+  .slide{margin-bottom:60px;background:#0c0c0d;border:1px solid #27272a;border-radius:16px;overflow:hidden;}
+  .slide:hover{border-color:#38bdf8;}
+  .slide-head{padding:20px 28px;display:flex;align-items:baseline;gap:20px;border-bottom:1px solid #27272a;background:#000;}
+  .slide-num{font-family:'JetBrains Mono',monospace;font-size:11px;color:#52525b;letter-spacing:.2em;text-transform:uppercase;min-width:90px;}
+  .slide-title{font-size:22px;font-weight:700;color:#fafafa;letter-spacing:-0.01em;flex:1;}
+  .slide-body{padding:28px;}
+  .bullets{margin-bottom:24px;}
+  .bullets li{margin-bottom:8px;color:#d4d4d8;font-size:15px;list-style:none;padding-left:20px;position:relative;}
+  .bullets li::before{content:"▸";position:absolute;left:0;color:#7dd3fc;}
+  .bullets b{color:#7dd3fc;}
+  .image-wrap{border-radius:12px;overflow:hidden;border:1px solid #27272a;background:#000;}
+  .image-wrap img{width:100%;height:auto;display:block;}
+  .caption{margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#52525b;letter-spacing:.1em;text-align:right;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  table th{text-align:left;padding:10px 14px;background:#000;color:#7dd3fc;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;border-bottom:1px solid #27272a;}
+  table td{padding:10px 14px;border-bottom:1px solid #18181b;color:#d4d4d8;}
+  table td b{color:#fafafa;}
+  .badge{display:inline-block;background:rgba(56,189,248,0.08);color:#7dd3fc;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid rgba(56,189,248,0.2);}
+  footer{margin-top:120px;padding-top:40px;border-top:1px solid #27272a;text-align:center;color:#52525b;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.2em;}
+  .hint{background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:20px 24px;margin-bottom:40px;color:#a1a1aa;font-size:14px;}
+  .hint b{color:#7dd3fc;}
+  @media print{
+    body{padding:20px;}
+    .slide{page-break-inside:avoid;break-inside:avoid;}
+    .chapter{page-break-before:always;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">thesis defense // chapter 4 · 5 · 6</div>
+  <h1>Gen C — Presentation <span>Preview</span></h1>
+  <p>A decentralized medical-records protocol for the Philippine Data Privacy Act (RA 10173). 31 slides · 22 real screenshots · built and validated empirically.</p>
+  <div class="nav">
+    <a href="#ch4">Chapter 4 — Implementation</a>
+    <a href="#ch5">Chapter 5 — Testing & Evaluation</a>
+    <a href="#ch6">Chapter 6 — Conclusions</a>
+    <a href="javascript:window.print()">🖨️ Print / Save as PDF</a>
+  </div>
+</header>
+
+<div class="hint">
+  <b>How to use this preview:</b> scroll through to see every slide with its real screenshot. Right-click any image → "Save image as…" to download it for your PowerPoint deck. Or hit the <b>Print / Save as PDF</b> button above to export the whole thing as one PDF.
+</div>
+
+<!-- ====================== CHAPTER 4 ====================== -->
+<section class="chapter" id="ch4">
+  <div class="label">chapter four</div>
+  <h2>Results & System Implementation</h2>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 01</div><div class="slide-title">Chapter Title</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Title:</b> Chapter 4 — Results and Discussion</li>
+        <li><b>Subtitle:</b> Implementation of Gen C — A Decentralized Medical Records Protocol for the Data Privacy Act of 2012 (RA 10173)</li>
+        <li>Your name, your university / program, defense date</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 02</div><div class="slide-title">Four-layer Privacy-by-Design architecture</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Layer 1 — Client (Browser):</b> React 19 + Web Crypto API + ethers.js</li>
+        <li><b>Layer 2 — Application:</b> FastAPI backend with ECDSA signature verification</li>
+        <li><b>Layer 3 — Storage:</b> MongoDB (metadata only) + Pinata IPFS (encrypted blobs)</li>
+        <li><b>Layer 4 — Ledger:</b> Hyperledger Besu (QBFT) — LPA Merkle anchoring</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-02-architecture-diagram.jpeg" alt="Architecture"></div>
+      <div class="caption">slide-02-architecture-diagram.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 03</div><div class="slide-title">Technology stack</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+        <tbody>
+          <tr><td><b>Frontend</b></td><td>React 19 · Tailwind CSS · ethers.js · framer-motion</td></tr>
+          <tr><td><b>Backend</b></td><td>FastAPI · eth_account · motor (async MongoDB driver)</td></tr>
+          <tr><td><b>Encryption</b></td><td>AES-256-GCM (Web Crypto API) · simulated CP-ABE</td></tr>
+          <tr><td><b>Storage</b></td><td>MongoDB Atlas · Pinata IPFS</td></tr>
+          <tr><td><b>Ledger</b></td><td>Hyperledger Besu (simulated · QBFT consensus)</td></tr>
+          <tr><td><b>Deployment</b></td><td>Emergent + MongoDB Atlas — <span class="badge">live on a public domain</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 04</div><div class="slide-title">Privacy-by-Design pillars (RA 10173 §20)</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Encryption</b> — AES-256-GCM at rest, performed client-side</li>
+        <li><b>Access Control</b> — CP-ABE attribute policy: <code>(Role:Doctor AND Dept:X) OR Owner:patient</code></li>
+        <li><b>Decentralization</b> — IPFS storage + Merkle anchoring (no single point of trust)</li>
+        <li><b>Auditability</b> — Every read/write cryptographically signed (ECDSA secp256k1)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 05</div><div class="slide-title">Login portal — 4 authentication methods</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Google OAuth</b> — auto-derives wallet from Google identity</li>
+        <li><b>MetaMask</b> — connect existing Web3 wallet</li>
+        <li><b>Demo Wallet</b> — quickest; auto-generates <code>ethers.Wallet.createRandom()</code></li>
+        <li><b>Admin Sign-in</b> — deterministic admin wallet (LPA console)</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-05-login-page.jpeg" alt="Login"></div>
+      <div class="caption">slide-05-login-page.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 06</div><div class="slide-title">Hybrid encryption pipeline — 5 stages, client-side only</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>01 Generate AES key</b> in browser (Web Crypto API, 256 bits)</li>
+        <li><b>02 Encrypt</b> PDF with AES-256-GCM (authenticated, randomized IV)</li>
+        <li><b>03 Pin</b> ciphertext to IPFS via Pinata → returns CID</li>
+        <li><b>04 Wrap</b> AES key under CP-ABE attribute policy</li>
+        <li><b>05 Enqueue</b> CID hash into next LPA Merkle batch</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-06-encryption-pipeline.jpeg" alt="Encryption Pipeline"></div>
+      <div class="caption">slide-06-encryption-pipeline.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 07</div><div class="slide-title">Layered Proof Aggregation — anchor N records in ONE transaction</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Without LPA</b> = N × gas_per_tx (linear blockchain cost)</li>
+        <li><b>With LPA</b> = 1 transaction regardless of N (batch into Merkle root)</li>
+        <li>At N=100 → <b>99.0% gas-cost reduction</b></li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-07-lpa-diagram.jpeg" alt="LPA"></div>
+      <div class="caption">slide-07-lpa-diagram.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 07a</div><div class="slide-title">Patient Dashboard — data sovereignty</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>View own encrypted records (decrypted client-side on demand)</li>
+        <li>Approve / deny doctor access requests via signature</li>
+        <li>Send Upload Requests to specific doctors</li>
+        <li>Generate portable Verification Certificates</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-07a-patient-dashboard.jpeg" alt="Patient"></div>
+      <div class="caption">slide-07a-patient-dashboard.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 07b</div><div class="slide-title">Patient — Access Requests Inbox</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-07b-patient-access-requests.jpeg" alt="Patient Access"></div>
+      <div class="caption">slide-07b-patient-access-requests.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 07c</div><div class="slide-title">Patient — Request Upload from a doctor</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-07c-patient-request-upload.jpeg" alt="Patient Request"></div>
+      <div class="caption">slide-07c-patient-request-upload.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 08</div><div class="slide-title">Admin / LPA Console — Merkle anchoring orchestration</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Pending CIDs queued for next anchor</li>
+        <li>Interactive Merkle tree visualizer</li>
+        <li>Anchor button signs the root with admin Ethereum key</li>
+        <li>Stat cards: Doctors · Patients · Pending CIDs · Anchored Roots</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-08-admin-lpa-console.jpeg" alt="Admin LPA"></div>
+      <div class="caption">slide-08-admin-lpa-console.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 09</div><div class="slide-title">LPA Cost Chart — empirical results from live app</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Bar chart of per-record cost vs. batch size</li>
+        <li>Cost amortizes asymptotically toward zero</li>
+        <li>Real-time visualization in the Admin dashboard</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-09-lpa-cost-chart.jpeg" alt="Cost Chart"></div>
+      <div class="caption">slide-09-lpa-cost-chart.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 10a</div><div class="slide-title">Doctor Dashboard — Provider Console</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-10a-doctor-dashboard.jpeg" alt="Doctor"></div>
+      <div class="caption">slide-10a-doctor-dashboard.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 10b</div><div class="slide-title">Doctor Upload — encryption pipeline in action</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-10b-doctor-upload.jpeg" alt="Doctor Upload"></div>
+      <div class="caption">slide-10b-doctor-upload.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 10c</div><div class="slide-title">Doctor Inbox — patient upload requests</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-10c-doctor-inbox.jpeg" alt="Doctor Inbox"></div>
+      <div class="caption">slide-10c-doctor-inbox.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 10d</div><div class="slide-title">Doctor — My past records</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-10d-doctor-records.jpeg" alt="Doctor Records"></div>
+      <div class="caption">slide-10d-doctor-records.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 11</div><div class="slide-title">Admin — Attach File on behalf of patient</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Full AES-256 → Pinata IPFS → CP-ABE → LPA flow</li>
+        <li>Marked <code>uploader_role=admin</code> for audit trail</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-11-attach-file.jpeg" alt="Attach"></div>
+      <div class="caption">slide-11-attach-file.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 12</div><div class="slide-title">Admin — Register Doctor</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Generates demo wallet (private key shown once)</li>
+        <li>Stores: address, name, department, hospital, DID</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-12-register-doctor.jpeg" alt="Register Doc"></div>
+      <div class="caption">slide-12-register-doctor.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 13</div><div class="slide-title">Admin — Register Patient</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-13-register-patient.jpeg" alt="Register Pat"></div>
+      <div class="caption">slide-13-register-patient.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 14</div><div class="slide-title">Anchored Merkle Roots — tamper-evidence history</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Each batch produces: root hash · block number · tx hash · leaf count · timestamp</li>
+        <li>Anyone can verify a record's inclusion via Merkle proof</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-14-anchored-roots.jpeg" alt="Anchored"></div>
+      <div class="caption">slide-14-anchored-roots.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 15</div><div class="slide-title">Registered Doctors directory</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-15-doctors-list.jpeg" alt="Doctors"></div>
+      <div class="caption">slide-15-doctors-list.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 16</div><div class="slide-title">Registered Patients directory</div></div>
+    <div class="slide-body">
+      <div class="image-wrap"><img src="/presentation_assets/slide-16-patients-list.jpeg" alt="Patients"></div>
+      <div class="caption">slide-16-patients-list.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 17</div><div class="slide-title">Verification Certificate — zero-knowledge proof export</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Patient generates portable JSON proof: record hash · Merkle proof path · anchor tx · timestamp</li>
+        <li>Anyone can verify on <code>/verify</code> WITHOUT decrypting the record</li>
+        <li>Use case: court filings · insurance claims · second opinions</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-17-verify-certificate.jpeg" alt="Verify"></div>
+      <div class="caption">slide-17-verify-certificate.jpeg</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== CHAPTER 5 ====================== -->
+<section class="chapter" id="ch5">
+  <div class="label">chapter five</div>
+  <h2>Testing, Evaluation & Results</h2>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 18</div><div class="slide-title">56 / 56 backend tests PASSING</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Backend:</b> 56 pytest cases (auth, registration, IPFS, records, LPA, certificates, admin)</li>
+        <li><b>Frontend:</b> Playwright end-to-end browser automation</li>
+        <li><b>Security:</b> signature spoofing, replay attacks, non-admin attempts</li>
+        <li><b>Performance:</b> LPA cost simulation from N=1 to N=500</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-18-pytest-results.jpeg" alt="Pytest"></div>
+      <div class="caption">slide-18-pytest-results.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 19</div><div class="slide-title">Live API health check — proof of public domain</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Open <code>https://gen-c-health.emergent.host/api/</code> → JSON response</li>
+        <li>Real HTTPS · real DNS · real public IP</li>
+        <li>Anyone can verify the deployment is live (not a localhost mock)</li>
+      </ul>
+      <div class="image-wrap"><img src="/presentation_assets/slide-19-api-health.jpeg" alt="API"></div>
+      <div class="caption">slide-19-api-health.jpeg</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 20</div><div class="slide-title">Security validation — empirical threat model</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Attack vector</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Spoofed admin signature</td><td><span class="badge">401 Unauthorized</span> ✅</td></tr>
+          <tr><td>Non-admin calls /admin/* endpoint</td><td><span class="badge">403 Forbidden</span> ✅</td></tr>
+          <tr><td>Replay of old signature</td><td>Rejected (fresh nonce required) ✅</td></tr>
+          <tr><td>Direct IPFS access without key</td><td>Returns ciphertext only ✅</td></tr>
+          <tr><td>Malformed wallet address</td><td><span class="badge">400 Bad Request</span> ✅</td></tr>
+          <tr><td>Mongo _id leakage in API</td><td>None — verified by tests ✅</td></tr>
+          <tr><td>CORS bypass</td><td>Blocked unless origin allowed ✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 21</div><div class="slide-title">Performance: LPA cost savings</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Batch size</th><th>Per-record cost</th><th>Reduction</th></tr></thead>
+        <tbody>
+          <tr><td><b>1</b> (no batching)</td><td>₱344</td><td>—</td></tr>
+          <tr><td><b>50</b></td><td>₱6.88</td><td>98.0%</td></tr>
+          <tr><td><b>100</b></td><td>₱3.44</td><td>99.0%</td></tr>
+          <tr><td><b>500</b></td><td>₱0.69</td><td><b>99.8%</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 22</div><div class="slide-title">RA 10173 compliance mapping</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Privacy Principle</th><th>How Gen C addresses it</th></tr></thead>
+        <tbody>
+          <tr><td><b>Transparency</b></td><td>Open-source code · per-record audit trail</td></tr>
+          <tr><td><b>Legitimate Purpose</b></td><td>Doctor request → patient signs approval</td></tr>
+          <tr><td><b>Proportionality</b></td><td>CP-ABE = least-privilege by attributes</td></tr>
+          <tr><td><b>Data Integrity</b></td><td>Merkle root makes records tamper-evident</td></tr>
+          <tr><td><b>Security (§20)</b></td><td>AES-256-GCM at rest + TLS in transit</td></tr>
+          <tr><td><b>Data Subject Rights (§16)</b></td><td>Patient owns keys; can revoke/rotate</td></tr>
+          <tr><td><b>Breach Notification</b></td><td>LPA anchor enables 72-hour audit</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 23</div><div class="slide-title">Heuristic evaluation (Nielsen's 10)</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Principle</th><th>Score</th><th>Justification</th></tr></thead>
+        <tbody>
+          <tr><td>Visibility of system status</td><td>⭐⭐⭐⭐⭐</td><td>Real-time encryption pipeline visible</td></tr>
+          <tr><td>User control & freedom</td><td>⭐⭐⭐⭐⭐</td><td>Patient owns all keys</td></tr>
+          <tr><td>Consistency & standards</td><td>⭐⭐⭐⭐⭐</td><td>Sky-blue theme · unified components</td></tr>
+          <tr><td>Error prevention</td><td>⭐⭐⭐⭐</td><td>Validation on wallets, files</td></tr>
+          <tr><td>Recognition over recall</td><td>⭐⭐⭐⭐⭐</td><td>Address book · stat cards</td></tr>
+          <tr><td>Flexibility & efficiency</td><td>⭐⭐⭐⭐</td><td>4 sign-in methods · tabbed UI</td></tr>
+          <tr><td>Aesthetic minimalism</td><td>⭐⭐⭐⭐⭐</td><td>Brutalist · monospace accents</td></tr>
+          <tr><td>Recover from errors</td><td>⭐⭐⭐⭐</td><td>Toast notifications with reasons</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 24</div><div class="slide-title">Scope limitations & boundaries</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>CP-ABE is <b>simulated</b> (shunting-yard policy evaluator) — real lib (OpenABE) requires PBC pairings</li>
+        <li>Hyperledger Besu is <b>simulated</b> — Merkle root + tx hash + block# generated locally</li>
+        <li>IPFS pinning via Pinata (centralized gateway) — true decentralization needs self-hosted IPFS node</li>
+        <li>No mobile app (web-only)</li>
+        <li>Not yet integrated with DOH FHIR profiles</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== CHAPTER 6 ====================== -->
+<section class="chapter" id="ch6">
+  <div class="label">chapter six</div>
+  <h2>Summary, Conclusions & Recommendations</h2>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 25</div><div class="slide-title">Summary of findings</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Successfully implemented hybrid AES-256 + simulated CP-ABE encryption client-side</li>
+        <li>Achieved <b>99% gas-cost reduction</b> via Layered Proof Aggregation at batch size 100</li>
+        <li>Deployed on a public domain with end-to-end functional and security validation (56/56 tests)</li>
+        <li>Full mapping to RA 10173 Data Privacy Act privacy principles</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 26</div><div class="slide-title">Conclusions per thesis objective</div></div>
+    <div class="slide-body">
+      <table>
+        <thead><tr><th>Objective</th><th>Status</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>Design privacy-preserving system</td><td>✅</td><td>Slide 2 architecture</td></tr>
+          <tr><td>Implement client-side encryption</td><td>✅</td><td>Slide 6 pipeline</td></tr>
+          <tr><td>Reduce anchoring cost</td><td>✅</td><td>Slide 7 — 99% reduction</td></tr>
+          <tr><td>Ensure RA 10173 compliance</td><td>✅</td><td>Slide 22 mapping</td></tr>
+          <tr><td>Build all stakeholder portals</td><td>✅</td><td>4 working dashboards</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 27</div><div class="slide-title">Contributions to the field</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li><b>Layered Proof Aggregation</b> — novel Merkle-batched anchoring pattern for medical records</li>
+        <li><b>Hybrid CP-ABE + AES architecture</b> with client-side enforcement</li>
+        <li><b>First open-source RA 10173-aligned medical dApp prototype</b> for the Philippine context</li>
+        <li><b>Open repository</b> — reproducible, MIT-licensed</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 28</div><div class="slide-title">Recommendations for future work</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Replace simulated CP-ABE with <b>OpenABE</b> library (real attribute-based crypto)</li>
+        <li>Deploy real Solidity contracts on Sepolia / Polygon Mumbai testnet</li>
+        <li>Mobile companion app (React Native + WalletConnect)</li>
+        <li>DOH FHIR profile integration for Philippine healthcare interoperability</li>
+        <li>Multi-language UI (Filipino / English / Cebuano)</li>
+        <li>Real hospital pilot study (PGH · St. Luke's)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 29</div><div class="slide-title">Acknowledgments</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Thesis adviser</li>
+        <li>Panel members</li>
+        <li>Family + classmates</li>
+        <li>Open-source community (FastAPI, React, ethers.js, Pinata, Hyperledger)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 30</div><div class="slide-title">Live demo — 3 minutes that win the defense</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>1. Open live URL → show HTTPS padlock</li>
+        <li>2. Sign-in as Admin → show registered doctors / patients</li>
+        <li>3. Doctor portal → upload a real PDF (encryption pipeline runs live)</li>
+        <li>4. Admin → anchor the Merkle root</li>
+        <li>5. Patient → decrypt the new record</li>
+        <li>6. Generate Verification Certificate → paste into /verify → ✅ verified</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="slide-head"><div class="slide-num">slide 31</div><div class="slide-title">Questions?</div></div>
+    <div class="slide-body">
+      <ul class="bullets">
+        <li>Live URL: <code>https://gen-c-health.emergent.host</code></li>
+        <li>GitHub: <code>https://github.com/[YOUR_USERNAME]/genc-health</code></li>
+        <li>Email: your email</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Gen C // privacy by design // RA 10173 compliant // built with empathy 🛡️
+</footer>
+
+</body>
+</html>
