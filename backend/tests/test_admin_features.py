@@ -3,10 +3,9 @@ import os, hashlib, base64, io, time, uuid
 import pytest, requests
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from dotenv import load_dotenv
+from conftest import resolve_backend_url
 
-load_dotenv("/app/frontend/.env")
-BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
+BASE = resolve_backend_url() + "/api"
 
 ADMIN_SEED = "genc-admin-thesis-deterministic-seed-2026"
 ADMIN_PK = "0x" + hashlib.sha256(ADMIN_SEED.encode()).hexdigest()
