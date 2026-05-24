@@ -84,11 +84,24 @@ Tests that actively attempt unauthorized actions and verify they're rejected.
 
 # 🎬 LIVE DEFENSE COMMANDS (copy-paste these during defense)
 
+> 💡 **Windows / PowerShell users:** use `python` (not `python3`) and don't use `&&` (PowerShell doesn't support it — run commands one line at a time).
+> 💡 **Mac / Linux users:** use `python3` and `&&` works fine.
+
+## Step 0 — Activate venv (Windows PowerShell)
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+```
+Your prompt should now show `(venv)` at the start.
+
 ## Step 1 — Show the test files exist (10 sec)
+**Windows PowerShell:**
+```powershell
+Get-ChildItem tests\
+```
+**Mac / Linux:**
 ```bash
-cd /app/backend
-ls tests/
-wc -l tests/*.py
+ls tests/ && wc -l tests/*.py
 ```
 
 **Expected output:** 3 files, 1,035 total lines.
@@ -98,8 +111,12 @@ wc -l tests/*.py
 ---
 
 ## Step 2 — Run ALL tests at once (15 sec)
+**Windows:**
+```powershell
+python -m pytest tests/ -v
+```
+**Mac / Linux:**
 ```bash
-cd /app/backend
 python3 -m pytest tests/ -v
 ```
 
@@ -110,17 +127,20 @@ python3 -m pytest tests/ -v
 ---
 
 ## Step 3 — Run UNIT TESTS only (10 sec)
-```bash
-python3 -m pytest tests/ -v -k "test_root or test_admin_info or test_register_bad_role or test_register_idempotent or test_users_list_excludes or test_admin_register_bad"
+**Windows:**
+```powershell
+python -m pytest tests/ -v -k "test_root or test_admin_info or test_register_bad_role or test_register_idempotent or test_users_list_excludes or test_admin_register_bad"
 ```
+**Mac / Linux:** same, just use `python3`
 
 > *"These are our unit tests — isolated component validation. Each function tested independently."*
 
 ---
 
 ## Step 4 — Run INTEGRATION TESTS only (15 sec)
-```bash
-python3 -m pytest tests/ -v -k "test_ipfs_upload or test_records_for or test_lpa_anchor_and_stats or test_access_request_and_grant or test_upload_request_create or test_certificate_generate_patient_success or test_certificate_verify_valid"
+**Windows:**
+```powershell
+python -m pytest tests/ -v -k "test_ipfs_upload or test_records_for or test_lpa_anchor_and_stats or test_access_request_and_grant or test_upload_request_create or test_certificate_generate_patient_success or test_certificate_verify_valid"
 ```
 
 > *"These are integration tests — full end-to-end workflows like upload → IPFS → MongoDB → LPA anchor → certificate generation. They verify the system works as a whole."*
@@ -128,8 +148,9 @@ python3 -m pytest tests/ -v -k "test_ipfs_upload or test_records_for or test_lpa
 ---
 
 ## Step 5 — Run SECURITY TESTS only (the impressive one) (15 sec)
-```bash
-python3 -m pytest tests/ -v -k "invalid_signature or non_admin or unauthorized or forbidden or tampered or rejected or blocked"
+**Windows:**
+```powershell
+python -m pytest tests/ -v -k "invalid_signature or non_admin or unauthorized or forbidden or tampered or rejected or blocked"
 ```
 
 **Expected: ~15 security tests all passing — meaning every attack was correctly rejected.**
