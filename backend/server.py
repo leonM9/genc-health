@@ -1056,6 +1056,268 @@ async def lpa_simulate(p: SimulateReq):
     return {"inserted": len(inserted), "items": inserted}
 
 
+# ─────────────────────────────────────────────────────────────────────
+#  DEMO SCENARIO — One-click seed of patient + doctor + encrypted record
+# ─────────────────────────────────────────────────────────────────────
+FAKE_MEDICAL_RECORD = """\
+GEN C MEDICAL CENTER · CONFIDENTIAL PATIENT RECORD
+══════════════════════════════════════════════════════
+Patient:        Juan Miguel Dela Cruz
+Date of Birth:  March 14, 1987 (age 39)
+Sex:            Male
+Blood Type:     O+
+Allergies:      Penicillin (severe), Shellfish (moderate)
+Record ID:      GENC-DEMO-{record_id}
+
+VISIT SUMMARY  — Cardiology Consultation
+──────────────────────────────────────────────────────
+Date:           {today}
+Attending:      Dr. Sarah V. Garcia, MD · Cardiology
+Hospital:       St. Luke's Medical Center, Quezon City
+
+CHIEF COMPLAINT
+   Chest pain on exertion (3-week duration), radiating
+   to left arm, accompanied by dyspnea climbing stairs.
+
+VITAL SIGNS
+   BP:  142 / 88 mmHg   (Stage 1 hypertension)
+   HR:  92 bpm          (mildly elevated)
+   RR:  18 / min
+   SpO2: 97 %
+   Weight: 84 kg · Height 174 cm · BMI 27.7
+
+FAMILY HISTORY
+   • Father — myocardial infarction (age 58)
+   • Mother — Type II Diabetes Mellitus, hypertension
+   • Sibling — no cardiovascular events
+
+LABORATORY (PHIC reimbursable panel)
+   • LDL cholesterol:  168 mg/dL   ⚠ high
+   • HDL cholesterol:   38 mg/dL   ⚠ low
+   • Triglycerides:    214 mg/dL   ⚠ borderline
+   • HbA1c:             5.9 %      (prediabetic)
+   • Troponin-I:        <0.04 ng/mL  normal
+
+IMAGING / ECG
+   • 12-lead ECG  — sinus rhythm, no ST elevation
+   • 2D Echocardiogram — mild concentric LV hypertrophy
+   • Stress test     — induced ST depression at 7 METs
+
+DIAGNOSIS
+   1. Stable angina pectoris (ICD-10 I20.9)
+   2. Essential hypertension, stage 1 (I10)
+   3. Dyslipidemia mixed type (E78.5)
+
+TREATMENT PLAN
+   • Aspirin 81 mg OD
+   • Atorvastatin 40 mg HS
+   • Amlodipine 5 mg OD
+   • Lifestyle:  Mediterranean diet, 150 min/wk cardio,
+                 weight reduction goal -7 kg over 6 months
+   • Follow-up:  4 weeks · repeat lipid panel + ECG
+
+PHYSICIAN'S SIGNATURE
+   Dr. Sarah V. Garcia, MD · PRC #0098431 · PCP Board Cert.
+
+══════════════════════════════════════════════════════
+THIS RECORD IS PROTECTED UNDER RA 10173 (Data Privacy Act of 2012).
+Accessing this record without patient authorization is a criminal offence.
+"""
+
+
+def _seed_aes_encrypt(plaintext: bytes, key: bytes) -> dict:
+    """AES-256-GCM encrypt; return base64-encoded ciphertext + IV in same format the frontend expects."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    iv = secrets.token_bytes(12)
+    ct = AESGCM(key).encrypt(iv, plaintext, None)
+    return {"iv_b64": base64.b64encode(iv).decode(),
+            "ciphertext_b64": base64.b64encode(ct).decode()}
+
+
+@api.post("/admin/seed-demo-scenario")
+async def admin_seed_demo_scenario(p: SimulateReq):
+    """Admin-only: one-click seed of:
+       • 1 demo doctor (Dr. Sarah Garcia, Cardiology, St. Luke's)
+       • 1 demo patient (Juan Dela Cruz)
+       • 1 encrypted medical record attached to the patient (Pinata-pinned, anchored)
+       • Policy = Owner:patient_address  →  forces the doctor to request access flow
+    Returns both wallets' private keys so the demo can run end-to-end."""
+    import secrets as _s, base64
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from datetime import datetime as _dt
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+
+    # 1) Generate wallets (deterministic via fixed seeds so re-runs are idempotent)
+    doc_seed = b"genc-demo-doctor-sarah-garcia"
+    pat_seed = b"genc-demo-patient-juan-dela-cruz"
+    doc_pk = "0x" + hashlib.sha256(doc_seed).hexdigest()
+    pat_pk = "0x" + hashlib.sha256(pat_seed).hexdigest()
+    doctor_acct = Account.from_key(doc_pk)
+    patient_acct = Account.from_key(pat_pk)
+
+    # 2) Register / refresh demo users (idempotent upsert)
+    doc_doc = {
+        "id": str(uuid.uuid4()),
+        "address": doctor_acct.address,
+        "address_lower": doctor_acct.address.lower(),
+        "role": "doctor",
+        "name": "Dr. Sarah V. Garcia",
+        "department": "Cardiology",
+        "hospital": "St. Luke's Medical Center",
+        "did": f"did:genc:doctor:{doctor_acct.address[2:10]}",
+        "extra": {"demo_seed": True},
+        "created_at": utcnow(),
+    }
+    pat_doc = {
+        "id": str(uuid.uuid4()),
+        "address": patient_acct.address,
+        "address_lower": patient_acct.address.lower(),
+        "role": "patient",
+        "name": "Juan Miguel Dela Cruz",
+        "did": f"did:genc:patient:{patient_acct.address[2:10]}",
+        "extra": {"demo_seed": True, "date_of_birth": "1987-03-14", "blood_type": "O+"},
+        "created_at": utcnow(),
+    }
+    await db.users.update_one({"address_lower": doctor_acct.address.lower()}, {"$set": doc_doc}, upsert=True)
+    await db.users.update_one({"address_lower": patient_acct.address.lower()}, {"$set": pat_doc}, upsert=True)
+
+    # 3) Remove any previous demo record so re-runs stay clean
+    await db.records.delete_many({"patient_address_lower": patient_acct.address.lower(), "demo_seed": True})
+
+    # 4) Build the fake medical record blob
+    record_id = str(uuid.uuid4())
+    today = _dt.utcnow().strftime("%B %d, %Y")
+    plaintext = FAKE_MEDICAL_RECORD.format(record_id=record_id[:8].upper(), today=today).encode("utf-8")
+
+    # 5) AES-256-GCM encrypt — produce raw bytes in the EXACT same format
+    # the frontend uses (12-byte IV prepended to ciphertext) so the existing
+    # aesDecryptBlob() helper in /app/frontend/src/lib/crypto.js can read it.
+    aes_key = AESGCM.generate_key(bit_length=256)
+    iv = _s.token_bytes(12)
+    ciphertext = AESGCM(aes_key).encrypt(iv, plaintext, None)
+    encrypted_payload = iv + ciphertext  # 12-byte IV || ct||tag — raw bytes
+
+    # 6) Upload encrypted payload to Pinata (or local fallback)
+    cid = None
+    if PINATA_JWT:
+        try:
+            r = requests.post(
+                "https://api.pinata.cloud/pinning/pinFileToIPFS",
+                files={"file": (f"genc-demo-{record_id[:8]}.enc",
+                                io.BytesIO(encrypted_payload),
+                                "application/octet-stream")},
+                headers={"Authorization": f"Bearer {PINATA_JWT}"},
+                timeout=30,
+            )
+            r.raise_for_status()
+            cid = r.json()["IpfsHash"]
+        except Exception as e:
+            log.warning(f"Pinata pin failed during seed, using fallback: {e}")
+    if not cid:
+        h = hashlib.sha256(encrypted_payload).hexdigest()
+        cid = "bafk" + h[:50]
+        await db.ipfs_local.insert_one({
+            "cid": cid, "size": len(encrypted_payload),
+            "name": f"genc-demo-{record_id[:8]}.enc", "ts": utcnow(),
+            "_demo_plaintext_b64": base64.b64encode(encrypted_payload).decode(),
+        })
+
+    # 7) Store record with policy = Owner-only (doctor must request access)
+    policy = f"Owner:{patient_acct.address.lower()}"
+    encrypted_key_b64 = base64.b64encode(aes_key).decode()  # demo policy: simulated wrap = raw b64
+    rec = {
+        "id": record_id,
+        "cid": cid,
+        "file_name": "cardiology-consult-2026.pdf",
+        "file_size": len(encrypted_payload),
+        "encrypted_key_b64": encrypted_key_b64,
+        "policy": policy,
+        "diagnosis": "Stable angina pectoris · Stage 1 hypertension · Dyslipidemia",
+        "notes": "Patient seen for chest pain on exertion. Treatment plan initiated.",
+        "uploader_address": ADMIN["address"],
+        "uploader_address_lower": ADMIN["address"].lower(),
+        "uploader_name": "Dr. Sarah V. Garcia",
+        "uploader_department": "Cardiology",
+        "uploader_role": "doctor",
+        "patient_address": patient_acct.address,
+        "patient_address_lower": patient_acct.address.lower(),
+        "patient_name": pat_doc["name"],
+        "created_at": utcnow(),
+        # Anchor it immediately — fake but realistic Merkle anchor
+        "anchor_status": "anchored",
+        "merkle_root": "0x" + hashlib.sha256(cid.encode()).hexdigest(),
+        "anchor_tx": "0x" + _s.token_hex(32),
+        "anchor_block": await _next_block(),
+        "network": "private-permissioned",
+        "demo_seed": True,
+    }
+    await db.records.insert_one(rec)
+    # also create a matching anchor entry for the Anchored Roots tab
+    await db.lpa_anchors.insert_one({
+        "id": str(uuid.uuid4()),
+        "root": rec["merkle_root"],
+        "tx_hash": rec["anchor_tx"],
+        "block_number": rec["anchor_block"],
+        "leaf_count": 1,
+        "leaves": [cid],
+        "anchored_at": utcnow(),
+        "anchored_by": ADMIN["address"],
+        "network": "private-permissioned",
+        "demo_seed": True,
+    })
+
+    return {
+        "ok": True,
+        "doctor": {
+            "address": doctor_acct.address,
+            "private_key": doc_pk,
+            "name": doc_doc["name"],
+            "role": "doctor",
+            "department": doc_doc["department"],
+            "hospital": doc_doc["hospital"],
+        },
+        "patient": {
+            "address": patient_acct.address,
+            "private_key": pat_pk,
+            "name": pat_doc["name"],
+            "role": "patient",
+        },
+        "record": {
+            "id": record_id,
+            "cid": cid,
+            "file_name": rec["file_name"],
+            "diagnosis": rec["diagnosis"],
+            "anchored_root": rec["merkle_root"],
+            "policy": policy,
+        },
+        "instructions": [
+            "1. Copy the DOCTOR's private key and log in via 'Import Private Key' on the login page.",
+            "2. From the Doctor Dashboard, search for patient 'Juan' and click 'Request Access'.",
+            "3. Log out, then log in with the PATIENT's private key.",
+            "4. From the Patient Dashboard, approve the doctor's access request.",
+            "5. Log out, log back in as the doctor — open the granted record to decrypt and read the medical history.",
+        ],
+    }
+
+
+@api.post("/admin/clear-demo-scenario")
+async def admin_clear_demo_scenario(p: SimulateReq):
+    """Remove the seeded demo doctor, patient, and record so the next seed is clean."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    a = await db.users.delete_many({"extra.demo_seed": True})
+    b = await db.records.delete_many({"demo_seed": True})
+    c = await db.lpa_anchors.delete_many({"demo_seed": True})
+    await db.access_requests.delete_many({"patient_address": {"$regex": "(?i)juan"}})
+    await db.access_grants.delete_many({"patient_address": {"$regex": "(?i)juan"}})
+    return {"removed_users": a.deleted_count, "removed_records": b.deleted_count, "removed_anchors": c.deleted_count}
+
+
 @api.post("/lpa/clear-simulated")
 async def lpa_clear_sim(p: SimulateReq):
     """Remove only simulated records (kept for demo cleanup)."""

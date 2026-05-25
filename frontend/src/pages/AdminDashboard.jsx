@@ -114,6 +114,33 @@ export default function AdminDashboard() {
     } finally { setSimulating(false); }
   };
 
+  const [demoScenario, setDemoScenario] = useState(null);   // shown in a modal after seeding
+  const [seedingDemo, setSeedingDemo] = useState(false);
+
+  const seedDemoScenario = async () => {
+    setSeedingDemo(true);
+    try {
+      const { message, signature } = await buildSig("seed-demo-scenario");
+      const r = await api.post("/admin/seed-demo-scenario", { admin_address: session.address, signature, message, count: 0 });
+      setDemoScenario(r.data);
+      toast.success("Demo patient + doctor + record seeded", { description: "Copy the wallet keys to run the survey flow" });
+      load();
+    } catch (e) {
+      toast.error("Demo seed failed", { description: e?.response?.data?.detail || e.message });
+    } finally { setSeedingDemo(false); }
+  };
+
+  const clearDemoScenario = async () => {
+    try {
+      const { message, signature } = await buildSig("clear-demo-scenario");
+      const r = await api.post("/admin/clear-demo-scenario", { admin_address: session.address, signature, message, count: 0 });
+      toast.success(`Cleared demo · removed ${r.data.removed_users} users / ${r.data.removed_records} records`);
+      load();
+    } catch (e) {
+      toast.error("Clear demo failed", { description: e?.response?.data?.detail || e.message });
+    }
+  };
+
   const clearSim = async () => {
     try {
       const { message, signature } = await buildSig("clear-sim-records");
@@ -323,6 +350,25 @@ export default function AdminDashboard() {
                 <button onClick={clearSim} data-testid="clear-sim-btn"
                   className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
                   <Trash size={11} weight="bold" />clear simulated
+                </button>
+              </div>
+
+              {/* DEMO SCENARIO — seed 1 patient + 1 doctor + 1 medical record */}
+              <div className="rounded-xl border border-emerald-400/40 bg-gradient-to-br from-emerald-950/60 via-zinc-950 to-zinc-950 p-4">
+                <div className="eyebrow mb-1 text-emerald-300">demo scenario</div>
+                <div className="text-xs text-zinc-400 mb-3 leading-snug">
+                  One-click seed: a patient with cardiology history, a doctor, and an encrypted record. Use the keys to run a full request-and-approve survey demo.
+                </div>
+                <button onClick={seedDemoScenario} disabled={seedingDemo}
+                  data-testid="seed-demo-scenario-btn"
+                  className="w-full h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-semibold text-xs uppercase tracking-wider transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-[0_0_18px_rgba(16,185,129,0.35)]">
+                  <Sparkle size={13} weight="bold" />
+                  {seedingDemo ? "seeding…" : "seed demo patient + record"}
+                </button>
+                <button onClick={clearDemoScenario}
+                  data-testid="clear-demo-scenario-btn"
+                  className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
+                  <Trash size={11} weight="bold" />clear demo scenario
                 </button>
               </div>
             </div>
@@ -676,6 +722,102 @@ export default function AdminDashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* DEMO SCENARIO MODAL — shows demo wallets + instructions after seeding */}
+      <AnimatePresence>
+        {demoScenario && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 grid place-items-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto"
+            data-testid="demo-scenario-modal">
+            <motion.div
+              initial={{ y: 24, scale: 0.97 }} animate={{ y: 0, scale: 1 }}
+              className="w-full max-w-2xl my-8 rounded-2xl border border-emerald-400/50 bg-zinc-950 p-7 shadow-[0_0_60px_rgba(16,185,129,0.3)]">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="eyebrow text-emerald-300 mb-1">demo scenario · ready</div>
+                  <h2 className="text-2xl font-bold text-emerald-100">Patient + Doctor + Record Seeded ✓</h2>
+                </div>
+                <button onClick={() => setDemoScenario(null)} className="text-zinc-500 hover:text-zinc-200 text-xl">×</button>
+              </div>
+
+              <p className="text-xs text-zinc-400 mb-5">
+                Copy each wallet's private key and import it on the Login page (Sign in with Private Key) to act as that user during your survey demo.
+              </p>
+
+              {/* DOCTOR CARD */}
+              <div className="mb-3 rounded-lg border border-sky-400/30 bg-sky-950/30 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-widest text-sky-300">doctor · cardiology</div>
+                    <div className="font-bold text-sky-100">{demoScenario.doctor.name}</div>
+                    <div className="text-[11px] text-zinc-500">{demoScenario.doctor.hospital}</div>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(demoScenario.doctor.private_key); toast.success("Doctor private key copied"); }}
+                    data-testid="copy-doctor-pk-btn"
+                    className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 transition">
+                    Copy PK
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
+                <div className="font-mono text-[11px] text-zinc-300 break-all mb-2">{demoScenario.doctor.address}</div>
+                <div className="text-[10px] text-zinc-500 font-mono mb-1">private key</div>
+                <div className="font-mono text-[11px] text-zinc-300 break-all bg-black/40 p-2 rounded border border-zinc-800">{demoScenario.doctor.private_key}</div>
+              </div>
+
+              {/* PATIENT CARD */}
+              <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-950/30 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-widest text-amber-300">patient</div>
+                    <div className="font-bold text-amber-100">{demoScenario.patient.name}</div>
+                    <div className="text-[11px] text-zinc-500">DOB 1987-03-14 · Blood Type O+</div>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(demoScenario.patient.private_key); toast.success("Patient private key copied"); }}
+                    data-testid="copy-patient-pk-btn"
+                    className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 transition">
+                    Copy PK
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
+                <div className="font-mono text-[11px] text-zinc-300 break-all mb-2">{demoScenario.patient.address}</div>
+                <div className="text-[10px] text-zinc-500 font-mono mb-1">private key</div>
+                <div className="font-mono text-[11px] text-zinc-300 break-all bg-black/40 p-2 rounded border border-zinc-800">{demoScenario.patient.private_key}</div>
+              </div>
+
+              {/* RECORD CARD */}
+              <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-950/30 p-4">
+                <div className="text-[10px] uppercase tracking-widest text-emerald-300 mb-1">encrypted medical record</div>
+                <div className="font-bold text-emerald-100">{demoScenario.record.file_name}</div>
+                <div className="text-[11px] text-zinc-400 mt-1">{demoScenario.record.diagnosis}</div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-[10px] font-mono">
+                  <div>
+                    <div className="text-zinc-500">IPFS CID</div>
+                    <div className="text-zinc-200 truncate">{demoScenario.record.cid}</div>
+                  </div>
+                  <div>
+                    <div className="text-zinc-500">access policy</div>
+                    <div className="text-zinc-200 truncate">{demoScenario.record.policy}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* INSTRUCTIONS */}
+              <div className="rounded-lg border border-zinc-700 bg-black/40 p-4 text-[12px] text-zinc-300 leading-relaxed">
+                <div className="text-emerald-300 font-bold mb-2 text-[11px] uppercase tracking-wider">defense demo flow</div>
+                <ol className="space-y-1 list-decimal pl-4">
+                  {demoScenario.instructions.map((step, i) => (<li key={i}>{step}</li>))}
+                </ol>
+              </div>
+
+              <button onClick={() => setDemoScenario(null)}
+                className="mt-5 w-full h-10 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-xs uppercase tracking-wider font-semibold transition">
+                got it — let's demo
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* RECEIPT MODAL — pops after sim / simulated anchor / polygon anchor */}
       <AnimatePresence>
