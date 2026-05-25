@@ -1,11 +1,13 @@
 import { Copy } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export function Hash({ value, label, testId }) {
   if (!value) return null;
-  const copy = () => {
-    navigator.clipboard.writeText(value);
-    toast.success("Copied", { description: value.slice(0, 28) + "…" });
+  const copy = async () => {
+    const ok = await copyToClipboard(value);
+    if (ok) toast.success("Copied", { description: value.slice(0, 28) + "…" });
+    else toast.error("Copy blocked — select the text manually");
   };
   return (
     <div className="flex items-center gap-2 rounded-lg bg-zinc-900/60 border border-white/5 px-3 py-2 group" data-testid={testId}>

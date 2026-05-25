@@ -66,7 +66,7 @@ export default function Layout({ children, title, subtitle, role }) {
         <footer className="border-t border-white/5 mt-20">
           <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-10 py-6 flex flex-col sm:flex-row justify-between gap-2 text-xs text-zinc-500 font-mono">
             <div>Gen C // thesis prototype // privacy-by-design</div>
-            <div>AES-256 · CP-ABE (sim) · QBFT (sim) · Pinata IPFS · LPA</div>
+            <div>AES-256 · PBAE · QBFT · Pinata IPFS · LPA</div>
           </div>
         </footer>
       </div>

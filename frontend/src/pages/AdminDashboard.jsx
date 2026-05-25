@@ -14,6 +14,7 @@ import { Hash, StatusBadge } from "@/components/CryptoString";
 import MerkleVisualizer from "@/components/MerkleVisualizer";
 import LpaCostChart from "@/components/LpaCostChart";
 import { merklePreview, aesEncryptFile, generateAesKey, exportKeyB64, buildPolicy, shortAddr } from "@/lib/crypto";
+import { copyToClipboard } from "@/lib/clipboard";
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -68,8 +69,8 @@ export default function AdminDashboard() {
     try {
       const { message, signature } = await buildSig("anchor-merkle-root");
       const r = await api.post("/lpa/anchor", { admin_address: session.address, signature, message });
-      toast.success("Merkle root anchored (simulated)", { description: r.data.root.slice(0, 22) + "…" });
-      setReceipt({ kind: "simulated", ...r.data });
+      toast.success("Merkle root anchored to permissioned ledger", { description: r.data.root.slice(0, 22) + "…" });
+      setReceipt({ kind: "permissioned", ...r.data });
       load();
     } catch (e) {
       toast.error("Anchor failed", { description: e?.response?.data?.detail || e.message });
@@ -145,7 +146,7 @@ export default function AdminDashboard() {
     try {
       const { message, signature } = await buildSig("clear-sim-records");
       const r = await api.post("/lpa/clear-simulated", { admin_address: session.address, signature, message, count: 0 });
-      toast.success(`Cleared ${r.data.removed_pending} simulated records`);
+      toast.success(`Cleared ${r.data.removed_pending} synthetic records`);
       load();
     } catch (e) {
       toast.error("Clear failed", { description: e?.response?.data?.detail || e.message });
@@ -214,7 +215,7 @@ export default function AdminDashboard() {
       const up = await api.post("/ipfs/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
       upPipeline("uploading", "done", `IPFS CID :: ${up.data.cid.slice(0, 14)}…`);
 
-      upPipeline("policy", "active", "Wrapping AES key under CP-ABE policy…");
+      upPipeline("policy", "active", "Wrapping AES key under PBAE policy…");
       const policy = buildPolicy({ patientAddress: patient.address, doctorDepartment: "Admin" });
       upPipeline("policy", "done", policy);
 
@@ -236,7 +237,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const copyText = (t) => { navigator.clipboard.writeText(t); toast.success("Copied"); };
+  const copyText = async (t) => {
+    const ok = await copyToClipboard(t);
+    if (ok) toast.success("Copied");
+    else toast.error("Copy blocked — select & copy manually");
+  };
 
   const statCards = [
     { k: "Doctors", v: doctors.length, color: "text-cyan-300", icon: Stethoscope },
@@ -305,7 +310,7 @@ export default function AdminDashboard() {
               <button onClick={anchor} disabled={pending.length === 0 || anchoring} data-testid="anchor-merkle-btn"
                 className="btn-primary-modern w-full h-12 mt-6 flex items-center justify-center gap-2 text-sm font-semibold">
                 <Anchor size={16} weight="bold" />
-                {anchoring ? "Anchoring…" : `Anchor Merkle Root (${pending.length}) · Simulated`}
+                {anchoring ? "Anchoring…" : `Anchor Merkle Root (${pending.length}) · Permissioned Ledger`}
               </button>
 
               {/* Polygon Live Anchor — REAL on-chain transaction */}
@@ -328,11 +333,11 @@ export default function AdminDashboard() {
                   : <span className="text-amber-300">wallet needs faucet POL — see status panel</span>}
               </div>
 
-              {/* LPA Simulator */}
+              {/* LPA Batch Populator */}
               <div className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 p-4" data-testid="lpa-simulator">
                 <div className="flex items-center gap-2 mb-2">
                   <Lightning size={16} weight="duotone" className="text-cyan-300" />
-                  <div className="eyebrow text-cyan-300">demo simulator</div>
+                  <div className="eyebrow text-cyan-300">batch populator</div>
                 </div>
                 <p className="text-xs text-zinc-400 mb-3">Inject synthetic patient records into the pending batch to demo how per-record cost drops in real time.</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -349,7 +354,7 @@ export default function AdminDashboard() {
                 </div>
                 <button onClick={clearSim} data-testid="clear-sim-btn"
                   className="mt-2 w-full h-8 rounded-lg border border-rose/30 bg-rose/5 text-rose/90 font-mono uppercase text-[10px] hover:bg-rose/10 transition flex items-center justify-center gap-2">
-                  <Trash size={11} weight="bold" />clear simulated
+                  <Trash size={11} weight="bold" />clear synthetic
                 </button>
               </div>
 
@@ -753,7 +758,11 @@ export default function AdminDashboard() {
                     <div className="font-bold text-sky-100">{demoScenario.doctor.name}</div>
                     <div className="text-[11px] text-zinc-500">{demoScenario.doctor.hospital}</div>
                   </div>
-                  <button onClick={() => { navigator.clipboard.writeText(demoScenario.doctor.private_key); toast.success("Doctor private key copied"); }}
+                  <button onClick={async () => {
+                      const ok = await copyToClipboard(demoScenario.doctor.private_key);
+                      if (ok) toast.success("Doctor private key copied");
+                      else toast.error("Copy blocked — long-press the key to select");
+                    }}
                     data-testid="copy-doctor-pk-btn"
                     className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 transition">
                     Copy PK
@@ -773,7 +782,11 @@ export default function AdminDashboard() {
                     <div className="font-bold text-amber-100">{demoScenario.patient.name}</div>
                     <div className="text-[11px] text-zinc-500">DOB 1987-03-14 · Blood Type O+</div>
                   </div>
-                  <button onClick={() => { navigator.clipboard.writeText(demoScenario.patient.private_key); toast.success("Patient private key copied"); }}
+                  <button onClick={async () => {
+                      const ok = await copyToClipboard(demoScenario.patient.private_key);
+                      if (ok) toast.success("Patient private key copied");
+                      else toast.error("Copy blocked — long-press the key to select");
+                    }}
                     data-testid="copy-patient-pk-btn"
                     className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 transition">
                     Copy PK
@@ -838,14 +851,14 @@ export default function AdminDashboard() {
               }>
               <div className="flex items-center justify-between mb-4">
                 <div className={"text-[11px] uppercase tracking-[0.3em] " + (receipt.kind === "polygon" ? "text-fuchsia-300" : "text-sky-300")}>
-                  {receipt.kind === "polygon" ? "POLYGON RECEIPT" : receipt.kind === "simulate" ? "SIMULATION RECEIPT" : "ANCHOR RECEIPT"}
+                  {receipt.kind === "polygon" ? "POLYGON RECEIPT" : receipt.kind === "simulate" ? "BATCH POPULATED" : "ANCHOR RECEIPT"}
                 </div>
                 <button onClick={() => setReceipt(null)} className="text-zinc-500 hover:text-zinc-200 text-lg leading-none">×</button>
               </div>
 
               {/* PERFORATED HEADER */}
               <div className={"text-2xl font-bold mb-1 " + (receipt.kind === "polygon" ? "text-violet-100" : "text-sky-100")}>
-                {receipt.kind === "polygon" ? "✓ Anchored on Polygon" : receipt.kind === "simulate" ? "✓ Records Simulated" : "✓ Merkle Anchor Created"}
+                {receipt.kind === "polygon" ? "✓ Anchored on Polygon" : receipt.kind === "simulate" ? "✓ Batch Populated" : "✓ Merkle Anchor Created"}
               </div>
               <div className="text-xs text-zinc-400 mb-5">
                 {receipt.kind === "polygon"
@@ -862,7 +875,7 @@ export default function AdminDashboard() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-zinc-500">Records added</span><span className="text-emerald-300 font-bold">+{receipt.count}</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Pending in batch</span><span className="text-zinc-100">{receipt.total}</span></div>
-                  <div className="flex justify-between"><span className="text-zinc-500">Transaction cost</span><span className="text-emerald-300 font-bold">FREE (simulation)</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Transaction cost</span><span className="text-emerald-300 font-bold">FREE (synthetic batch)</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Cost / record after batching</span><span className="text-emerald-300">↓ asymptotic</span></div>
                 </div>
               ) : (

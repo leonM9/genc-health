@@ -79,13 +79,13 @@ export default function Login() {
               </span>.
             </h1>
             <p className="mt-7 max-w-xl text-zinc-400 text-base sm:text-lg leading-relaxed">
-              A decentralized medical-record protocol that anchors hashes to a private Hyperledger Besu chain via Layered Proof Aggregation. No plaintext ever touches the database, ledger, or middleware.
+              A decentralized medical-record protocol that anchors hashes to a private EVM-compatible permissioned ledger via Layered Proof Aggregation. No plaintext ever touches the database, ledger, or middleware.
             </p>
 
             <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl">
               {[
                 { icon: Lock, k: "Payload", v: "AES-256-GCM" },
-                { icon: Fingerprint, k: "Policy", v: "CP-ABE" },
+                { icon: Fingerprint, k: "Policy", v: "PBAE" },
                 { icon: Cube, k: "Storage", v: "IPFS / Pinata" },
                 { icon: ShieldCheck, k: "Ledger", v: "Merkle Anchor" },
               ].map((it) => (
@@ -206,7 +206,7 @@ export default function Login() {
           <div>Gen C // decentralized medical records protocol</div>
           <div className="flex gap-4 items-center">
             <a href="/verify" data-testid="footer-verify-link" className="hover:text-sky-400 transition">verify a certificate →</a>
-            <span>Hyperledger Besu (sim) · IPFS · QBFT · LPA</span>
+            <span>EVM Permissioned Ledger · IPFS · QBFT · LPA</span>
           </div>
         </div>
       </div>

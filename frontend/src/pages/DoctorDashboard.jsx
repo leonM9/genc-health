@@ -114,7 +114,7 @@ export default function DoctorDashboard() {
       const up = await api.post("/ipfs/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
       updatePipeline("uploading", "done", `IPFS CID :: ${up.data.cid.slice(0, 14)}…`);
 
-      updatePipeline("policy", "active", "Wrapping AES key under CP-ABE policy…");
+      updatePipeline("policy", "active", "Wrapping AES key under PBAE policy…");
       const policy = buildPolicy({
         patientAddress: selected.address, doctorDepartment: session.profile?.department || "General",
       });

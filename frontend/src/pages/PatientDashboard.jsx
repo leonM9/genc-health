@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { useWallet } from "@/lib/walletContext";
 import { Hash, StatusBadge } from "@/components/CryptoString";
 import { aesDecryptBlob, importKeyB64, shortAddr } from "@/lib/crypto";
+import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Download, FileLock, BellRinging, X, Check, FolderLock, UploadSimple, PaperPlaneTilt, Certificate, Copy } from "@phosphor-icons/react";
@@ -131,12 +132,13 @@ export default function PatientDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const copyShareLink = () => {
+  const copyShareLink = async () => {
     if (!certData) return;
     const b64 = btoa(JSON.stringify(certData));
     const url = `${window.location.origin}/verify#cert=${encodeURIComponent(b64)}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Share link copied", { description: "Anyone with this link can verify the proof" });
+    const ok = await copyToClipboard(url);
+    if (ok) toast.success("Share link copied", { description: "Anyone with this link can verify the proof" });
+    else toast.error("Copy blocked — please select and copy manually");
   };
 
   const regenerate = async () => {

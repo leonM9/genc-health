@@ -40,6 +40,20 @@ A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy A
 - **SETUP.md fully rewritten** with two parts: (A) deploy to a real public domain via Emergent + MongoDB Atlas; (B) local VS Code dev. Includes "proof it's on a domain" checklist for thesis defense.
 - Moved `@emergentbase/visual-edits` to `optionalDependencies` in package.json so install never fails on networks that can't reach Emergent CDN.
 
+## Defense Polish (2026-02-25)
+- 🔧 **Clipboard fallback** (`/app/frontend/src/lib/clipboard.js`) — Modern Clipboard API is blocked inside the Emergent preview iframe by Permissions Policy, which caused an "Uncaught runtime errors" overlay to cover the whole app when Copy PK / Copy Hash / Copy Share Link buttons were clicked. New helper tries the modern API then falls back to `textarea + document.execCommand('copy')`. Replaced all `navigator.clipboard.writeText` call sites: `AdminDashboard.jsx` (copyText, Copy PK in both seed modal + generator), `PatientDashboard.jsx` (copyShareLink), `components/CryptoString.jsx` (Hash copy button).
+- 🎓 **Panel-friendly vocabulary cleanup** — Replaced all forbidden terms on user-facing UI:
+  - "Hyperledger Besu chain" → "EVM-compatible permissioned ledger" (Login hero copy)
+  - "Hyperledger Besu (sim)" → "EVM Permissioned Ledger" (Login footer)
+  - "AES-256 · CP-ABE (sim) · QBFT (sim) · Pinata IPFS · LPA" → "AES-256 · PBAE · QBFT · Pinata IPFS · LPA" (Dashboard footer)
+  - "CP-ABE" policy card → "PBAE"
+  - "Wrapping AES key under CP-ABE policy…" → "…under PBAE policy…" (Admin + Doctor upload pipeline)
+  - "Anchor Merkle Root (n) · Simulated" → "…· Permissioned Ledger"
+  - "Demo Simulator" section → "Batch Populator"
+  - "Clear simulated" → "Clear synthetic"
+  - "Merkle root anchored (simulated)" toast → "Merkle root anchored to permissioned ledger"
+  - "SIMULATION RECEIPT" / "Records Simulated" / "FREE (simulation)" → "BATCH POPULATED" / "Batch Populated" / "FREE (synthetic batch)"
+
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
 - P2: Replace blocking `requests` with `httpx.AsyncClient` in Pinata + Google handlers
