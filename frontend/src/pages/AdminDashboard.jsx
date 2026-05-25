@@ -29,6 +29,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({});
   const [preview, setPreview] = useState({ root: "", layers: [] });
   const [anchoring, setAnchoring] = useState(false);
+  const [polygonAnchoring, setPolygonAnchoring] = useState(false);
+  const [polygonStatus, setPolygonStatus] = useState(null);
+  const [receipt, setReceipt] = useState(null);   // popup after any anchor / sim
 
   // Register Doctor form
   const [docForm, setDocForm] = useState({ address: "", name: "", department: "", hospital: "" });
@@ -52,6 +55,11 @@ export default function AdminDashboard() {
   };
   useEffect(() => { load(); }, []);
 
+  // Load Polygon status once
+  useEffect(() => {
+    api.get("/polygon/status").then((r) => setPolygonStatus(r.data)).catch(() => {});
+  }, []);
+
   const doctors = users.filter((u) => u.role === "doctor");
   const patients = users.filter((u) => u.role === "patient");
 
@@ -60,11 +68,36 @@ export default function AdminDashboard() {
     try {
       const { message, signature } = await buildSig("anchor-merkle-root");
       const r = await api.post("/lpa/anchor", { admin_address: session.address, signature, message });
-      toast.success("Merkle root anchored", { description: r.data.root.slice(0, 22) + "…" });
+      toast.success("Merkle root anchored (simulated)", { description: r.data.root.slice(0, 22) + "…" });
+      setReceipt({ kind: "simulated", ...r.data });
       load();
     } catch (e) {
       toast.error("Anchor failed", { description: e?.response?.data?.detail || e.message });
     } finally { setAnchoring(false); }
+  };
+
+  const anchorPolygon = async () => {
+    setPolygonAnchoring(true);
+    try {
+      // Refresh status first to give an early error if wallet still empty
+      const stat = await api.get("/polygon/status");
+      setPolygonStatus(stat.data);
+      if (!stat.data.funded) {
+        toast.error("Admin wallet has 0 POL on Polygon Amoy", {
+          description: "Request testnet POL from the faucet, then try again.",
+        });
+        return;
+      }
+      const { message, signature } = await buildSig("anchor-merkle-root-polygon");
+      const r = await api.post("/lpa/anchor-polygon", { admin_address: session.address, signature, message });
+      toast.success("Anchored on Polygon Amoy 🟣", { description: r.data.tx_hash.slice(0, 22) + "…" });
+      setReceipt({ kind: "polygon", ...r.data });
+      load();
+    } catch (e) {
+      const det = e?.response?.data?.detail;
+      const msg = typeof det === "string" ? det : (det?.message || e.message);
+      toast.error("Polygon anchor failed", { description: msg });
+    } finally { setPolygonAnchoring(false); }
   };
 
   const [simulating, setSimulating] = useState(false);
@@ -74,6 +107,7 @@ export default function AdminDashboard() {
       const { message, signature } = await buildSig("simulate-lpa-batch");
       const r = await api.post("/lpa/simulate", { admin_address: session.address, signature, message, count });
       toast.success(`+${r.data.inserted} synthetic records queued`, { description: "Watch the cost chart update" });
+      setReceipt({ kind: "simulate", count: r.data.inserted, total: r.data.total_pending });
       load();
     } catch (e) {
       toast.error("Simulate failed", { description: e?.response?.data?.detail || e.message });
@@ -244,8 +278,28 @@ export default function AdminDashboard() {
               <button onClick={anchor} disabled={pending.length === 0 || anchoring} data-testid="anchor-merkle-btn"
                 className="btn-primary-modern w-full h-12 mt-6 flex items-center justify-center gap-2 text-sm font-semibold">
                 <Anchor size={16} weight="bold" />
-                {anchoring ? "Anchoring…" : `Anchor Merkle Root (${pending.length})`}
+                {anchoring ? "Anchoring…" : `Anchor Merkle Root (${pending.length}) · Simulated`}
               </button>
+
+              {/* Polygon Live Anchor — REAL on-chain transaction */}
+              <button onClick={anchorPolygon}
+                disabled={pending.length === 0 || polygonAnchoring}
+                data-testid="anchor-polygon-btn"
+                className="w-full h-12 mt-3 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-all
+                           bg-gradient-to-r from-purple-600 via-violet-500 to-fuchsia-600
+                           hover:from-purple-500 hover:via-violet-400 hover:to-fuchsia-500
+                           text-white border border-violet-400/60 shadow-[0_0_20px_rgba(139,92,246,0.35)]
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
+                <svg width="18" height="18" viewBox="0 0 38 33" fill="currentColor"><path d="M29 10.2c-.7-.4-1.6-.4-2.4 0L21 13.5l-3.8 2.1-5.5 3.3c-.7.4-1.6.4-2.4 0L5 16.2c-.7-.4-1.2-1.2-1.2-2.1v-5c0-.8.4-1.6 1.2-2.1L9.3 4.4c.7-.4 1.6-.4 2.4 0L16 7c.7.4 1.2 1.2 1.2 2.1v3.3l3.8-2.2V6.9c0-.8-.4-1.6-1.2-2.1L12 0c-.7-.4-1.6-.4-2.4 0L1.2 4.8C.4 5.2 0 6 0 6.9v9.6c0 .8.4 1.6 1.2 2.1l8.5 4.8c.7.4 1.6.4 2.4 0l5.5-3.2 3.8-2.2 5.5-3.2c.7-.4 1.6-.4 2.4 0l4.3 2.5c.7.4 1.2 1.2 1.2 2.1v5c0 .8-.4 1.6-1.2 2.1L29 28.9c-.7.4-1.6.4-2.4 0l-4.3-2.5c-.7-.4-1.2-1.2-1.2-2.1V21l-3.8 2.2v3.3c0 .8.4 1.6 1.2 2.1l8.5 4.8c.7.4 1.6.4 2.4 0l8.5-4.8c.7-.4 1.2-1.2 1.2-2.1v-9.6c0-.8-.4-1.6-1.2-2.1L29 10.2z"/></svg>
+                {polygonAnchoring ? "Submitting to Polygon…" : "Anchor on Polygon (Live)"}
+                <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-white/20 text-white/90">live</span>
+              </button>
+              <div className="mt-2 text-center text-[10px] font-mono text-violet-300/70 leading-tight">
+                Live on-chain · Polygon Amoy testnet ·{" "}
+                {polygonStatus?.funded
+                  ? <span className="text-emerald-300">wallet funded ({polygonStatus.balance_pol.toFixed(3)} POL)</span>
+                  : <span className="text-amber-300">wallet needs faucet POL — see status panel</span>}
+              </div>
 
               {/* LPA Simulator */}
               <div className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 p-4" data-testid="lpa-simulator">
@@ -622,6 +676,86 @@ export default function AdminDashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* RECEIPT MODAL — pops after sim / simulated anchor / polygon anchor */}
+      <AnimatePresence>
+        {receipt && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setReceipt(null)}
+            className="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-sm p-4"
+            data-testid="anchor-receipt">
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: 24, scale: 0.97 }} animate={{ y: 0, scale: 1 }}
+              className={
+                "w-full max-w-md rounded-2xl border p-6 font-mono " +
+                (receipt.kind === "polygon"
+                  ? "bg-gradient-to-br from-violet-950 via-zinc-950 to-fuchsia-950 border-violet-400/50 shadow-[0_0_50px_rgba(139,92,246,0.4)]"
+                  : "bg-zinc-950 border-sky-400/40 shadow-[0_0_40px_rgba(56,189,248,0.25)]")
+              }>
+              <div className="flex items-center justify-between mb-4">
+                <div className={"text-[11px] uppercase tracking-[0.3em] " + (receipt.kind === "polygon" ? "text-fuchsia-300" : "text-sky-300")}>
+                  {receipt.kind === "polygon" ? "POLYGON RECEIPT" : receipt.kind === "simulate" ? "SIMULATION RECEIPT" : "ANCHOR RECEIPT"}
+                </div>
+                <button onClick={() => setReceipt(null)} className="text-zinc-500 hover:text-zinc-200 text-lg leading-none">×</button>
+              </div>
+
+              {/* PERFORATED HEADER */}
+              <div className={"text-2xl font-bold mb-1 " + (receipt.kind === "polygon" ? "text-violet-100" : "text-sky-100")}>
+                {receipt.kind === "polygon" ? "✓ Anchored on Polygon" : receipt.kind === "simulate" ? "✓ Records Simulated" : "✓ Merkle Anchor Created"}
+              </div>
+              <div className="text-xs text-zinc-400 mb-5">
+                {receipt.kind === "polygon"
+                  ? "Live on Polygon Amoy testnet · publicly verifiable"
+                  : receipt.kind === "simulate"
+                  ? "Synthetic records added to pending batch · zero cost"
+                  : "Merkle root persisted in private permissioned ledger"}
+              </div>
+
+              <div className="border-t border-dashed border-zinc-700 my-4"></div>
+
+              {/* CONTENT BY KIND */}
+              {receipt.kind === "simulate" ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between"><span className="text-zinc-500">Records added</span><span className="text-emerald-300 font-bold">+{receipt.count}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Pending in batch</span><span className="text-zinc-100">{receipt.total}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Transaction cost</span><span className="text-emerald-300 font-bold">FREE (simulation)</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Cost / record after batching</span><span className="text-emerald-300">↓ asymptotic</span></div>
+                </div>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-zinc-500 shrink-0">Merkle root</span>
+                    <span className="text-zinc-100 truncate text-[11px]">{receipt.root}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-zinc-500 shrink-0">Tx hash</span>
+                    <span className="text-zinc-100 truncate text-[11px]">{receipt.tx_hash}</span>
+                  </div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Block</span><span className="text-zinc-100">#{receipt.block_number}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Leaves anchored</span><span className="text-zinc-100">{receipt.leaf_count}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Network</span>
+                    <span className={receipt.kind === "polygon" ? "text-fuchsia-300 font-bold" : "text-sky-300"}>
+                      {receipt.kind === "polygon" ? "Polygon Amoy" : "Private permissioned"}
+                    </span>
+                  </div>
+                  {receipt.explorer_url && (
+                    <a href={receipt.explorer_url} target="_blank" rel="noreferrer"
+                       data-testid="receipt-explorer-link"
+                       className="block mt-4 text-center py-3 rounded-lg bg-violet-600/30 hover:bg-violet-600/50 border border-violet-400/40 text-violet-100 text-[11px] uppercase tracking-wider transition">
+                      view on PolygonScan ↗
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-dashed border-zinc-700 my-5"></div>
+              <div className="text-[10px] text-zinc-600 text-center uppercase tracking-widest">Gen C · privacy by design · RA 10173 §20</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 }

@@ -826,6 +826,7 @@ async def lpa_anchor(p: AnchorReq):
         "layers": tree["layers"],
         "anchored_at": utcnow(),
         "anchored_by": p.admin_address,
+        "network": "simulated",
     }
     await db.lpa_anchors.insert_one(anchor)
     rec_ids = [x["record_id"] for x in pending]
@@ -836,6 +837,136 @@ async def lpa_anchor(p: AnchorReq):
             "merkle_root": root,
             "anchor_tx": tx_hash,
             "anchor_block": block_number,
+        }},
+    )
+    await db.lpa_pending.delete_many({})
+    anchor.pop("_id", None)
+    return anchor
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  POLYGON AMOY ANCHORING — REAL on-chain Merkle anchoring (live testnet)
+# ─────────────────────────────────────────────────────────────────────
+POLYGON_RPC = os.environ.get("POLYGON_RPC", "https://rpc-amoy.polygon.technology")
+POLYGON_CHAIN_ID = int(os.environ.get("POLYGON_CHAIN_ID", "80002"))  # 80002 = Amoy
+POLYGON_EXPLORER = os.environ.get("POLYGON_EXPLORER", "https://amoy.polygonscan.com")
+
+
+def _get_admin_pk_hex() -> str:
+    """Derive admin's private key from ADMIN_SEED (same path used everywhere)."""
+    seed = os.environ.get("ADMIN_SEED", "")
+    if not seed:
+        raise HTTPException(500, "ADMIN_SEED not configured")
+    pk = hashlib.sha256(seed.encode()).digest()
+    return "0x" + pk.hex()
+
+
+@api.get("/polygon/status")
+async def polygon_status():
+    """Show wallet balance + network info — used by frontend to gate the button."""
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(POLYGON_RPC))
+        bal_wei = w3.eth.get_balance(ADMIN["address"])
+        bal_pol = float(w3.from_wei(bal_wei, "ether"))
+        return {
+            "network": "Polygon Amoy Testnet",
+            "chain_id": POLYGON_CHAIN_ID,
+            "rpc": POLYGON_RPC,
+            "explorer": POLYGON_EXPLORER,
+            "admin_address": ADMIN["address"],
+            "balance_pol": round(bal_pol, 6),
+            "balance_wei": str(bal_wei),
+            "funded": bal_wei > 0,
+            "faucet_url": "https://faucet.polygon.technology/",
+        }
+    except Exception as e:
+        return {"network": "Polygon Amoy Testnet", "error": str(e), "funded": False}
+
+
+@api.post("/lpa/anchor-polygon")
+async def lpa_anchor_polygon(p: AnchorReq):
+    """Submit a REAL transaction to Polygon Amoy testnet anchoring the Merkle root.
+
+    The Merkle root is embedded in the transaction's data field as `0x"GENC"||root`.
+    Returns a real tx_hash that can be inspected on amoy.polygonscan.com.
+    """
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if p.admin_address.lower() != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+
+    pending = await db.lpa_pending.find({}, {"_id": 0}).to_list(1000)
+    if not pending:
+        raise HTTPException(400, "Nothing to anchor")
+
+    cids = [x["cid"] for x in pending]
+    tree = build_merkle(cids)
+    root = tree["root"]  # 0x... hex string
+
+    from web3 import Web3
+    w3 = Web3(Web3.HTTPProvider(POLYGON_RPC))
+    if not w3.is_connected():
+        raise HTTPException(503, "Polygon RPC unreachable")
+
+    admin_pk = _get_admin_pk_hex()
+    admin_addr = w3.to_checksum_address(ADMIN["address"])
+    bal = w3.eth.get_balance(admin_addr)
+    if bal == 0:
+        raise HTTPException(402, {
+            "message": "Admin wallet has 0 POL on Amoy. Request testnet POL from the faucet first.",
+            "faucet": "https://faucet.polygon.technology/",
+            "wallet": ADMIN["address"],
+            "network": "Polygon Amoy",
+        })
+
+    # Build tx: send 0 POL to self, embedding 'GENC' || root in the data field
+    root_bytes = bytes.fromhex(root[2:] if root.startswith("0x") else root)
+    data = b"GENC" + root_bytes  # marker + 32-byte merkle root
+    nonce = w3.eth.get_transaction_count(admin_addr)
+    tx = {
+        "from": admin_addr,
+        "to": admin_addr,            # self-tx; the root lives in the data field
+        "value": 0,
+        "data": "0x" + data.hex(),
+        "nonce": nonce,
+        "chainId": POLYGON_CHAIN_ID,
+        "gas": 60000,
+        "maxFeePerGas": w3.to_wei("50", "gwei"),
+        "maxPriorityFeePerGas": w3.to_wei("30", "gwei"),
+    }
+    signed = w3.eth.account.sign_transaction(tx, private_key=admin_pk)
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction).hex()
+    if not tx_hash.startswith("0x"):
+        tx_hash = "0x" + tx_hash
+
+    # Wait for receipt (so we can return real block number)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+    block_number = receipt.blockNumber
+
+    anchor = {
+        "id": str(uuid.uuid4()),
+        "root": root,
+        "tx_hash": tx_hash,
+        "block_number": int(block_number),
+        "leaf_count": len(cids),
+        "leaves": cids,
+        "layers": tree["layers"],
+        "anchored_at": utcnow(),
+        "anchored_by": p.admin_address,
+        "network": "polygon-amoy",
+        "explorer_url": f"{POLYGON_EXPLORER}/tx/{tx_hash}",
+    }
+    await db.lpa_anchors.insert_one(anchor)
+    rec_ids = [x["record_id"] for x in pending]
+    await db.records.update_many(
+        {"id": {"$in": rec_ids}},
+        {"$set": {
+            "anchor_status": "anchored",
+            "merkle_root": root,
+            "anchor_tx": tx_hash,
+            "anchor_block": int(block_number),
+            "network": "polygon-amoy",
         }},
     )
     await db.lpa_pending.delete_many({})
