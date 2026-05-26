@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { api } from "@/lib/api";
 import { useWallet } from "@/lib/walletContext";
 import { Hash, StatusBadge } from "@/components/CryptoString";
-import { aesEncryptFile, generateAesKey, exportKeyB64, buildPolicy, shortAddr } from "@/lib/crypto";
+import { aesEncryptFile, aesDecryptBlob, importKeyB64, generateAesKey, exportKeyB64, buildPolicy, shortAddr } from "@/lib/crypto";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Tray, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Tray, X, Download, LockOpen } from "@phosphor-icons/react";
 
 const STAGE_ICONS = {
   encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor,
@@ -31,6 +31,31 @@ export default function DoctorDashboard() {
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
   const [pipeline, setPipeline] = useState([]);
+  const [decrypting, setDecrypting] = useState(null);
+
+  const decryptAndDownload = async (rec) => {
+    setDecrypting(rec.id);
+    try {
+      const { message, signature } = await buildSig("decrypt-record");
+      const r = await api.post("/records/decrypt-key", {
+        record_id: rec.id, requester_address: session.address, signature, message,
+      });
+      const cipher = await api.get(`/ipfs/gateway/${rec.cid}`, { responseType: "blob" });
+      const key = await importKeyB64(r.data.encrypted_key_b64);
+      const plain = await aesDecryptBlob(cipher.data, key);
+      const url = URL.createObjectURL(plain);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = rec.file_name || `record-${rec.id}.bin`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Decrypted locally", { description: rec.file_name || rec.diagnosis });
+    } catch (e) {
+      toast.error("Decryption failed", { description: e?.response?.data?.detail || e.message });
+    } finally {
+      setDecrypting(null);
+    }
+  };
 
   const load = async () => {
     const [u, r, ur] = await Promise.all([
@@ -346,10 +371,11 @@ export default function DoctorDashboard() {
                     <TableHead className="eyebrow">Diagnosis</TableHead>
                     <TableHead className="eyebrow">CID</TableHead>
                     <TableHead className="eyebrow">Anchor</TableHead>
+                    <TableHead className="eyebrow">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.uploaded.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-12">No uploads yet</TableCell></TableRow>}
+                  {records.uploaded.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-zinc-500 font-mono py-12">No uploads yet</TableCell></TableRow>}
                   {records.uploaded.map((r) => (
                     <TableRow key={r.id} className="border-white/5 hover:bg-white/[0.02]" data-testid={`my-rec-${r.id}`}>
                       <TableCell className="font-mono text-xs text-zinc-400">{new Date(r.created_at).toLocaleString()}</TableCell>
@@ -359,6 +385,20 @@ export default function DoctorDashboard() {
                       <TableCell>
                         <StatusBadge status={r.anchor_status} />
                         {r.merkle_root && <div className="mt-1.5"><Hash value={r.merkle_root} testId={`d-root-${r.id}`} /></div>}
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => decryptAndDownload(r)}
+                          disabled={decrypting === r.id}
+                          data-testid={`decrypt-uploaded-${r.id}`}
+                          className="px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          {decrypting === r.id ? (
+                            <><LockOpen size={11} weight="bold" className="animate-pulse" />decrypting…</>
+                          ) : (
+                            <><Download size={11} weight="bold" />decrypt</>
+                          )}
+                        </button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -377,16 +417,31 @@ export default function DoctorDashboard() {
                     <TableHead className="eyebrow">Uploaded By</TableHead>
                     <TableHead className="eyebrow">Diagnosis</TableHead>
                     <TableHead className="eyebrow">CID</TableHead>
+                    <TableHead className="eyebrow">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.accessible.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-zinc-500 font-mono py-12">No granted records</TableCell></TableRow>}
+                  {records.accessible.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-12">No granted records</TableCell></TableRow>}
                   {records.accessible.map((r) => (
                     <TableRow key={r.id} className="border-white/5">
                       <TableCell>{r.patient_name}</TableCell>
                       <TableCell>{r.uploader_name}</TableCell>
                       <TableCell className="font-medium">{r.diagnosis}</TableCell>
                       <TableCell><Hash value={r.cid} testId={`g-cid-${r.id}`} /></TableCell>
+                      <TableCell>
+                        <button
+                          onClick={() => decryptAndDownload(r)}
+                          disabled={decrypting === r.id}
+                          data-testid={`decrypt-granted-${r.id}`}
+                          className="px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-400/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          {decrypting === r.id ? (
+                            <><LockOpen size={11} weight="bold" className="animate-pulse" />decrypting…</>
+                          ) : (
+                            <><Download size={11} weight="bold" />decrypt & view</>
+                          )}
+                        </button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
