@@ -3,7 +3,7 @@ import os, hashlib, base64, io, time, uuid
 import pytest, requests
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from conftest import resolve_backend_url
+from conftest import resolve_backend_url, normalize_pk
 
 BASE = resolve_backend_url() + "/api"
 
@@ -22,7 +22,10 @@ def _hex(s):
 
 
 def sign(pk, msg):
-    return _hex(Account.sign_message(encode_defunct(text=msg), private_key=pk).signature.hex())
+    """Robust signer — works with HexBytes, bytes, and prefixed/unprefixed hex strings."""
+    pk_hex = normalize_pk(pk)
+    sig = Account.sign_message(encode_defunct(text=msg), private_key=pk_hex).signature.hex()
+    return sig if sig.startswith("0x") else "0x" + sig
 
 
 # ---- Session-scope autouse: pre-register DOC and PAT idempotently so
