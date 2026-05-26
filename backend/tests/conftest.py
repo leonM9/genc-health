@@ -118,3 +118,48 @@ def pytest_report_header(config):
         f"gen-c target backend: {url}",
         f"gen-c crypto libs: eth_account={eth_ver} · hexbytes={hb_ver}",
     ]
+
+
+
+# ── Auto-categorize every test into unit / integration / security buckets ──
+# Keyword-driven so adding new tests requires zero markup. Run with:
+#   pytest -m unit          (single-endpoint validation)
+#   pytest -m integration   (multi-step end-to-end flows)
+#   pytest -m security      (attacks, tamper, role/sig violations)
+SECURITY_KEYWORDS = (
+    "invalid", "forbidden", "rejected", "blocked", "unauthorized",
+    "bad_role", "bad_wallet", "tampered", "requires_auth", "mismatch",
+    "non_admin", "non_doctor", "non_patient", "non_owner",
+    "unknown_anchor", "decline_invalid", "target_not_doctor",
+    "unregistered_patient_400",
+)
+INTEGRATION_KEYWORDS = (
+    "_flow", "anchor_and_stats", "anchor_by_admin_works",
+    "records_for_patient", "records_for_doctor", "records_with_upload_request_id",
+    "generate_patient_success", "generate_admin_path", "generate_pending_record",
+    "generate_redactions", "verify_valid",
+    "decrypt_key_owner_allowed", "decrypt_policy_cardiology",
+    "access_request_and_grant", "upload_request_create_success",
+    "upload_request_get_for_doctor", "upload_request_get_for_patient",
+    "decline_by_assigned", "admin_uploaded_record_enqueues_to_lpa",
+    "register_self_doctor_and_patient", "register_idempotent_update",
+    "hospital_roundtrip", "lpa_pending_enriched",
+)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "unit: single-endpoint unit test")
+    config.addinivalue_line("markers", "integration: multi-step end-to-end flow")
+    config.addinivalue_line("markers", "security: attack / tamper / authz violation")
+
+
+def pytest_collection_modifyitems(config, items):
+    import pytest
+    for item in items:
+        name = item.name.lower()
+        if any(kw in name for kw in SECURITY_KEYWORDS):
+            item.add_marker(pytest.mark.security)
+        elif any(kw in name for kw in INTEGRATION_KEYWORDS):
+            item.add_marker(pytest.mark.integration)
+        else:
+            item.add_marker(pytest.mark.unit)
