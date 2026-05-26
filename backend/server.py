@@ -1125,13 +1125,193 @@ Accessing this record without patient authorization is a criminal offence.
 """
 
 
-def _seed_aes_encrypt(plaintext: bytes, key: bytes) -> dict:
-    """AES-256-GCM encrypt; return base64-encoded ciphertext + IV in same format the frontend expects."""
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    iv = secrets.token_bytes(12)
-    ct = AESGCM(key).encrypt(iv, plaintext, None)
-    return {"iv_b64": base64.b64encode(iv).decode(),
-            "ciphertext_b64": base64.b64encode(ct).decode()}
+def _render_medical_record_png_placeholder():
+    """The real implementation lives below DEMO_RECORD_SPECS."""
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  DEMO IMAGE GENERATOR — synthesizes "Gen C Certified" PNG records
+# ─────────────────────────────────────────────────────────────────────
+DEMO_RECORD_SPECS = [
+    {
+        "label": "Cardiology Consultation",
+        "file_name": "cardiology-consult-2026.png",
+        "diagnosis": "Stable angina pectoris · Stage 1 hypertension · Dyslipidemia",
+        "notes": "Patient seen for chest pain on exertion. Treatment plan initiated.",
+        "color": (16, 80, 110),  # sky blue
+        "body": [
+            ("CHIEF COMPLAINT",
+             "Chest pain on exertion (3-week duration), radiating to left arm, dyspnea on stairs."),
+            ("VITAL SIGNS",
+             "BP 142/88 mmHg · HR 92 bpm · RR 18/min · SpO2 97% · BMI 27.7"),
+            ("DIAGNOSIS (ICD-10)",
+             "I20.9 Stable angina pectoris · I10 Essential HTN · E78.5 Dyslipidemia"),
+            ("TREATMENT PLAN",
+             "Aspirin 81mg OD · Atorvastatin 40mg HS · Amlodipine 5mg OD · Mediterranean diet"),
+            ("ATTENDING",
+             "Dr. Sarah V. Garcia, MD · PRC #0098431 · St. Luke's Medical Center"),
+        ],
+    },
+    {
+        "label": "12-Lead ECG Report",
+        "file_name": "ecg-12lead-2026.png",
+        "diagnosis": "Normal sinus rhythm · Occasional PVCs · No ischemic changes",
+        "notes": "Resting ECG performed. No ST-elevation, no Q waves.",
+        "color": (140, 60, 30),  # amber
+        "body": [
+            ("RHYTHM", "Normal Sinus Rhythm · Rate 78 bpm · Regular"),
+            ("INTERVALS", "PR 158 ms · QRS 92 ms · QT/QTc 386/426 ms"),
+            ("AXIS", "Normal axis +42° · No LAFB / LPFB"),
+            ("ST-T", "No ST elevation or depression. T-wave morphology normal in V2-V6."),
+            ("INTERPRETATION", "Within normal limits. Occasional PVCs noted (<2/min). No acute ischemia."),
+            ("READ BY", "Dr. Sarah V. Garcia, MD · Cardiology"),
+        ],
+    },
+    {
+        "label": "Chest X-Ray (PA View)",
+        "file_name": "chest-xray-pa-2026.png",
+        "diagnosis": "Mild cardiomegaly · Clear lung fields · No effusion",
+        "notes": "PA upright chest film. Compared to prior 2024 study.",
+        "color": (90, 90, 110),  # slate
+        "body": [
+            ("TECHNIQUE", "PA upright chest radiograph · 120 kVp · 4 mAs"),
+            ("HEART", "Cardiothoracic ratio 0.52 — mild cardiomegaly"),
+            ("LUNGS", "Lung fields clear bilaterally. No infiltrates, no consolidation."),
+            ("PLEURA", "No pleural effusion. Costophrenic angles sharp."),
+            ("BONES", "Visualized osseous structures intact. No fractures."),
+            ("IMPRESSION", "Mild cardiomegaly. Otherwise unremarkable chest examination."),
+            ("RADIOLOGIST", "Dr. Mateo A. Reyes, MD · DPBR"),
+        ],
+    },
+    {
+        "label": "Comprehensive Metabolic Panel",
+        "file_name": "metabolic-panel-2026.png",
+        "diagnosis": "Borderline HbA1c · Elevated LDL · Otherwise within range",
+        "notes": "12-hour fasting blood draw. Reference ranges per PHIC standard.",
+        "color": (40, 110, 70),  # green
+        "body": [
+            ("GLUCOSE / DIABETES",
+             "Fasting glucose 104 mg/dL · HbA1c 5.9% (prediabetic range)"),
+            ("LIPID PANEL",
+             "Total chol 220 · LDL 168 (high) · HDL 38 (low) · TG 214 mg/dL"),
+            ("KIDNEY",
+             "BUN 14 mg/dL · Creatinine 0.95 · eGFR 92 mL/min/1.73m² · Na 140 · K 4.2"),
+            ("LIVER",
+             "ALT 28 U/L · AST 24 U/L · ALP 81 U/L · Total Bili 0.7 mg/dL"),
+            ("CARDIAC",
+             "Troponin-I <0.04 ng/mL (negative) · NT-proBNP 88 pg/mL"),
+            ("INTERPRETATION",
+             "Dyslipidemia confirmed. Prediabetic HbA1c. Recommend lifestyle modification."),
+        ],
+    },
+    {
+        "label": "Immunization & Vaccination Record",
+        "file_name": "immunization-record-2025.png",
+        "diagnosis": "Vaccinations current · COVID-19 booster up to date",
+        "notes": "Lifetime immunization record per DOH and PIDSP guidelines.",
+        "color": (110, 40, 110),  # purple
+        "body": [
+            ("COVID-19", "Pfizer 1st dose 2021-05 · 2nd 2021-06 · Booster 2023-11 · 2024 update 2024-10"),
+            ("INFLUENZA", "2024-25 Quadrivalent · Administered 2024-09-15"),
+            ("TETANUS / Td", "Td booster 2022-04 (next due 2032)"),
+            ("HEPATITIS B", "Complete 3-dose series · titer reactive 2018"),
+            ("PNEUMOCOCCAL", "PCV-13 administered 2023-05 · PPSV-23 pending"),
+            ("ADMINISTERED BY", "St. Luke's Vaccination Clinic · Nurse R. Mendoza, RN"),
+        ],
+    },
+]
+
+
+def _render_medical_record_png(patient: dict, spec: dict, record_id: str, today: str) -> bytes:
+    """Render a 'Gen C Certified' medical-record PNG (no external network).
+    Returns raw PNG bytes that can then be AES-encrypted and pinned to IPFS."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception as e:
+        log.warning(f"PIL not available, falling back to text: {e}")
+        # text fallback
+        return (
+            f"GEN C CERTIFIED · {spec['label']}\n"
+            f"Patient: {patient['name']} (DOB {patient['dob']})\n"
+            f"Record ID: GENC-{record_id[:8].upper()}\n"
+            f"Date: {today}\n\n"
+            f"Diagnosis: {spec['diagnosis']}\n\n"
+            + "\n".join(f"{k}: {v}" for k, v in spec["body"])
+        ).encode("utf-8")
+
+    W, H = 800, 1050
+    PAD = 38
+    img = Image.new("RGB", (W, H), (15, 18, 26))
+    d = ImageDraw.Draw(img)
+
+    try:
+        font_bold = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 22)
+        font_h1 = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 32)
+        font_label = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 12)
+        font_body = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 14)
+        font_mono = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf", 11)
+    except Exception:
+        font_bold = font_h1 = font_label = font_body = font_mono = ImageFont.load_default()
+
+    accent = spec.get("color", (60, 130, 200))
+
+    # Header strip
+    d.rectangle((0, 0, W, 72), fill=accent)
+    d.text((PAD, 20), "GEN C  ·  CERTIFIED MEDICAL RECORD", fill=(245, 250, 255), font=font_bold)
+    d.text((W - PAD - 220, 28), f"GENC-{record_id[:8].upper()}", fill=(245, 250, 255), font=font_mono)
+
+    # Patient banner
+    by = 90
+    d.rectangle((PAD, by, W - PAD, by + 92), outline=(60, 70, 90), width=1, fill=(22, 26, 36))
+    d.text((PAD + 16, by + 12), spec["label"], fill=(220, 230, 245), font=font_h1)
+    d.text((PAD + 16, by + 56), f"Patient: {patient['name']}", fill=(160, 175, 200), font=font_body)
+    d.text((PAD + 16, by + 73), f"DOB {patient['dob']}  ·  Blood Type {patient['blood']}  ·  Date {today}",
+           fill=(120, 140, 170), font=font_body)
+
+    # Diagnosis stripe
+    dy = by + 110
+    d.rectangle((PAD, dy, W - PAD, dy + 46), fill=(28, 32, 44))
+    d.text((PAD + 14, dy + 8), "DIAGNOSIS", fill=(140, 160, 200), font=font_label)
+    d.text((PAD + 14, dy + 24), spec["diagnosis"], fill=(225, 235, 250), font=font_body)
+
+    # Body sections
+    y = dy + 70
+    section_h = 78
+    for label, val in spec["body"]:
+        # Label line
+        d.text((PAD, y), label, fill=(110, 170, 220), font=font_label)
+        # divider under label
+        d.line((PAD, y + 18, W - PAD, y + 18), fill=(40, 50, 70), width=1)
+        # value (wrap simply at ~85 chars)
+        wrapped = []
+        words = val.split()
+        line = ""
+        for w in words:
+            if len(line) + len(w) > 78:
+                wrapped.append(line.strip())
+                line = w + " "
+            else:
+                line += w + " "
+        if line:
+            wrapped.append(line.strip())
+        for i, wl in enumerate(wrapped[:2]):
+            d.text((PAD, y + 24 + i * 20), wl, fill=(220, 230, 245), font=font_body)
+        y += section_h
+
+    # Footer — signature + integrity
+    fy = H - 110
+    d.line((PAD, fy, W - PAD, fy), fill=(60, 70, 90), width=1)
+    h_root = hashlib.sha256((spec["label"] + record_id + patient["name"]).encode()).hexdigest()
+    d.text((PAD, fy + 14), "RECORD INTEGRITY  ·  KECCAK256", fill=(110, 160, 200), font=font_label)
+    d.text((PAD, fy + 32), f"0x{h_root[:60]}", fill=(180, 220, 240), font=font_mono)
+    d.text((PAD, fy + 56), "Anchored to permissioned ledger  ·  AES-256-GCM client-side encrypted",
+           fill=(120, 140, 170), font=font_body)
+    d.text((PAD, fy + 76), "Protected under RA 10173 (Data Privacy Act of 2012)", fill=(140, 100, 80), font=font_mono)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
 
 
 @api.post("/admin/seed-demo-scenario")
@@ -1184,85 +1364,111 @@ async def admin_seed_demo_scenario(p: SimulateReq):
     await db.users.update_one({"address_lower": doctor_acct.address.lower()}, {"$set": doc_doc}, upsert=True)
     await db.users.update_one({"address_lower": patient_acct.address.lower()}, {"$set": pat_doc}, upsert=True)
 
-    # 3) Remove any previous demo record so re-runs stay clean
+    # 3) Remove any previous demo records so re-runs stay clean
     await db.records.delete_many({"patient_address_lower": patient_acct.address.lower(), "demo_seed": True})
+    await db.lpa_anchors.delete_many({"demo_seed": True})
 
-    # 4) Build the fake medical record blob
-    record_id = str(uuid.uuid4())
     today = _dt.utcnow().strftime("%B %d, %Y")
-    plaintext = FAKE_MEDICAL_RECORD.format(record_id=record_id[:8].upper(), today=today).encode("utf-8")
+    patient_meta = {
+        "name": pat_doc["name"],
+        "dob": "March 14, 1987",
+        "blood": "O+",
+    }
 
-    # 5) AES-256-GCM encrypt — produce raw bytes in the EXACT same format
-    # the frontend uses (12-byte IV prepended to ciphertext) so the existing
-    # aesDecryptBlob() helper in /app/frontend/src/lib/crypto.js can read it.
-    aes_key = AESGCM.generate_key(bit_length=256)
-    iv = _s.token_bytes(12)
-    ciphertext = AESGCM(aes_key).encrypt(iv, plaintext, None)
-    encrypted_payload = iv + ciphertext  # 12-byte IV || ct||tag — raw bytes
+    # 4-7) Loop: render PNG -> AES encrypt -> Pinata pin -> Mongo insert (5 records)
+    seeded_records = []
+    seeded_cids = []
+    for spec in DEMO_RECORD_SPECS:
+        record_id = str(uuid.uuid4())
+        plaintext = _render_medical_record_png(patient_meta, spec, record_id, today)
 
-    # 6) Upload encrypted payload to Pinata (or local fallback)
-    cid = None
-    if PINATA_JWT:
-        try:
-            r = requests.post(
-                "https://api.pinata.cloud/pinning/pinFileToIPFS",
-                files={"file": (f"genc-demo-{record_id[:8]}.enc",
-                                io.BytesIO(encrypted_payload),
-                                "application/octet-stream")},
-                headers={"Authorization": f"Bearer {PINATA_JWT}"},
-                timeout=30,
-            )
-            r.raise_for_status()
-            cid = r.json()["IpfsHash"]
-        except Exception as e:
-            log.warning(f"Pinata pin failed during seed, using fallback: {e}")
-    if not cid:
-        h = hashlib.sha256(encrypted_payload).hexdigest()
-        cid = "bafk" + h[:50]
-        await db.ipfs_local.insert_one({
-            "cid": cid, "size": len(encrypted_payload),
-            "name": f"genc-demo-{record_id[:8]}.enc", "ts": utcnow(),
-            "_demo_plaintext_b64": base64.b64encode(encrypted_payload).decode(),
+        # AES-256-GCM encrypt — IV || ciphertext || tag (same format as frontend aesEncryptFile)
+        aes_key = AESGCM.generate_key(bit_length=256)
+        iv = _s.token_bytes(12)
+        ciphertext = AESGCM(aes_key).encrypt(iv, plaintext, None)
+        encrypted_payload = iv + ciphertext
+
+        # Pin to Pinata (fallback to local storage if it fails)
+        cid = None
+        if PINATA_JWT:
+            try:
+                r = requests.post(
+                    "https://api.pinata.cloud/pinning/pinFileToIPFS",
+                    files={"file": (f"genc-demo-{record_id[:8]}.enc",
+                                    io.BytesIO(encrypted_payload),
+                                    "application/octet-stream")},
+                    headers={"Authorization": f"Bearer {PINATA_JWT}"},
+                    timeout=30,
+                )
+                r.raise_for_status()
+                cid = r.json()["IpfsHash"]
+            except Exception as e:
+                log.warning(f"Pinata pin failed for {spec['label']}, using fallback: {e}")
+        if not cid:
+            h = hashlib.sha256(encrypted_payload).hexdigest()
+            cid = "bafk" + h[:50]
+            await db.ipfs_local.insert_one({
+                "cid": cid, "size": len(encrypted_payload),
+                "name": f"genc-demo-{record_id[:8]}.enc", "ts": utcnow(),
+                "_demo_plaintext_b64": base64.b64encode(encrypted_payload).decode(),
+            })
+
+        policy = f"Owner:{patient_acct.address.lower()}"
+        encrypted_key_b64 = base64.b64encode(aes_key).decode()
+        rec = {
+            "id": record_id,
+            "cid": cid,
+            "file_name": spec["file_name"],
+            "file_size": len(encrypted_payload),
+            "encrypted_key_b64": encrypted_key_b64,
+            "policy": policy,
+            "diagnosis": spec["diagnosis"],
+            "notes": spec["notes"],
+            "uploader_address": ADMIN["address"],
+            "uploader_address_lower": ADMIN["address"].lower(),
+            "uploader_name": "Dr. Sarah V. Garcia",
+            "uploader_department": "Cardiology",
+            "uploader_role": "doctor",
+            "patient_address": patient_acct.address,
+            "patient_address_lower": patient_acct.address.lower(),
+            "patient_name": pat_doc["name"],
+            "created_at": utcnow(),
+            "anchor_status": "pending",
+            "demo_seed": True,
+        }
+        await db.records.insert_one(rec)
+        seeded_cids.append(cid)
+        seeded_records.append({
+            "id": record_id,
+            "cid": cid,
+            "file_name": spec["file_name"],
+            "diagnosis": spec["diagnosis"],
+            "policy": policy,
+            "label": spec["label"],
         })
 
-    # 7) Store record with policy = Owner-only (doctor must request access)
-    policy = f"Owner:{patient_acct.address.lower()}"
-    encrypted_key_b64 = base64.b64encode(aes_key).decode()  # demo policy: simulated wrap = raw b64
-    rec = {
-        "id": record_id,
-        "cid": cid,
-        "file_name": "cardiology-consult-2026.pdf",
-        "file_size": len(encrypted_payload),
-        "encrypted_key_b64": encrypted_key_b64,
-        "policy": policy,
-        "diagnosis": "Stable angina pectoris · Stage 1 hypertension · Dyslipidemia",
-        "notes": "Patient seen for chest pain on exertion. Treatment plan initiated.",
-        "uploader_address": ADMIN["address"],
-        "uploader_address_lower": ADMIN["address"].lower(),
-        "uploader_name": "Dr. Sarah V. Garcia",
-        "uploader_department": "Cardiology",
-        "uploader_role": "doctor",
-        "patient_address": patient_acct.address,
-        "patient_address_lower": patient_acct.address.lower(),
-        "patient_name": pat_doc["name"],
-        "created_at": utcnow(),
-        # Anchor it immediately — fake but realistic Merkle anchor
-        "anchor_status": "anchored",
-        "merkle_root": "0x" + hashlib.sha256(cid.encode()).hexdigest(),
-        "anchor_tx": "0x" + _s.token_hex(32),
-        "anchor_block": await _next_block(),
-        "network": "private-permissioned",
-        "demo_seed": True,
-    }
-    await db.records.insert_one(rec)
-    # also create a matching anchor entry for the Anchored Roots tab
+    # 8) Anchor all 5 leaves under ONE Merkle root — showcases LPA aggregation
+    merkle_root = "0x" + hashlib.sha256(("|".join(seeded_cids)).encode()).hexdigest()
+    anchor_tx = "0x" + _s.token_hex(32)
+    anchor_block = await _next_block()
+    anchor_id = str(uuid.uuid4())
+    await db.records.update_many(
+        {"id": {"$in": [r["id"] for r in seeded_records]}},
+        {"$set": {
+            "anchor_status": "anchored",
+            "merkle_root": merkle_root,
+            "anchor_tx": anchor_tx,
+            "anchor_block": anchor_block,
+            "network": "private-permissioned",
+        }},
+    )
     await db.lpa_anchors.insert_one({
-        "id": str(uuid.uuid4()),
-        "root": rec["merkle_root"],
-        "tx_hash": rec["anchor_tx"],
-        "block_number": rec["anchor_block"],
-        "leaf_count": 1,
-        "leaves": [cid],
+        "id": anchor_id,
+        "root": merkle_root,
+        "tx_hash": anchor_tx,
+        "block_number": anchor_block,
+        "leaf_count": len(seeded_cids),
+        "leaves": seeded_cids,
         "anchored_at": utcnow(),
         "anchored_by": ADMIN["address"],
         "network": "private-permissioned",
@@ -1285,20 +1491,20 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "name": pat_doc["name"],
             "role": "patient",
         },
-        "record": {
-            "id": record_id,
-            "cid": cid,
-            "file_name": rec["file_name"],
-            "diagnosis": rec["diagnosis"],
-            "anchored_root": rec["merkle_root"],
-            "policy": policy,
+        "records": seeded_records,
+        "record": seeded_records[0],  # keep backwards-compat with existing modal
+        "anchor": {
+            "merkle_root": merkle_root,
+            "tx_hash": anchor_tx,
+            "block": anchor_block,
+            "leaf_count": len(seeded_cids),
         },
         "instructions": [
             "1. Copy the DOCTOR's private key and log in via 'Import Private Key' on the login page.",
-            "2. From the Doctor Dashboard, search for patient 'Juan' and click 'Request Access'.",
+            "2. From the Doctor Dashboard, search for patient 'Juan' and click 'Request History'.",
             "3. Log out, then log in with the PATIENT's private key.",
             "4. From the Patient Dashboard, approve the doctor's access request.",
-            "5. Log out, log back in as the doctor — open the granted record to decrypt and read the medical history.",
+            f"5. Log out, log back in as the doctor — open any of the {len(seeded_records)} granted records to decrypt and view.",
         ],
     }
 

@@ -895,6 +895,48 @@ export default function AdminDashboard() {
                       {receipt.kind === "polygon" ? "Polygon Amoy" : "Private permissioned"}
                     </span>
                   </div>
+
+                  {/* LPA aggregation cost breakdown — the whole point of LPA */}
+                  {receipt.leaf_count > 0 && (() => {
+                    const GAS_PER_TX = 80000;
+                    const GWEI = 20;
+                    const ETH_PHP = 215000;
+                    const txCostPhp = (GAS_PER_TX * GWEI / 1e9) * ETH_PHP;
+                    const naiveTotal = txCostPhp * receipt.leaf_count;
+                    const lpaTotal = txCostPhp;
+                    const naivePerRec = txCostPhp;
+                    const lpaPerRec = txCostPhp / receipt.leaf_count;
+                    const savedTotal = naiveTotal - lpaTotal;
+                    const savingsPct = receipt.leaf_count > 1 ? (1 - 1 / receipt.leaf_count) * 100 : 0;
+                    const fmt = (n) => "₱" + n.toFixed(2);
+                    return (
+                      <div className="mt-4 rounded-lg border border-emerald-400/40 bg-gradient-to-br from-emerald-950/50 to-zinc-950 p-3" data-testid="receipt-lpa-cost">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <div className="text-[10px] uppercase tracking-widest text-emerald-300">LPA aggregation · cost amortization</div>
+                          <div className="text-[10px] font-mono text-emerald-200/60">80k gas · 20 gwei</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div className="rounded bg-rose-950/30 border border-rose-400/20 p-2">
+                            <div className="text-[9px] uppercase tracking-wider text-rose-300/80">naive · 1 tx / record</div>
+                            <div className="text-rose-200 font-bold text-sm mt-0.5">{fmt(naiveTotal)}</div>
+                            <div className="text-[9px] text-zinc-500 mt-0.5">{fmt(naivePerRec)} × {receipt.leaf_count}</div>
+                          </div>
+                          <div className="rounded bg-emerald-950/40 border border-emerald-400/30 p-2">
+                            <div className="text-[9px] uppercase tracking-wider text-emerald-300/80">with LPA · 1 tx total</div>
+                            <div className="text-emerald-200 font-bold text-sm mt-0.5">{fmt(lpaTotal)}</div>
+                            <div className="text-[9px] text-zinc-500 mt-0.5">{fmt(lpaPerRec)} per record</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2.5 px-1">
+                          <span className="text-[10px] text-zinc-400">Net saved</span>
+                          <span className="text-emerald-300 font-bold text-sm" data-testid="receipt-saved">
+                            {fmt(savedTotal)} <span className="text-[10px] text-emerald-400/70">({savingsPct.toFixed(1)}%)</span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {receipt.explorer_url && (
                     <a href={receipt.explorer_url} target="_blank" rel="noreferrer"
                        data-testid="receipt-explorer-link"
