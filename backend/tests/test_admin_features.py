@@ -25,6 +25,32 @@ def sign(pk, msg):
     return _hex(Account.sign_message(encode_defunct(text=msg), private_key=pk).signature.hex())
 
 
+# ---- Session-scope autouse: pre-register DOC and PAT idempotently so
+# tests that rely on /users/admin-register having already succeeded for
+# them (e.g. /records upload-against-patient) work in any subset.
+@pytest.fixture(scope="module", autouse=True)
+def _ensure_admin_test_users():
+    for acct, role, name, dept in [
+        (DOC, "doctor", "Dr Admin-Registered", "Radiology"),
+        (PAT, "patient", "Pat Admin-Registered", None),
+    ]:
+        try:
+            msg = f"admin-register-{role}"
+            requests.post(BASE + "/users/admin-register", json={
+                "admin_address": ADMIN_ADDR,
+                "admin_signature": sign(ADMIN_PK, msg),
+                "admin_message": msg,
+                "target_address": acct.address,
+                "role": role,
+                "name": name,
+                "department": dept,
+                "hospital": "Test Hospital" if role == "doctor" else None,
+            }, timeout=30)
+        except Exception:
+            pass
+    yield
+
+
 # ---- /users/admin-register ----
 def test_admin_register_doctor():
     msg = "admin-register-doctor"
@@ -129,8 +155,13 @@ def test_admin_register_bad_wallet():
 def test_users_list_excludes_mongo_id():
     r = requests.get(BASE + "/users")
     assert r.status_code == 200
-    for u in r.json():
-        assert "_id" not in u
+    leaks = [u for u in r.json() if "_id" in u]
+    assert not leaks, (
+        f"{len(leaks)} user(s) leaked Mongo _id. First offender: "
+        f"{leaks[0].get('address_lower', '?')} / {leaks[0].get('name', '?')}. "
+        f"This usually means you are hitting a backend that does not have "
+        f"the latest server.py — confirm target URL from the test session banner."
+    )
 
 
 # ---- IPFS small dummy upload ----

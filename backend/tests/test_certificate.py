@@ -42,6 +42,19 @@ def self_register(acct, role, name, department=None, hospital=None):
     return requests.post(BASE + "/users/register", json=payload)
 
 
+# ---- Session-scope autouse: ensures DOCTOR / PATIENT / OTHER are registered
+# before any test in this file runs. Makes the file resilient to `-k` filters.
+@pytest.fixture(scope="module", autouse=True)
+def _ensure_cert_test_users():
+    try:
+        self_register(DOCTOR, "doctor", "Dr Cert", "Cardiology", "Cert Hospital")
+        self_register(PATIENT, "patient", "Pat Cert")
+        self_register(OTHER, "patient", "Other Pat")
+    except Exception:
+        pass
+    yield
+
+
 # ---- Shared fixtures: register + upload + anchor (module-scope, runs once) ----
 @pytest.fixture(scope="module")
 def pinata_cid():

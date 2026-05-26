@@ -43,6 +43,26 @@ def self_register_payload(acct: Account, role: str, name: str, department: str |
     }
 
 
+# ---- Session-scope autouse: guarantees DOCTOR / PATIENT / OTHER_DOCTOR are
+# registered before ANY test runs in this module, so cherry-picking tests
+# with `-k` doesn't ERROR on missing prerequisite state.
+@pytest.fixture(scope="module", autouse=True)
+def _ensure_test_users():
+    for acct, role, dept, name in [
+        (DOCTOR, "doctor", "Cardiology", "Dr Test"),
+        (PATIENT, "patient", None, "Pat Test"),
+        (OTHER_DOCTOR, "doctor", "Radiology", "Dr Other"),
+    ]:
+        try:
+            requests.post(BASE + "/users/register",
+                          json=self_register_payload(acct, role, name, dept),
+                          timeout=30)
+        except Exception:
+            # Tests that genuinely need these users will fail loudly on their own
+            pass
+    yield
+
+
 # ---- Health / admin info ----
 def test_root():
     r = requests.get(BASE + "/")
