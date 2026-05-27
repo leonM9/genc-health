@@ -378,6 +378,86 @@
     .ipo-grid { grid-template-columns: 1fr; gap: 12px; }
     .ipo-arrow { transform: rotate(90deg); }
   }
+
+  /* ── LIVE DEMO CUE SLIDE ── */
+  .live-cue {
+    display: flex; flex-direction: column; gap: 28px; flex: 1;
+    justify-content: center; align-items: flex-start; max-width: 100%;
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 14px;
+    background: var(--innov-orange);
+    color: #fff; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 700; letter-spacing: 4px;
+    text-transform: uppercase; padding: 12px 24px; border-radius: 999px;
+    box-shadow: 0 8px 28px rgba(237, 125, 49, 0.4);
+  }
+  .live-badge .pulse-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8);
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); transform: scale(1); }
+    70%  { box-shadow: 0 0 0 14px rgba(255, 255, 255, 0); transform: scale(1.05); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); transform: scale(1); }
+  }
+
+  .demo-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%;
+  }
+  .demo-tier {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--line); border-top: 4px solid var(--innov-orange);
+    border-radius: 14px; padding: 22px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.1);
+    position: relative;
+  }
+  .demo-tier.green { border-top-color: var(--feu-green); }
+  .demo-tier.blue  { border-top-color: var(--innov-blue); }
+  .demo-tier .tier-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; color: var(--innov-orange);
+    text-transform: uppercase; font-weight: 700;
+  }
+  .demo-tier h3 {
+    font-family: 'Playfair Display', serif; font-size: 26px;
+    color: var(--ink); margin-bottom: 4px; font-weight: 700; line-height: 1.1;
+  }
+  .demo-tier .what {
+    font-size: 13.5px; color: var(--ink-soft); line-height: 1.55;
+  }
+  .demo-tier .cmd {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    background: rgba(31, 78, 121, 0.06);
+    color: var(--innov-blue-deep);
+    padding: 8px 12px; border-radius: 6px;
+    border: 1px dashed rgba(31, 78, 121, 0.2);
+    margin-top: auto; word-break: break-all;
+  }
+  .demo-tier .cmd::before {
+    content: '$ '; color: var(--innov-orange); font-weight: 700;
+  }
+
+  .terminal-strip {
+    background: #0c2640; color: #d6e4f0;
+    border-radius: 12px; padding: 18px 22px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    line-height: 1.7; width: 100%;
+    box-shadow: 0 12px 32px rgba(12, 38, 64, 0.3);
+    border: 1px solid rgba(237, 125, 49, 0.3);
+  }
+  .terminal-strip .ts-line { display: block; }
+  .terminal-strip .ts-prompt { color: var(--innov-orange); font-weight: 700; }
+  .terminal-strip .ts-cmd    { color: #ffffff; }
+  .terminal-strip .ts-out    { color: #7ed4a8; }
+  .terminal-strip .ts-cursor {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--innov-orange); margin-left: 4px; vertical-align: text-bottom;
+    animation: cursor-blink 1s steps(2, end) infinite;
+  }
+  @keyframes cursor-blink { 50% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -407,7 +487,7 @@
   <section class="slide" data-notes="Spend roughly 60 seconds here. Anchor the panel in the local crisis. 'Chapter 1 begins by establishing that Philippine hospitals remain reliant on centralized legacy infrastructure. The proponents cite two converging threats: first, the 2023 Medusa ransomware attack against PhilHealth that exposed millions of records — a direct consequence of single-point-of-failure storage; and second, the systemic civil-registry fraud surfaced by the Alice Guo case, where the Late Registration system was exploited by criminal syndicates. These incidents jointly demonstrate that the Philippine healthcare and registry sectors require a system that is decentralized, immutable, and privacy-preserving by design.'">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Background of the Study</span></div>
-      <div class="slide-num">02 / 13</div>
+      <div class="slide-num">02 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">The Local Crisis</div>
@@ -437,7 +517,7 @@
   <section class="slide" data-notes="Read each of the four sub-problems clearly. They are quoted directly from the manuscript (Section 1.2). 'The general challenge addressed in this research is how hospitals and medical clinics can adopt a scalable, privacy-conscious, decentralized identity system. From this general problem, the study answers four specific questions.' Then read the four numbered items deliberately.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Statement of the Problem</span></div>
-      <div class="slide-num">03 / 13</div>
+      <div class="slide-num">03 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Section 1.2</div>
@@ -456,7 +536,7 @@
   <section class="slide" data-notes="Open with the general objective, then summarize the five specifics. Roughly 60 seconds. 'The general objective is to design and develop a decentralized web application that uses AES-256, CP-ABE, and the Layered Proof Aggregation protocol to provide a scalable, cost-effective, and privacy-preserving mechanism for verifying hospital records. From this, the study commits to five specific objectives.' Read them, but lean into objective 3 — the throughput target.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Objectives of the Study</span></div>
-      <div class="slide-num">04 / 13</div>
+      <div class="slide-num">04 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Section 1.3</div>
@@ -483,7 +563,7 @@
   <section class="slide" data-notes="Be precise and unhurried — the panel will probe this slide. 'The scope and delimitations are taken verbatim from Section 1.7. The system is deliberately bounded along five axes.' Walk down the two columns. Emphasize the synthetic-data delimitation: it is the proponents' compliance posture toward RA 10173.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Scope &amp; Delimitations</span></div>
-      <div class="slide-num">05 / 13</div>
+      <div class="slide-num">05 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Section 1.7</div>
@@ -525,7 +605,7 @@
   <section class="slide" data-notes="Roughly 45 seconds. 'The study rests on three theoretical pillars and follows an Input-Process-Output conceptual model.' Read the pillars briefly, then trace the IPO flow left to right. Anchor on the Principle of Cryptographic Truth as the rebuttal to the Alice Guo case.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Theoretical &amp; Conceptual Framework</span></div>
-      <div class="slide-num">06 / 13</div>
+      <div class="slide-num">06 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Sections 1.4 – 1.5</div>
@@ -587,7 +667,7 @@
   <section class="slide" data-notes="45 seconds. Foreign literature gave the proponents the blueprint; local literature exposed the urgency. Mention by name only: Bethencourt et al. for CP-ABE, Mombelli for ZKPs, Moya et al. for dual-chain. On the local side, the National Privacy Commission (2023), Gatchalian (2024), and Herbosa for GIDA. Close with the research gap sentence — that is the proponents' justification.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 2 · Review of Related Literature</span></div>
-      <div class="slide-num">07 / 13</div>
+      <div class="slide-num">07 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Foreign &amp; Local Synthesis</div>
@@ -626,7 +706,7 @@
   <section class="slide" data-notes="60 seconds. 'The study follows the Design Science Research Methodology — iterative cycles of problem identification, design, construction, demonstration, and evaluation.' Move directly into the three-layer architecture diagram. Highlight that the Presentation Layer performs client-side encryption via WebAssembly — so cleartext never leaves the device.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Methodology &amp; System Architecture</span></div>
-      <div class="slide-num">08 / 13</div>
+      <div class="slide-num">08 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Sections 3.1 – 3.3</div>
@@ -664,7 +744,7 @@
   <section class="slide" data-notes="60 seconds — be brisk but precise. Three algorithms, one job each: AES-256 hides the payload, CP-ABE controls who can decrypt, LPA aggregates proofs so the ledger remains cheap. Close on the complexity collapse: linear to logarithmic — that is the proponents' contribution.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Algorithmic Core</span></div>
-      <div class="slide-num">09 / 13</div>
+      <div class="slide-num">09 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Sections 3.5.1 – 3.5.6</div>
@@ -701,7 +781,7 @@
   <section class="slide" data-notes="45 seconds. Four testing tiers, each tied to ISO/IEC 25010. Unit, integration, security, and UAT. Briefly note that synthetic data of 10,000 records was used to stress-test the LPA protocol across batch sizes from 10 to 500.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Evaluation &amp; Testing Methods</span></div>
-      <div class="slide-num">10 / 13</div>
+      <div class="slide-num">10 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Sections 3.6 – 3.8</div>
@@ -736,11 +816,60 @@
     </div>
   </section>
 
-  <!-- ════ SLIDE 11 · RESULTS & FINDINGS ════ -->
+  <!-- ════ SLIDE 11 · LIVE DEMO CUE ════ -->
+  <section class="slide" data-notes="This is your CUE to switch from slides to the terminal. Take a breath, pause, then say slowly: 'At this point, with the panel's permission, the proponents will transition from theoretical discussion to a live execution of the testing battery. The team will demonstrate three tiers in real time — Unit, Integration, and Security — by running the consolidated defense script. Please direct your attention to the terminal.' Then ALT-TAB to your terminal and run: bash /app/run_defense_tests.sh">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Live Defense · Terminal Demonstration</span></div>
+      <div class="slide-num">11 / 14</div>
+    </div>
+    <div class="slide-content">
+      <div class="live-cue">
+        <div class="live-badge">
+          <span class="pulse-dot"></span>
+          <span>Live Demonstration · Switch to Terminal</span>
+        </div>
+        <h2 style="margin-bottom: 4px;">With the panel's permission — <span style="color: var(--innov-orange);">live execution</span> of the testing battery.</h2>
+        <p class="lead" style="margin-bottom: 8px;">
+          The proponents will now run the three technical testing tiers in real time against the Gen C codebase, witnessed by the panel.
+        </p>
+
+        <div class="demo-grid">
+          <div class="demo-tier">
+            <span class="tier-num">Tier 1</span>
+            <h3>Unit Testing</h3>
+            <div class="what">Validates the cryptographic primitives in isolation — <b>AES-256-GCM</b> key derivation, <b>CP-ABE</b> attribute checks, and hash integrity functions.</div>
+            <div class="cmd">pytest -m unit -v</div>
+          </div>
+          <div class="demo-tier green">
+            <span class="tier-num">Tier 2</span>
+            <h3>Integration Testing</h3>
+            <div class="what">Exercises the full pipeline — <b>encrypt → IPFS pin → LPA Merkle batch → on-chain anchor → decrypt</b> — across record and patient flows.</div>
+            <div class="cmd">pytest -m integration -v</div>
+          </div>
+          <div class="demo-tier blue">
+            <span class="tier-num">Tier 3</span>
+            <h3>Security Testing</h3>
+            <div class="what">Adversarial red-team battery — <b>unauthorized decryption</b>, <b>policy bypass</b>, <b>tamper detection</b>, and <b>replay-attack defense</b>.</div>
+            <div class="cmd">pytest -m security -v</div>
+          </div>
+        </div>
+
+        <div class="terminal-strip">
+          <span class="ts-line"><span class="ts-prompt">proponents@gen-c</span>:<span style="color:#5B9BD5;">~/app</span>$ <span class="ts-cmd">bash /app/run_defense_tests.sh</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 1 — Unit Tests        :  passing</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 2 — Integration Tests :  passing</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 3 — Security Tests    :  passing</span></span>
+          <span class="ts-line"><span class="ts-prompt">proponents@gen-c</span>:<span style="color:#5B9BD5;">~/app</span>$ <span class="ts-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 12 · RESULTS & FINDINGS ════ -->
   <section class="slide" data-notes="60 seconds. Walk the panel through the headline numbers from Chapter 4 and Chapter 5. Note: 100/100 encryption integrity, zero Merkle-root collisions, 100 % rejection of unauthorized access attempts, 98 % gas savings on large batches, and an overall ISO 25010 weighted mean of 3.531 — interpreted as Strongly Agree.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapter 4 &amp; 5 · Results and Findings</span></div>
-      <div class="slide-num">11 / 13</div>
+      <div class="slide-num">12 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Alpha · Beta · UAT</div>
@@ -778,11 +907,11 @@
     </div>
   </section>
 
-  <!-- ════ SLIDE 12 · CONCLUSION & RECOMMENDATIONS ════ -->
+  <!-- ════ SLIDE 13 · CONCLUSION & RECOMMENDATIONS ════ -->
   <section class="slide" data-notes="45 seconds. State the conclusion verbatim from Section 5.2. Then enumerate the recommendations from Chapter 6 quickly. The most important recommendations to highlight are EHR integration, MFA hardening, and partnership with the DOH and the National Privacy Commission — these signal the proponents' awareness of real-world deployment.">
     <div class="slide-header">
       <div class="feu-mark"><span class="dot"></span><span>Chapters 5 &amp; 6 · Conclusion and Recommendations</span></div>
-      <div class="slide-num">12 / 13</div>
+      <div class="slide-num">13 / 14</div>
     </div>
     <div class="slide-content">
       <div class="eyebrow">Sections 5.2 &amp; 6.1</div>
@@ -812,7 +941,7 @@
     </div>
   </section>
 
-  <!-- ════ SLIDE 13 · CLOSING ════ -->
+  <!-- ════ SLIDE 14 · CLOSING ════ -->
   <section class="slide closing-slide" data-notes="Close with poise. 'On behalf of the proponents, thank you for your time and your guidance. The team welcomes the panel's questions and recommendations to further strengthen this study.' Stand still, smile, and wait for the panel.">
     <div class="slide-content">
       <div class="feu-mono">Far Eastern University · The Innovation College</div>
@@ -825,7 +954,7 @@
 
 <div id="nav">
   <button id="prev" aria-label="Previous slide" data-testid="defense-prev-slide">◀</button>
-  <span class="counter"><span id="cur">01</span> / <span id="tot">13</span></span>
+  <span class="counter"><span id="cur">01</span> / <span id="tot">14</span></span>
   <button id="next" aria-label="Next slide" data-testid="defense-next-slide">▶</button>
 </div>
 
