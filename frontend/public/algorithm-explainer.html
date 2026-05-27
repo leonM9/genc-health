@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gen C · The Algorithms · Thesis Defense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@600;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --feu-green: #006837;
+    --feu-green-deep: #014023;
+    --feu-green-light: #1f8a55;
+    --feu-gold: #FFB81C;
+    --feu-gold-dim: #c8901a;
+    --ink: #0d1117;
+    --ink-2: #161b22;
+    --line: rgba(255, 184, 28, 0.18);
+    --text: #e8e8e8;
+    --muted: #a8a8a8;
+    --danger: #e74c3c;
+    --success: #2ecc71;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--ink); color: var(--text); overflow: hidden;
+               font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+  /* ───────────────────────────── PROGRESS BAR ───────────────────────────── */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--feu-green) 0%, var(--feu-gold) 100%);
+    z-index: 1000; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 12px rgba(255, 184, 28, 0.5);
+  }
+
+  /* ───────────────────────────── SLIDE FRAME ───────────────────────────── */
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0; padding: 60px 80px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    background: var(--ink);
+  }
+
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  /* Background patterns per slide type */
+  .slide::before {
+    content: ''; position: absolute; inset: 0; opacity: 0.4; pointer-events: none;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(0, 104, 55, 0.25) 0%, transparent 35%),
+      radial-gradient(circle at 85% 80%, rgba(255, 184, 28, 0.10) 0%, transparent 40%);
+  }
+
+  /* ───────────────────────────── TYPOGRAPHY ───────────────────────────── */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--feu-gold); margin-bottom: 16px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before {
+    content: ''; width: 24px; height: 2px; background: var(--feu-gold);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif; font-weight: 900;
+    font-size: clamp(40px, 5.5vw, 76px); line-height: 1.05;
+    color: #fff; letter-spacing: -0.02em; margin-bottom: 24px;
+  }
+  h1 .accent { color: var(--feu-gold); }
+  h1 .green { color: var(--feu-green-light); }
+
+  h2 {
+    font-family: 'Playfair Display', serif; font-weight: 700;
+    font-size: clamp(28px, 3.5vw, 48px); line-height: 1.1;
+    color: #fff; margin-bottom: 18px; letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-family: 'Manrope', sans-serif; font-weight: 700;
+    font-size: clamp(20px, 2vw, 28px); color: var(--feu-gold-dim);
+    margin-bottom: 12px;
+  }
+
+  p { font-size: clamp(15px, 1.2vw, 18px); line-height: 1.65; color: var(--text); max-width: 70ch; }
+  p.lead { font-size: clamp(18px, 1.5vw, 22px); color: #d0d0d0; max-width: 75ch; }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .gold { color: var(--feu-gold); }
+  .green { color: var(--feu-green-light); }
+
+  /* ───────────────────────────── SLIDE CHROME ───────────────────────────── */
+  .slide-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 32px; position: relative; z-index: 2;
+  }
+  .feu-mark {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 2px; color: var(--feu-gold-dim); text-transform: uppercase;
+  }
+  .feu-mark .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--feu-gold); box-shadow: 0 0 8px var(--feu-gold);
+  }
+  .slide-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 2px;
+  }
+  .slide-content { flex: 1; display: flex; flex-direction: column;
+                   position: relative; z-index: 2; overflow: hidden; }
+
+  /* ───────────────────────────── NAVIGATION ───────────────────────────── */
+  #nav {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px;
+  }
+  #nav button {
+    background: none; border: none; color: var(--text); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  #nav button:hover { background: rgba(255, 184, 28, 0.15); color: var(--feu-gold); }
+  #nav .counter {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--feu-gold); letter-spacing: 2px; padding: 0 10px;
+  }
+
+  #help-toggle {
+    position: fixed; bottom: 24px; left: 24px; z-index: 100;
+    background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); color: var(--muted);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; padding: 6px 12px; border-radius: 999px;
+    cursor: pointer; transition: color 0.2s;
+  }
+  #help-toggle:hover { color: var(--feu-gold); }
+
+  #help {
+    position: fixed; bottom: 60px; left: 24px; z-index: 99;
+    background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; font-size: 12px; max-width: 280px;
+    display: none; line-height: 1.7; color: var(--muted);
+  }
+  #help.shown { display: block; }
+  #help kbd {
+    background: rgba(255, 184, 28, 0.15); color: var(--feu-gold);
+    padding: 1px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    border: 1px solid rgba(255, 184, 28, 0.3);
+  }
+
+  /* ───────────────────────────── COMPONENTS ───────────────────────────── */
+  .card {
+    background: linear-gradient(135deg, rgba(0, 104, 55, 0.1), rgba(255, 184, 28, 0.04));
+    border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px 28px; backdrop-filter: blur(10px);
+  }
+
+  .gold-card {
+    background: linear-gradient(135deg, rgba(255, 184, 28, 0.12), rgba(255, 184, 28, 0.03));
+    border: 1px solid rgba(255, 184, 28, 0.35);
+    border-radius: 16px; padding: 24px 32px;
+  }
+
+  .gold-callout {
+    border-left: 4px solid var(--feu-gold);
+    background: rgba(255, 184, 28, 0.06);
+    padding: 18px 24px; border-radius: 0 12px 12px 0;
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: 22px; line-height: 1.4; color: #fff;
+  }
+
+  .green-pill, .gold-pill, .red-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500;
+  }
+  .green-pill { background: rgba(0, 104, 55, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+  .gold-pill { background: rgba(255, 184, 28, 0.15); color: var(--feu-gold); border: 1px solid rgba(255, 184, 28, 0.4); }
+  .red-pill { background: rgba(231, 76, 60, 0.15); color: #fca5a5; border: 1px solid rgba(252, 165, 165, 0.3); }
+
+  /* Comparison table (slide 2) */
+  .compare-table {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px;
+  }
+  .compare-col {
+    background: rgba(20, 25, 33, 0.6); border: 1px solid var(--line);
+    border-radius: 14px; padding: 28px;
+  }
+  .compare-col h3 {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 22px; color: #fff; margin-bottom: 20px;
+    border-bottom: 1px solid var(--line); padding-bottom: 12px;
+  }
+  .compare-col ul { list-style: none; }
+  .compare-col li {
+    padding: 12px 0; font-size: 16px; color: #ccc;
+    display: flex; gap: 12px; align-items: flex-start;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+  }
+  .compare-col li:last-child { border-bottom: none; }
+  .compare-col li .x { color: var(--danger); font-weight: 700; flex-shrink: 0; }
+
+  /* Architecture split (slide 3) */
+  .arch-split {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px;
+    align-items: stretch; margin-top: 20px; flex: 1;
+  }
+  .arch-box {
+    background: rgba(20, 25, 33, 0.6); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .arch-box.algo-1 { border-color: rgba(0, 104, 55, 0.5); background: linear-gradient(180deg, rgba(0, 104, 55, 0.1), rgba(20, 25, 33, 0.6)); }
+  .arch-box.algo-2 { border-color: rgba(255, 184, 28, 0.35); background: linear-gradient(180deg, rgba(255, 184, 28, 0.08), rgba(20, 25, 33, 0.6)); }
+  .arch-box .algo-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 3px; color: var(--feu-gold);
+  }
+  .arch-box .algo-name {
+    font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700;
+    color: #fff; line-height: 1.1;
+  }
+  .arch-box .algo-job {
+    font-size: 16px; color: var(--text); margin-top: 8px; line-height: 1.5;
+  }
+  .arch-box .algo-tag {
+    margin-top: auto; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .arch-plus {
+    align-self: center; font-size: 48px; color: var(--feu-gold);
+    font-family: 'Playfair Display', serif;
+  }
+
+  /* Vault analogy (slide 4) */
+  .vault-split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; flex: 1; align-items: stretch; }
+  .vault-visual {
+    background: rgba(20, 25, 33, 0.6); border: 1px solid var(--line);
+    border-radius: 16px; padding: 32px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px;
+  }
+  .vault-visual .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+  .doc-icon, .vault-icon {
+    width: 110px; height: 130px; display: flex; align-items: center; justify-content: center;
+  }
+  .cipher-text {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--feu-gold); letter-spacing: 1px; line-height: 1.6;
+    background: rgba(0, 0, 0, 0.4); padding: 16px 20px; border-radius: 8px;
+    border: 1px dashed rgba(255, 184, 28, 0.3); width: 100%; text-align: center;
+    word-break: break-all;
+  }
+  .arrow-down {
+    color: var(--feu-gold); font-size: 28px;
+  }
+
+  .vault-analogy {
+    background: linear-gradient(135deg, rgba(255, 184, 28, 0.08), rgba(0, 104, 55, 0.08));
+    border: 1px solid var(--line); border-radius: 16px; padding: 32px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .vault-analogy h3 { margin-bottom: 8px; }
+  .analogy-point {
+    display: flex; gap: 14px; align-items: flex-start;
+    font-size: 15px; line-height: 1.55; color: var(--text);
+  }
+  .analogy-point .icon { font-size: 22px; flex-shrink: 0; }
+
+  /* Policy tree (slide 5) */
+  .policy-flow {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    flex: 1; justify-content: center;
+  }
+  .policy-node {
+    background: rgba(20, 25, 33, 0.7); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 28px; text-align: center;
+    font-size: 15px; line-height: 1.5; max-width: 580px;
+  }
+  .policy-node .head {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; color: var(--feu-gold); text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .policy-node.policy {
+    border-color: rgba(255, 184, 28, 0.3);
+    background: rgba(255, 184, 28, 0.05);
+  }
+  .policy-node .formula {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: var(--feu-gold); background: rgba(0,0,0,0.3); padding: 10px;
+    border-radius: 6px; line-height: 1.8;
+  }
+  .policy-fork { display: flex; gap: 32px; }
+  .policy-result {
+    flex: 1; padding: 20px; border-radius: 12px; min-width: 240px;
+    text-align: center; border-width: 2px; border-style: solid;
+  }
+  .policy-result.accept {
+    border-color: rgba(74, 222, 128, 0.4);
+    background: rgba(0, 104, 55, 0.15);
+  }
+  .policy-result.deny {
+    border-color: rgba(231, 76, 60, 0.4);
+    background: rgba(231, 76, 60, 0.08);
+  }
+  .policy-result .verdict {
+    font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .policy-result.accept .verdict { color: #4ade80; }
+  .policy-result.deny .verdict { color: #fca5a5; }
+  .policy-result small {
+    font-size: 12px; color: var(--muted); line-height: 1.5; display: block;
+  }
+
+  /* Pipeline (slide 6) */
+  .pipeline {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+    margin-top: 28px;
+  }
+  .pipe-step {
+    background: rgba(20, 25, 33, 0.6); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px 18px; position: relative;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .pipe-step .num {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--feu-gold); letter-spacing: 3px;
+  }
+  .pipe-step .icon {
+    font-size: 32px; margin: 6px 0;
+  }
+  .pipe-step .title {
+    font-weight: 700; color: #fff; font-size: 14px; line-height: 1.3;
+  }
+  .pipe-step .desc {
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+  .pipe-step::after {
+    content: '→'; position: absolute; right: -14px; top: 50%;
+    transform: translateY(-50%); color: var(--feu-gold); font-size: 18px;
+    z-index: 2;
+  }
+  .pipe-step:last-child::after { display: none; }
+  .pipe-step.highlight {
+    background: linear-gradient(180deg, rgba(255, 184, 28, 0.1), rgba(20, 25, 33, 0.6));
+    border-color: rgba(255, 184, 28, 0.3);
+  }
+
+  /* Bar chart (slide 7) */
+  .chart-wrap {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    align-items: stretch;
+  }
+  .chart-area {
+    background: rgba(20, 25, 33, 0.5); border: 1px solid var(--line);
+    border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .chart-row {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .chart-row .label {
+    display: flex; justify-content: space-between; font-size: 13px;
+    font-family: 'JetBrains Mono', monospace; color: var(--text);
+  }
+  .chart-row .label .name { color: #ccc; }
+  .chart-row .label .value { color: var(--feu-gold); font-weight: 700; }
+  .chart-bar {
+    height: 36px; background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px; overflow: hidden; position: relative;
+  }
+  .chart-bar .fill {
+    height: 100%; border-radius: 6px;
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .chart-bar .fill.naive {
+    background: linear-gradient(90deg, #c0392b, #e74c3c);
+    box-shadow: 0 0 16px rgba(231, 76, 60, 0.4);
+  }
+  .chart-bar .fill.lpa {
+    background: linear-gradient(90deg, var(--feu-green), var(--feu-green-light));
+    box-shadow: 0 0 16px rgba(31, 138, 85, 0.4);
+  }
+  .chart-explain { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+  .chart-stat {
+    font-family: 'Playfair Display', serif; font-weight: 900;
+    color: var(--feu-gold); font-size: 88px; line-height: 1; letter-spacing: -0.04em;
+  }
+  .chart-stat-label {
+    font-size: 18px; color: var(--text); line-height: 1.5; margin-top: 8px;
+  }
+
+  /* Merkle tree (slide 8) */
+  .merkle-stage { flex: 1; display: flex; align-items: center; justify-content: center;
+                  padding: 0 40px; }
+  .merkle-tree svg { max-width: 100%; height: auto; }
+
+  .merkle-legend {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 24px;
+  }
+  .legend-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(20, 25, 33, 0.5); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .legend-item .icon { font-size: 20px; flex-shrink: 0; }
+  .legend-item .text { font-size: 13px; line-height: 1.5; color: var(--text); }
+
+  /* Cost table (slide 9) */
+  .cost-table-wrap {
+    flex: 1; display: flex; flex-direction: column; gap: 24px;
+    justify-content: center;
+  }
+  .cost-table {
+    width: 100%; border-collapse: collapse;
+    background: rgba(20, 25, 33, 0.5); border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .cost-table th {
+    background: var(--feu-green); color: #fff;
+    padding: 16px 20px; text-align: left; font-size: 13px;
+    letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cost-table th:not(:first-child) { text-align: right; }
+  .cost-table td {
+    padding: 18px 20px; font-size: 15px; color: var(--text);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cost-table td:not(:first-child) { text-align: right; }
+  .cost-table tr:hover td { background: rgba(255, 184, 28, 0.04); }
+  .cost-table .naive { color: #fca5a5; }
+  .cost-table .lpa { color: var(--feu-gold); font-weight: 700; }
+  .cost-table .savings { color: #4ade80; font-weight: 700; }
+  .cost-table tr.highlight td { background: rgba(255, 184, 28, 0.08); }
+
+  /* End-to-end pipeline (slide 10) */
+  .e2e {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px;
+  }
+  .e2e-node {
+    width: 90%; max-width: 720px;
+    padding: 16px 24px; border-radius: 12px;
+    background: rgba(20, 25, 33, 0.7); border: 1px solid var(--line);
+    display: flex; align-items: center; gap: 18px;
+  }
+  .e2e-node.alg1 { border-color: rgba(0, 104, 55, 0.5); background: linear-gradient(90deg, rgba(0, 104, 55, 0.12), rgba(20, 25, 33, 0.7)); }
+  .e2e-node.alg2 { border-color: rgba(255, 184, 28, 0.35); background: linear-gradient(90deg, rgba(255, 184, 28, 0.1), rgba(20, 25, 33, 0.7)); }
+  .e2e-node .badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; padding: 4px 10px; border-radius: 4px;
+    background: rgba(255, 184, 28, 0.2); color: var(--feu-gold);
+    flex-shrink: 0;
+  }
+  .e2e-node .text { font-size: 14px; color: var(--text); line-height: 1.4; }
+  .e2e-arrow { color: var(--feu-gold); font-size: 18px; }
+
+  .guarantees {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px;
+  }
+  .guarantee {
+    background: rgba(0, 104, 55, 0.15); border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 10px; padding: 12px 14px; text-align: center;
+  }
+  .guarantee .icon { font-size: 24px; }
+  .guarantee .label { font-size: 11px; color: #4ade80; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace; }
+  .guarantee .desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* Three pillars (slide 11) */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; flex: 1; align-content: center; }
+  .pillar {
+    background: rgba(20, 25, 33, 0.6); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .pillar .icon { font-size: 44px; }
+  .pillar h3 { font-size: 20px; color: #fff; margin-bottom: 0; }
+  .pillar ul { list-style: none; }
+  .pillar li {
+    font-size: 14px; line-height: 1.6; color: var(--text);
+    padding: 8px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+  }
+  .pillar li:last-child { border-bottom: none; }
+  .pillar li::before { content: '◆ '; color: var(--feu-gold); font-size: 10px; }
+
+  .closing {
+    margin-top: 32px; text-align: center;
+    font-family: 'Playfair Display', serif; font-weight: 900;
+    font-size: clamp(36px, 4.5vw, 64px); color: var(--feu-gold);
+    letter-spacing: -0.02em; line-height: 1.1;
+  }
+
+  /* Title slide */
+  .title-slide {
+    align-items: flex-start; justify-content: center;
+    padding: 60px 100px;
+  }
+  .title-slide .feu-banner {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 4px; color: var(--feu-gold);
+    margin-bottom: 48px; display: flex; align-items: center; gap: 14px;
+  }
+  .title-slide .feu-banner .bar { width: 60px; height: 2px; background: var(--feu-gold); }
+  .title-slide h1 {
+    font-size: clamp(56px, 8vw, 120px); line-height: 0.95; margin-bottom: 40px;
+  }
+  .title-slide .subtitle {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(22px, 2.4vw, 32px); color: #d0d0d0;
+    margin-bottom: 56px; max-width: 26ch; line-height: 1.3;
+  }
+  .title-slide .meta {
+    display: flex; gap: 32px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+  }
+  .title-slide .meta span { display: flex; flex-direction: column; gap: 4px; }
+  .title-slide .meta span b { color: var(--feu-gold); font-weight: 500; }
+
+  /* Closing slide */
+  .closing-slide {
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .closing-slide .feu-mono {
+    font-family: 'JetBrains Mono', monospace; color: var(--feu-gold);
+    font-size: 12px; letter-spacing: 4px; margin-bottom: 36px;
+  }
+  .closing-slide h1 {
+    font-size: clamp(72px, 9vw, 144px); margin-bottom: 24px;
+  }
+  .closing-slide .tagline {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(20px, 2vw, 28px); color: #d0d0d0; max-width: 38ch;
+    margin: 0 auto 56px;
+  }
+
+  /* Speaker notes overlay */
+  #notes {
+    position: fixed; bottom: 70px; right: 24px; z-index: 99;
+    max-width: 420px; max-height: 380px; overflow-y: auto;
+    background: rgba(255, 184, 28, 0.95); color: var(--ink);
+    border-radius: 12px; padding: 16px 20px;
+    font-size: 13px; line-height: 1.6;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: none;
+  }
+  #notes.shown { display: block; }
+  #notes .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--feu-green); font-weight: 700;
+    margin-bottom: 8px; text-transform: uppercase;
+  }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .pulse { animation: pulse 2.5s ease-in-out infinite; }
+  .float { animation: float 3s ease-in-out infinite; }
+
+  /* Responsive scaling */
+  @media (max-width: 1200px) {
+    .slide { padding: 40px 50px; }
+    .pipeline { grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .pipe-step { padding: 14px 12px; }
+    .pipe-step::after { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 1 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide title-slide active" data-notes="Greet the panel. Smile. Make eye contact with the camera. Speak slowly. 'Good day, panel. In the next ten minutes, I will not be showing you the application — you've seen that already. Instead, I'll explain the two algorithms that make Gen C possible: AES-256-GCM combined with Policy-Based Attribute Encryption, and Layered Proof Aggregation. These are the cryptographic engines that allow medical records to be both completely private AND publicly verifiable at the same time.'">
+    <div class="feu-banner">
+      <span class="bar"></span>
+      <span>Far Eastern University · Thesis Defense · 2026</span>
+    </div>
+    <h1>The Algorithms<br/>Behind <span class="accent">Gen C</span></h1>
+    <div class="subtitle">How two cryptographic techniques protect Filipino medical records — privately, verifiably, affordably.</div>
+    <div class="meta">
+      <span><b>Format</b>10-minute Defense Brief</span>
+      <span><b>Audience</b>Thesis Panel</span>
+      <span><b>Scope</b>Algorithmic Core</span>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 2 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="Read this slide slowly. Use the side-by-side to drive the contrast home. The panel will recognise both failure modes — they've seen Philhealth breaches and they know blockchain hype. The closing line in gold is your problem statement: Gen C needs ALL four properties at once. No existing system delivers this combination.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">02 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">The Problem</div>
+      <h2>Two extremes, both broken.</h2>
+      <p class="lead" style="margin-bottom: 36px;">Today, Filipino medical records sit on one of two ends — neither of which respects both privacy and verifiability.</p>
+
+      <div class="compare-table">
+        <div class="compare-col">
+          <h3><span class="red-pill">Centralized EMR</span></h3>
+          <ul>
+            <li><span class="x">✗</span>One database breach exposes every patient at once</li>
+            <li><span class="x">✗</span>Hospitals own <i>your</i> records, not you</li>
+            <li><span class="x">✗</span>No mathematical proof against tampering</li>
+            <li><span class="x">✗</span>Consent is policy-based, not enforced cryptographically</li>
+          </ul>
+        </div>
+        <div class="compare-col">
+          <h3><span class="red-pill">Public Blockchain EMR</span></h3>
+          <ul>
+            <li><span class="x">✗</span>Every diagnosis is publicly visible forever</li>
+            <li><span class="x">✗</span>Cannot delete — violates RA 10173 §16 (Right to Erasure)</li>
+            <li><span class="x">✗</span>₱344 in gas fees per single record</li>
+            <li><span class="x">✗</span>Bandwidth and latency unfit for clinical use</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 36px;">
+        Gen C must be <b>private</b> AND <b>verifiable</b> AND <b>affordable</b> AND <b>deletable</b> — all at once.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 3 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="This is your roadmap slide. Two algorithms, two jobs. Algorithm 1 'hides it' — that's confidentiality. Algorithm 2 'proves it' — that's integrity. These are the two halves of every secure system in computer science. Pause for two seconds after saying 'one job: hide it' — let it land.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">03 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Architecture at a Glance</div>
+      <h2>Two algorithms, one record, one mission.</h2>
+
+      <div class="arch-split">
+        <div class="arch-box algo-1">
+          <div class="algo-num">ALGORITHM · 01</div>
+          <div class="algo-name">AES-256-GCM<br/><span style="color: var(--feu-gold); font-size: 22px;">+ PBAE</span></div>
+          <div class="algo-job"><b>Job:</b> <i>Hide it.</i><br/>Scrambles the medical content so even if the storage server is stolen, attackers see only gibberish.</div>
+          <div class="algo-tag">Property Delivered → Confidentiality</div>
+        </div>
+
+        <div class="arch-plus">+</div>
+
+        <div class="arch-box algo-2">
+          <div class="algo-num">ALGORITHM · 02</div>
+          <div class="algo-name">Layered Proof<br/>Aggregation</div>
+          <div class="algo-job"><b>Job:</b> <i>Prove it.</i><br/>Creates a tiny mathematical fingerprint of the record and anchors it on a permissioned ledger so anyone can verify it's untampered.</div>
+          <div class="algo-tag">Property Delivered → Integrity</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 4 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="The vault analogy is your KEY teaching moment. The panel is non-technical — anchor them with the bank vault image. Mention concretely: 'the same encryption that protects your bank app, your WhatsApp, every HTTPS website.' This sentence builds instant credibility. Pause after 'more combinations than there are atoms in the observable universe' — that's a wow moment.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">04 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 1 · The Lockbox</div>
+      <h2><span class="green">AES-256-GCM</span> — the strongest standard encryption on earth.</h2>
+
+      <div class="vault-split" style="margin-top: 24px;">
+        <div class="vault-visual">
+          <div class="label">What happens to one record</div>
+          <div class="doc-icon">
+            <svg viewBox="0 0 100 120" width="100" height="120">
+              <rect x="10" y="6" width="80" height="108" rx="6" fill="#fff" opacity="0.95"/>
+              <rect x="22" y="22" width="56" height="3" fill="#006837"/>
+              <rect x="22" y="32" width="56" height="2" fill="#666"/>
+              <rect x="22" y="38" width="44" height="2" fill="#666"/>
+              <rect x="22" y="44" width="56" height="2" fill="#666"/>
+              <rect x="22" y="50" width="40" height="2" fill="#666"/>
+              <rect x="22" y="60" width="56" height="2" fill="#666"/>
+              <rect x="22" y="66" width="50" height="2" fill="#666"/>
+              <circle cx="50" cy="90" r="14" fill="#c33"/>
+              <path d="M 50 82 L 50 98 M 42 90 L 58 90" stroke="#fff" stroke-width="3"/>
+            </svg>
+          </div>
+          <div class="arrow-down">↓</div>
+          <div class="label" style="color: var(--feu-gold);">Encrypted with 256-bit AES key</div>
+          <div class="arrow-down">↓</div>
+          <div class="cipher-text">0xA7F2E9C1B4D8F3E6...<br/>9C2E4D1B8A6F5E2D3C1B...</div>
+        </div>
+
+        <div class="vault-analogy">
+          <h3>Think of it like a bank vault.</h3>
+          <div class="analogy-point">
+            <span class="icon">🔐</span>
+            <div><b>256-bit key.</b> There are more possible combinations than atoms in the observable universe. No computer today — or in the next 50 years — can guess it.</div>
+          </div>
+          <div class="analogy-point">
+            <span class="icon">🏦</span>
+            <div><b>Same algorithm</b> that protects HTTPS, your bank app, WhatsApp messages, and every government TLS connection.</div>
+          </div>
+          <div class="analogy-point">
+            <span class="icon">🚨</span>
+            <div><b>GCM = "tamper alarm."</b> The Galois Counter Mode detects if anyone changes even a single byte. Decryption fails — tampering is exposed.</div>
+          </div>
+          <div class="analogy-point">
+            <span class="icon">🌐</span>
+            <div><b>Browser-side encryption.</b> The plaintext never leaves the patient's device. Even our server never sees the unencrypted record.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 5 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="PBAE solves the 'who gets the key' problem. Use the analogy: 'in a hospital you don't want every doctor reading every patient's records'. The policy expression on this slide is the actual format used in the production code. Emphasise: even the ADMIN cannot override the policy. The cryptography itself enforces consent.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">05 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 1 · The Smart Lock</div>
+      <h2><span class="green">Policy-Based Attribute Encryption</span> — who gets the key.</h2>
+      <p class="lead">AES alone has one weakness: whoever holds the key can decrypt. PBAE attaches a <b>rule</b> directly to the encryption — only people matching the rule can unlock.</p>
+
+      <div class="policy-flow" style="margin-top: 32px;">
+        <div class="policy-node">
+          <div class="head">Step 1 — request</div>
+          🩺 Doctor wants to read patient's X-ray
+        </div>
+
+        <div class="arrow-down">↓</div>
+
+        <div class="policy-node policy">
+          <div class="head">Step 2 — policy stored alongside encrypted record</div>
+          <div class="formula">
+            ( Role = Doctor  <span style="color:var(--muted);">AND</span>  Department = Cardiology )<br/>
+            <span style="color:var(--feu-green-light);">OR</span><br/>
+            Owner = Patient_Wallet_Address
+          </div>
+        </div>
+
+        <div class="arrow-down">↓</div>
+
+        <div class="policy-fork">
+          <div class="policy-result accept">
+            <div class="verdict">✓ MATCH</div>
+            <small>AES key released<br/>Decryption proceeds in browser</small>
+          </div>
+          <div class="policy-result deny">
+            <div class="verdict">✗ NO MATCH</div>
+            <small>HTTP 403 Forbidden<br/>Even admins cannot override</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 6 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="This is the choreography slide. Walk the panel through Steps 1 through 5. The most important sentence: 'at no point does plain medical data touch the network, the database, or the ledger.' This is what makes Gen C zero-knowledge from the server's perspective.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">06 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 1 in Motion</div>
+      <h2>The hybrid encryption pipeline — five steps, all client-side.</h2>
+
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="num">STEP 01</div>
+          <div class="icon">🎲</div>
+          <div class="title">Generate AES key</div>
+          <div class="desc">256-bit key generated by the patient's browser using <span class="mono gold">crypto.getRandomValues</span>. Server never sees it.</div>
+        </div>
+        <div class="pipe-step">
+          <div class="num">STEP 02</div>
+          <div class="icon">🔒</div>
+          <div class="title">Encrypt record</div>
+          <div class="desc">Medical file sealed with AES-256-GCM in the browser before any network call.</div>
+        </div>
+        <div class="pipe-step highlight">
+          <div class="num">STEP 03</div>
+          <div class="icon">🔑</div>
+          <div class="title">Wrap key in PBAE policy</div>
+          <div class="desc">AES key bound to access rule — released only on policy match.</div>
+        </div>
+        <div class="pipe-step">
+          <div class="num">STEP 04</div>
+          <div class="icon">🌐</div>
+          <div class="title">Upload to IPFS</div>
+          <div class="desc">Encrypted ciphertext pinned via Pinata. Returns a content address (CID).</div>
+        </div>
+        <div class="pipe-step">
+          <div class="num">STEP 05</div>
+          <div class="icon">🧬</div>
+          <div class="title">Hand off to LPA</div>
+          <div class="desc">CID handed to the second algorithm for batch anchoring.</div>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 36px;">
+        Plain medical data <b>never</b> touches the database, the network, or the ledger.<br/>
+        Only encrypted ciphertext is stored — anywhere.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 7 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="Now pivot to algorithm 2 — start by stating the problem. Blockchain anchoring is EXPENSIVE. Use the ₱344-per-record figure. Then show the bar chart: naive 100 records = ₱34,400, but LPA = ₱344. That 99% reduction is your thesis novelty. The animated bars draw attention — wait 2 seconds after the slide opens for them to fill.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">07 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 2 · The Problem It Solves</div>
+      <h2>Blockchains are <span style="color:#fca5a5;">too expensive</span> for healthcare.</h2>
+      <p class="lead">A small write to Polygon costs about ₱344 in gas. A mid-size Filipino hospital generates thousands of records per day. The math doesn't work — unless we change the algorithm.</p>
+
+      <div class="chart-wrap" style="margin-top: 32px;">
+        <div class="chart-area">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 12px;">
+            Cost to anchor <b>100 medical records</b>
+          </div>
+          <div class="chart-row">
+            <div class="label">
+              <span class="name">Naive — one tx per record</span>
+              <span class="value" style="color:#fca5a5;">₱34,400</span>
+            </div>
+            <div class="chart-bar">
+              <div class="fill naive" style="width: 0%;" data-fill="100%"></div>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="label">
+              <span class="name">Layered Proof Aggregation — one tx total</span>
+              <span class="value">₱344</span>
+            </div>
+            <div class="chart-bar">
+              <div class="fill lpa" style="width: 0%;" data-fill="1%"></div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--muted); text-align: right;">
+            Gas: 80,000 · Price: 20 gwei · ETH ≈ ₱215,000
+          </div>
+        </div>
+
+        <div class="chart-explain">
+          <div>
+            <div class="chart-stat">99%</div>
+            <div class="chart-stat-label">cost reduction without losing a single cryptographic guarantee.</div>
+          </div>
+          <div style="margin-top: 16px;">
+            <span class="gold-pill">SCALES LINEARLY: more records = cheaper per record</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 8 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="Now teach how the Merkle tree actually works. Use the family-tree analogy: each pair of records gets a parent hash, those parents pair up again, eventually one ancestor at the top = the Merkle root. The key insight: the root MATHEMATICALLY commits to every record below it. Change one byte anywhere = root changes completely. This is what Bitcoin, Ethereum, and Git all use.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">08 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 2 · How It Works</div>
+      <h2><span class="gold">The Merkle tree</span> — one root proves them all.</h2>
+
+      <div class="merkle-stage">
+        <div class="merkle-tree">
+          <svg viewBox="0 0 760 360" width="760" height="360" xmlns="http://www.w3.org/2000/svg">
+            <!-- Connectors -->
+            <line x1="380" y1="60" x2="200" y2="130" stroke="#FFB81C" stroke-width="2" opacity="0.6"/>
+            <line x1="380" y1="60" x2="560" y2="130" stroke="#FFB81C" stroke-width="2" opacity="0.6"/>
+            <line x1="200" y1="170" x2="100" y2="230" stroke="#1f8a55" stroke-width="2" opacity="0.6"/>
+            <line x1="200" y1="170" x2="300" y2="230" stroke="#1f8a55" stroke-width="2" opacity="0.6"/>
+            <line x1="560" y1="170" x2="460" y2="230" stroke="#1f8a55" stroke-width="2" opacity="0.6"/>
+            <line x1="560" y1="170" x2="660" y2="230" stroke="#1f8a55" stroke-width="2" opacity="0.6"/>
+            <line x1="100" y1="270" x2="100" y2="310" stroke="#666" stroke-width="2" opacity="0.5"/>
+            <line x1="300" y1="270" x2="300" y2="310" stroke="#666" stroke-width="2" opacity="0.5"/>
+            <line x1="460" y1="270" x2="460" y2="310" stroke="#666" stroke-width="2" opacity="0.5"/>
+            <line x1="660" y1="270" x2="660" y2="310" stroke="#666" stroke-width="2" opacity="0.5"/>
+
+            <!-- Root -->
+            <g>
+              <rect x="290" y="30" width="180" height="50" rx="8" fill="#FFB81C" stroke="#fff" stroke-width="2"/>
+              <text x="380" y="52" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#0d1117" font-weight="700">MERKLE ROOT</text>
+              <text x="380" y="68" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#0d1117">0x7a2f...e91c</text>
+            </g>
+            <text x="500" y="58" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFB81C">← anchored on ledger</text>
+
+            <!-- Layer 2 -->
+            <g>
+              <rect x="130" y="135" width="140" height="40" rx="6" fill="rgba(31,138,85,0.25)" stroke="#1f8a55" stroke-width="1.5"/>
+              <text x="200" y="153" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#fff">Hash(A+B)</text>
+              <text x="200" y="167" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#a8a8a8">0x3a8e...</text>
+              <rect x="490" y="135" width="140" height="40" rx="6" fill="rgba(31,138,85,0.25)" stroke="#1f8a55" stroke-width="1.5"/>
+              <text x="560" y="153" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#fff">Hash(C+D)</text>
+              <text x="560" y="167" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#a8a8a8">0xc4f1...</text>
+            </g>
+
+            <!-- Layer 1 (leaves) -->
+            <g font-family="JetBrains Mono, monospace" font-size="10" fill="#a8a8a8">
+              <rect x="40" y="235" width="120" height="36" rx="5" fill="rgba(20,25,33,0.8)" stroke="#444" stroke-width="1"/>
+              <text x="100" y="252" text-anchor="middle" fill="#fff" font-size="11">Hash A</text>
+              <text x="100" y="265" text-anchor="middle">0x1a2b...</text>
+
+              <rect x="240" y="235" width="120" height="36" rx="5" fill="rgba(20,25,33,0.8)" stroke="#444" stroke-width="1"/>
+              <text x="300" y="252" text-anchor="middle" fill="#fff" font-size="11">Hash B</text>
+              <text x="300" y="265" text-anchor="middle">0x4c5d...</text>
+
+              <rect x="400" y="235" width="120" height="36" rx="5" fill="rgba(20,25,33,0.8)" stroke="#444" stroke-width="1"/>
+              <text x="460" y="252" text-anchor="middle" fill="#fff" font-size="11">Hash C</text>
+              <text x="460" y="265" text-anchor="middle">0x7e8f...</text>
+
+              <rect x="600" y="235" width="120" height="36" rx="5" fill="rgba(20,25,33,0.8)" stroke="#444" stroke-width="1"/>
+              <text x="660" y="252" text-anchor="middle" fill="#fff" font-size="11">Hash D</text>
+              <text x="660" y="265" text-anchor="middle">0xb1c2...</text>
+            </g>
+
+            <!-- Records -->
+            <g font-family="Manrope, sans-serif" font-size="11">
+              <rect x="55" y="315" width="90" height="34" rx="5" fill="#006837" opacity="0.4"/>
+              <text x="100" y="332" text-anchor="middle" fill="#fff">📋 X-Ray</text>
+              <text x="100" y="345" text-anchor="middle" fill="#888" font-size="9">Record 1</text>
+
+              <rect x="255" y="315" width="90" height="34" rx="5" fill="#006837" opacity="0.4"/>
+              <text x="300" y="332" text-anchor="middle" fill="#fff">💓 ECG</text>
+              <text x="300" y="345" text-anchor="middle" fill="#888" font-size="9">Record 2</text>
+
+              <rect x="415" y="315" width="90" height="34" rx="5" fill="#006837" opacity="0.4"/>
+              <text x="460" y="332" text-anchor="middle" fill="#fff">🩸 Blood</text>
+              <text x="460" y="345" text-anchor="middle" fill="#888" font-size="9">Record 3</text>
+
+              <rect x="615" y="315" width="90" height="34" rx="5" fill="#006837" opacity="0.4"/>
+              <text x="660" y="332" text-anchor="middle" fill="#fff">🧠 MRI</text>
+              <text x="660" y="345" text-anchor="middle" fill="#888" font-size="9">Record 4</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="merkle-legend">
+        <div class="legend-item"><span class="icon">🔒</span><span class="text"><b>Only the root</b> is anchored on the ledger — one transaction.</span></div>
+        <div class="legend-item"><span class="icon">🧾</span><span class="text"><b>Each record</b> can prove it belongs to the batch via inclusion proof.</span></div>
+        <div class="legend-item"><span class="icon">🔍</span><span class="text"><b>Tamper detection:</b> change any record → root changes.</span></div>
+        <div class="legend-item"><span class="icon">♾️</span><span class="text"><b>Unlimited scale</b> — same fee for 4 or 4,000 records.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 9 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="Show real production numbers. Walk left-to-right across the highlighted 1,000-record row: 'A hospital anchoring 1,000 records individually would pay ₱344,000. With LPA they pay ₱344 — that is a 99.9% reduction.' Then deliver the punchline: 'This is what makes Gen C deployable at the scale of an actual Filipino hospital, not just a research demo.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">09 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Algorithm 2 · The Real Numbers</div>
+      <h2>Cost amortization in production.</h2>
+      <p class="lead">These figures are computed in real-time by the live deployed system — they appear in the Anchor Receipt modal.</p>
+
+      <div class="cost-table-wrap">
+        <table class="cost-table">
+          <thead>
+            <tr>
+              <th>Batch Size</th>
+              <th>Naive Cost</th>
+              <th>LPA Cost</th>
+              <th>Per Record</th>
+              <th>Savings</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1 record</td><td class="naive">₱344</td><td class="lpa">₱344</td><td>₱344.00</td><td>0%</td></tr>
+            <tr><td>10 records</td><td class="naive">₱3,440</td><td class="lpa">₱344</td><td>₱34.40</td><td class="savings">90%</td></tr>
+            <tr><td>50 records</td><td class="naive">₱17,200</td><td class="lpa">₱344</td><td>₱6.88</td><td class="savings">98%</td></tr>
+            <tr><td>100 records</td><td class="naive">₱34,400</td><td class="lpa">₱344</td><td>₱3.44</td><td class="savings">99%</td></tr>
+            <tr class="highlight"><td><b>1,000 records</b></td><td class="naive"><b>₱344,000</b></td><td class="lpa"><b>₱344</b></td><td><b>₱0.34</b></td><td class="savings"><b>99.9%</b></td></tr>
+          </tbody>
+        </table>
+
+        <div class="gold-callout">
+          The bigger the batch, the cheaper each record becomes.<br/>
+          <span style="font-style: normal; font-family: 'Manrope';">This is the economic foundation of Gen C — and the reason it can be deployed at the scale of a real Filipino hospital, not just a research demo.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 10 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-notes="The handoff slide. Algorithm 1 finishes its work in the browser (encryption + IPFS upload). Algorithm 2 takes over (Merkle aggregation + ledger anchoring). End with the four guarantees. Speak each guarantee out loud: PRIVATE, VERIFIABLE, AFFORDABLE, DELETABLE. The 'deletable' point is the killer — most blockchain systems CAN'T delete, which is illegal under RA 10173.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Gen C · Algorithm Brief</span></div>
+      <div class="slide-num">10 / 11</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Two Algorithms · One Pipeline</div>
+      <h2>How they hand off in production.</h2>
+
+      <div class="e2e">
+        <div class="e2e-node alg1">
+          <span class="badge">ALG · 1</span>
+          <span class="text"><b>In the patient's browser:</b> AES-256-GCM encrypts the record; PBAE policy wraps the AES key</span>
+        </div>
+        <div class="e2e-arrow">↓</div>
+        <div class="e2e-node">
+          <span class="badge" style="background:rgba(0,104,55,0.25); color:#4ade80;">STORAGE</span>
+          <span class="text">Encrypted ciphertext pinned to <b>IPFS via Pinata</b> — returns content-addressed CID</span>
+        </div>
+        <div class="e2e-arrow">↓</div>
+        <div class="e2e-node alg2">
+          <span class="badge">ALG · 2</span>
+          <span class="text"><b>Keccak256(CID)</b> becomes Merkle leaf → aggregated with sibling leaves → root computed</span>
+        </div>
+        <div class="e2e-arrow">↓</div>
+        <div class="e2e-node">
+          <span class="badge" style="background:rgba(255,184,28,0.25); color:#FFB81C;">LEDGER</span>
+          <span class="text"><b>One transaction</b> anchors the Merkle root on the permissioned EVM ledger</span>
+        </div>
+      </div>
+
+      <div class="guarantees">
+        <div class="guarantee"><div class="icon">🔒</div><div class="label">Private</div><div class="desc">AES + PBAE seal the record. Zero plaintext on server.</div></div>
+        <div class="guarantee"><div class="icon">✅</div><div class="label">Verifiable</div><div class="desc">Anchored Merkle root publicly auditable.</div></div>
+        <div class="guarantee"><div class="icon">💰</div><div class="label">Affordable</div><div class="desc">Up to 99.9% cheaper than naive on-chain.</div></div>
+        <div class="guarantee"><div class="icon">🗑️</div><div class="label">Deletable</div><div class="desc">Unpin from IPFS; root remains as audit trail. RA 10173 compliant.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════ SLIDE 11 ════════════════════════════════════════════════════════════════ -->
+  <section class="slide closing-slide" data-notes="Wrap up with confidence. State the headline numbers: 56 automated tests, 6 live attack simulations, 99.9% cost savings, 4 guarantees. End on the tagline 'Two algorithms. Four guarantees. One thesis.' Pause for two seconds, then say 'Thank you. I welcome your questions.'">
+    <div class="feu-mono">Far Eastern University · Gen C · Closing</div>
+    <h1>Two algorithms.<br/>Four guarantees.<br/><span class="accent">One thesis.</span></h1>
+    <div class="tagline">Privacy by mathematics. Verifiability by cryptography. Affordability by aggregation. Deletability by design.</div>
+
+    <div class="pillars" style="max-width: 1100px;">
+      <div class="pillar">
+        <div class="icon">🇵🇭</div>
+        <h3>RA 10173 Compliant</h3>
+        <ul>
+          <li>Consent enforced by cryptography, not policy</li>
+          <li>Right to erasure preserved (§16)</li>
+          <li>Audit trail without exposure</li>
+        </ul>
+      </div>
+      <div class="pillar">
+        <div class="icon">💸</div>
+        <h3>Hospital-Grade Economics</h3>
+        <ul>
+          <li>₱0.34 per record at 1,000-record batches</li>
+          <li>10× cheaper than current EMR</li>
+          <li>Scales linearly with throughput</li>
+        </ul>
+      </div>
+      <div class="pillar">
+        <div class="icon">🔬</div>
+        <h3>Research-Ready</h3>
+        <ul>
+          <li>Anonymized records remain provably authentic</li>
+          <li>Trustless second opinions across hospitals</li>
+          <li>Publicly verifiable Merkle proofs</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="closing" style="margin-top: 48px;">Thank you.</div>
+  </section>
+
+</div>
+
+<!-- ───────────────────────────── UI CONTROLS ───────────────────────────── -->
+<div id="nav">
+  <button id="prev" aria-label="Previous slide">◀</button>
+  <span class="counter"><span id="cur">01</span> / <span id="tot">11</span></span>
+  <button id="next" aria-label="Next slide">▶</button>
+</div>
+
+<button id="help-toggle">Shortcuts</button>
+<div id="help">
+  <div><kbd>→</kbd> <kbd>Space</kbd> Next slide</div>
+  <div><kbd>←</kbd> Previous slide</div>
+  <div><kbd>N</kbd> Toggle speaker notes</div>
+  <div><kbd>F</kbd> Fullscreen</div>
+  <div><kbd>Home</kbd> First slide</div>
+  <div><kbd>End</kbd> Last slide</div>
+  <div><kbd>1-9</kbd> Jump to slide N</div>
+</div>
+
+<div id="notes"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('cur');
+  const totEl = document.getElementById('tot');
+  const notes = document.getElementById('notes');
+  const help = document.getElementById('help');
+
+  totEl.textContent = String(total).padStart(2, '0');
+
+  function show(i) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides[cur].classList.remove('active');
+    cur = i;
+    slides[cur].classList.add('active');
+    counter.textContent = String(cur + 1).padStart(2, '0');
+    progress.style.width = `${((cur + 1) / total) * 100}%`;
+
+    // Trigger chart animation if this slide has bars
+    const slide = slides[cur];
+    slide.querySelectorAll('.chart-bar .fill').forEach(bar => {
+      bar.style.width = '0%';
+      requestAnimationFrame(() => {
+        setTimeout(() => { bar.style.width = bar.dataset.fill; }, 250);
+      });
+    });
+
+    // Update speaker notes
+    const note = slide.getAttribute('data-notes');
+    if (note) {
+      notes.innerHTML = `<div class="label">Speaker Notes · Slide ${cur + 1}</div>${note}`;
+    } else {
+      notes.innerHTML = '';
+    }
+  }
+
+  document.getElementById('next').addEventListener('click', () => show(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => show(cur - 1));
+
+  document.getElementById('help-toggle').addEventListener('click', () => help.classList.toggle('shown'));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(total - 1);
+    else if (e.key === 'n' || e.key === 'N') notes.classList.toggle('shown');
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    else if (/^[1-9]$/.test(e.key)) show(parseInt(e.key, 10) - 1);
+    else if (e.key === '0') show(9);
+  });
+
+  // Touch swipe navigation
+  let touchX = 0;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); }
+  }, { passive: true });
+
+  // Initialise
+  show(0);
+</script>
+
+</body>
+</html>
