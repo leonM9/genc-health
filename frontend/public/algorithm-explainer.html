@@ -9,22 +9,28 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@600;700;900&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --feu-green: #006837;
-    --feu-green-deep: #014023;
-    --feu-green-light: #1f8a55;
-    --feu-gold: #FFB81C;
+    --feu-green: #006837;       /* official FEU Green */
+    --feu-green-deep: #003d20;  /* darker, for shadow */
+    --feu-green-light: #1f8a55; /* lighter, for accents */
+    --feu-green-ink: #02160c;   /* near-black green, base */
+    --feu-gold: #FFB81C;        /* official FEU Gold */
     --feu-gold-dim: #c8901a;
-    --ink: #0d1117;
-    --ink-2: #161b22;
-    --line: rgba(255, 184, 28, 0.18);
-    --text: #e8e8e8;
-    --muted: #a8a8a8;
+    --ink: #02160c;             /* whole-deck base — dark green, not black */
+    --ink-2: #052819;
+    --line: rgba(255, 184, 28, 0.22);
+    --text: #f0f2ef;
+    --muted: #a8b2ad;
     --danger: #e74c3c;
     --success: #2ecc71;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--ink); color: var(--text); overflow: hidden;
+  html, body { height: 100%;
+               background:
+                 radial-gradient(ellipse at top left, #04331f 0%, transparent 55%),
+                 radial-gradient(ellipse at bottom right, #052819 0%, transparent 50%),
+                 var(--feu-green-ink);
+               color: var(--text); overflow: hidden;
                font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif; }
 
   /* ───────────────────────────── PROGRESS BAR ───────────────────────────── */
@@ -36,7 +42,8 @@
   }
 
   /* ───────────────────────────── SLIDE FRAME ───────────────────────────── */
-  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden;
+          background: var(--feu-green-ink); }
 
   .slide {
     position: absolute; inset: 0; padding: 60px 80px;
@@ -44,18 +51,46 @@
     opacity: 0; pointer-events: none;
     transform: translateY(20px);
     transition: opacity 0.5s ease, transform 0.5s ease;
-    background: var(--ink);
+    background:
+      linear-gradient(140deg, rgba(0, 104, 55, 0.18) 0%, transparent 35%),
+      linear-gradient(220deg, rgba(255, 184, 28, 0.05) 0%, transparent 40%),
+      var(--feu-green-ink);
   }
 
   .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-  /* Background patterns per slide type */
-  .slide::before {
-    content: ''; position: absolute; inset: 0; opacity: 0.4; pointer-events: none;
-    background:
-      radial-gradient(circle at 15% 20%, rgba(0, 104, 55, 0.25) 0%, transparent 35%),
-      radial-gradient(circle at 85% 80%, rgba(255, 184, 28, 0.10) 0%, transparent 40%);
+  /* FEU corner ornament — gold stripes at top + green at bottom */
+  .slide::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: linear-gradient(90deg, var(--feu-green) 0%, var(--feu-green-light) 30%, var(--feu-gold) 60%, var(--feu-gold-dim) 100%);
+    z-index: 3; pointer-events: none;
   }
+
+  /* Background watermark patterns per slide type */
+  .slide::before {
+    content: ''; position: absolute; inset: 0; opacity: 1; pointer-events: none;
+    background:
+      radial-gradient(circle at 12% 15%, rgba(0, 104, 55, 0.35) 0%, transparent 38%),
+      radial-gradient(circle at 88% 85%, rgba(255, 184, 28, 0.14) 0%, transparent 42%),
+      radial-gradient(circle at 50% 50%, rgba(31, 138, 85, 0.08) 0%, transparent 60%),
+      repeating-linear-gradient(45deg,
+        transparent 0px, transparent 60px,
+        rgba(255, 184, 28, 0.015) 60px, rgba(255, 184, 28, 0.015) 61px);
+  }
+
+  /* FEU seal — bottom-center watermark on every slide */
+  .feu-seal {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    z-index: 4;
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Playfair Display', serif; font-size: 11px;
+    letter-spacing: 4px; color: rgba(255, 184, 28, 0.55);
+    text-transform: uppercase; pointer-events: none;
+    background: rgba(2, 22, 12, 0.5); backdrop-filter: blur(6px);
+    padding: 6px 18px 6px 8px; border-radius: 999px;
+    border: 1px solid rgba(255, 184, 28, 0.15);
+  }
+  .feu-seal svg { width: 28px; height: 28px; }
 
   /* ───────────────────────────── TYPOGRAPHY ───────────────────────────── */
   .eyebrow {
@@ -1185,7 +1220,23 @@
     if (Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); }
   }, { passive: true });
 
-  // Initialise
+  // Inject FEU seal into every slide (skip title + closing for aesthetics)
+  slides.forEach((slide, idx) => {
+    if (slide.classList.contains('title-slide') || slide.classList.contains('closing-slide')) return;
+    const seal = document.createElement('div');
+    seal.className = 'feu-seal';
+    seal.innerHTML = `
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="30" fill="none" stroke="#FFB81C" stroke-width="1.5" opacity="0.7"/>
+        <circle cx="32" cy="32" r="24" fill="none" stroke="#006837" stroke-width="2" opacity="0.85"/>
+        <circle cx="32" cy="32" r="14" fill="#006837" opacity="0.9"/>
+        <text x="32" y="38" text-anchor="middle" font-family="Playfair Display, serif" font-size="14" font-weight="900" fill="#FFB81C">FEU</text>
+      </svg>
+      <span>Far Eastern University</span>
+    `;
+    slide.appendChild(seal);
+  });
+
   show(0);
 </script>
 
