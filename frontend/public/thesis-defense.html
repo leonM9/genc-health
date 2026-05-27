@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gen C · Chapter 1–6 Defense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --innov-blue: #5B9BD5;
+    --innov-blue-deep: #1F4E79;
+    --navy: #0c2640;
+    --innov-orange: #ED7D31;
+    --innov-orange-deep: #c54a0e;
+    --innov-peach: #FDECC8;
+    --feu-green: #006837;
+    --paper: #ffffff;
+    --line: rgba(31, 78, 121, 0.15);
+    --ink: #1F2D3D;
+    --ink-soft: #4a5568;
+    --muted: #7d8ba1;
+    --danger: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #fff; color: var(--ink); overflow: hidden;
+               font-family: 'Manrope', sans-serif; }
+
+  #progress { position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--innov-blue) 0%, var(--innov-orange) 100%);
+    z-index: 1000; transition: width 0.4s ease;
+    box-shadow: 0 0 12px rgba(91, 155, 213, 0.5); }
+
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0; padding: 56px 80px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none; transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    background-image: url('/feu-bg-light.jpg');
+    background-size: cover; background-position: center;
+  }
+  .slide.title, .slide.closing { background-image: url('/feu-bg-cover.png'); }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  /* white overlay */
+  .slide::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(180deg,
+      rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.93) 30%,
+      rgba(255,255,255,0.93) 70%, rgba(255,255,255,0.78) 100%);
+  }
+  .slide.title::after, .slide.closing::after {
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.72) 40%,
+      rgba(255,255,255,0.85) 75%, rgba(255,255,255,0.45) 100%);
+  }
+
+  .slide-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; position: relative; z-index: 2;
+  }
+  .feu-mark {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 2px; color: var(--innov-blue-deep); text-transform: uppercase;
+    font-weight: 700;
+  }
+  .feu-mark .dot { width: 8px; height: 8px; border-radius: 50%;
+    background: var(--innov-orange); box-shadow: 0 0 8px rgba(237,125,49,0.5); }
+  .slide-num { font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 2px; }
+  .chapter-badge {
+    display: inline-flex; align-items: center; padding: 4px 12px;
+    background: var(--innov-orange); color: #fff; border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; font-weight: 700;
+  }
+
+  .slide-content { flex: 1; display: flex; flex-direction: column;
+    position: relative; z-index: 2; overflow: hidden; gap: 16px; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--innov-orange); margin-bottom: 8px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ''; width: 24px; height: 2px; background: var(--innov-orange); }
+
+  h1 { font-family: 'Playfair Display', serif; font-weight: 900;
+    font-size: clamp(36px, 4.5vw, 60px); line-height: 1.05;
+    color: var(--navy); letter-spacing: -0.02em; }
+  h1 .accent { color: var(--innov-orange-deep); }
+  h2 { font-family: 'Playfair Display', serif; font-weight: 700;
+    font-size: clamp(26px, 3.2vw, 44px); line-height: 1.1; color: var(--navy); }
+  h3 { font-family: 'Manrope', sans-serif; font-weight: 700;
+    font-size: clamp(18px, 1.8vw, 24px); color: var(--innov-blue-deep); margin-bottom: 8px; }
+  p { font-size: clamp(15px, 1.15vw, 17px); line-height: 1.55; color: var(--ink); max-width: 80ch; }
+  p.lead { font-size: clamp(17px, 1.35vw, 20px); color: var(--navy); font-weight: 500; max-width: 80ch; }
+
+  /* TITLE SLIDE */
+  .title .slide-content {
+    background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+    border-left: 8px solid var(--innov-orange); border-radius: 0 18px 18px 0;
+    padding: 48px 56px; max-width: 1050px; justify-content: center;
+    box-shadow: 0 16px 48px rgba(31,78,121,0.18); flex: 0 1 auto;
+    align-self: flex-start; margin-top: auto; margin-bottom: auto;
+  }
+  .title .feu-banner {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 4px; color: var(--innov-orange); font-weight: 700;
+    margin-bottom: 28px; display: flex; align-items: center; gap: 14px;
+  }
+  .title .feu-banner .bar { width: 60px; height: 2px; background: var(--innov-orange); }
+  .title h1 { font-size: clamp(42px, 5.5vw, 78px); margin-bottom: 22px; line-height: 1.0; }
+  .title .subtitle { font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(18px, 1.8vw, 24px); color: var(--ink); max-width: 36ch;
+    line-height: 1.3; font-weight: 500; margin-bottom: 32px; }
+  .title .meta { display: flex; gap: 32px; padding-top: 20px;
+    border-top: 1px solid var(--line); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink); }
+  .title .meta span { display: flex; flex-direction: column; gap: 4px; }
+  .title .meta span b { color: var(--innov-orange); font-weight: 700; }
+
+  /* CLOSING SLIDE */
+  .closing { align-items: center; justify-content: center; }
+  .closing .slide-content { align-items: center; text-align: center; gap: 28px; max-width: 1100px; }
+  .closing .feu-mono {
+    background: var(--innov-orange); color: #fff; padding: 10px 22px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 4px; border-radius: 999px; display: inline-block;
+    box-shadow: 0 6px 20px rgba(237,125,49,0.35);
+  }
+  .closing h1 { font-size: clamp(52px, 6.5vw, 96px); background: #fff;
+    padding: 28px 48px; border-radius: 18px; border-left: 8px solid var(--innov-orange);
+    box-shadow: 0 16px 48px rgba(31,78,121,0.18); line-height: 1.0;
+  }
+  .closing .tagline { font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(18px, 1.6vw, 22px); color: var(--navy); max-width: 55ch;
+    background: #fff; padding: 18px 28px; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(31,78,121,0.12); font-weight: 500;
+  }
+
+  /* COMPONENTS */
+  .card { background: rgba(255,255,255,0.96); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 24px;
+    box-shadow: 0 4px 16px rgba(31,78,121,0.06); }
+  .card.accent { border-left: 4px solid var(--innov-orange); }
+  .card.accent-blue { border-left: 4px solid var(--innov-blue-deep); }
+  .card.accent-green { border-left: 4px solid var(--feu-green); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1; align-content: start; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; flex: 1; align-content: start; }
+
+  .num-list { list-style: none; counter-reset: it; display: flex; flex-direction: column; gap: 10px; }
+  .num-list li {
+    position: relative; padding-left: 42px; counter-increment: it;
+    font-size: clamp(14px, 1.1vw, 17px); line-height: 1.5; color: var(--ink);
+  }
+  .num-list li::before {
+    content: counter(it); position: absolute; left: 0; top: 0;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--innov-orange); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  }
+
+  .bullet-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .bullet-list li {
+    padding-left: 22px; position: relative; font-size: 15px; line-height: 1.5; color: var(--ink);
+  }
+  .bullet-list li::before {
+    content: '◆'; position: absolute; left: 0; color: var(--innov-orange);
+    font-size: 10px; top: 4px;
+  }
+
+  .check-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .check-list li { padding-left: 26px; position: relative; font-size: 15px; line-height: 1.5; color: var(--ink); }
+  .check-list li::before { content: '✓'; position: absolute; left: 0; color: var(--feu-green);
+    font-weight: 700; font-size: 16px; }
+  .x-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .x-list li { padding-left: 26px; position: relative; font-size: 15px; line-height: 1.5; color: var(--ink); }
+  .x-list li::before { content: '✗'; position: absolute; left: 0; color: var(--danger);
+    font-weight: 700; font-size: 16px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat-card { background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--innov-orange);
+    border-radius: 12px; padding: 18px 16px; text-align: center;
+    box-shadow: 0 4px 12px rgba(31,78,121,0.06); }
+  .stat-card .num { font-family: 'Playfair Display', serif; font-weight: 900;
+    font-size: 38px; color: var(--innov-orange-deep); line-height: 1; }
+  .stat-card .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--ink-soft);
+    margin-top: 6px; font-weight: 600; }
+
+  .demo-box { background: linear-gradient(135deg, rgba(253,236,200,0.5), #fff);
+    border: 2px solid var(--innov-orange); border-radius: 16px; padding: 24px 28px;
+    box-shadow: 0 8px 24px rgba(237,125,49,0.15); margin-top: 14px;
+  }
+  .demo-box .cmd {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    background: var(--navy); color: #FFB81C; padding: 12px 18px; border-radius: 8px;
+    margin-top: 12px; font-weight: 600; user-select: all;
+  }
+
+  .iso-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .iso-pill {
+    background: #fff; border: 1px solid var(--feu-green); border-radius: 10px;
+    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .iso-pill .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .iso-pill .val { font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    color: var(--feu-green); font-size: 16px; }
+
+  /* NAV */
+  #nav { position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(255,255,255,0.95); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 16px; backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(31,78,121,0.12); }
+  #nav button { background: none; border: none; color: var(--ink); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%; font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+  #nav button:hover { background: rgba(237,125,49,0.15); color: var(--innov-orange); }
+  #nav .counter { font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--innov-orange); letter-spacing: 2px; padding: 0 10px; font-weight: 700; }
+
+  #help-toggle { position: fixed; bottom: 24px; left: 24px; z-index: 100;
+    background: rgba(255,255,255,0.95); border: 1px solid var(--line); color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(31,78,121,0.1); }
+  #help-toggle:hover { color: var(--innov-orange); }
+  #help { position: fixed; bottom: 60px; left: 24px; z-index: 99;
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; font-size: 12px; max-width: 280px; display: none;
+    line-height: 1.7; color: var(--ink-soft); box-shadow: 0 8px 24px rgba(31,78,121,0.15); }
+  #help.shown { display: block; }
+  #help kbd { background: rgba(237,125,49,0.12); color: var(--innov-orange);
+    padding: 1px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; border: 1px solid rgba(237,125,49,0.3); }
+  #notes { position: fixed; bottom: 70px; right: 24px; z-index: 99;
+    max-width: 440px; max-height: 380px; overflow-y: auto;
+    background: rgba(255,184,28,0.97); color: var(--navy); border-radius: 12px;
+    padding: 16px 20px; font-size: 13px; line-height: 1.6;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3); display: none; }
+  #notes.shown { display: block; }
+  #notes .label { font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--innov-orange-deep); font-weight: 700;
+    margin-bottom: 8px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ════════════════ SLIDE 1 · TITLE ════════════════ -->
+<section class="slide title active" data-notes="Greet panel. Speak slowly. Smile. 'Good day, panel. In the next ten minutes I'll walk you through Chapters 1 through 6 of our thesis — the problem, the objectives, the methodology, what we built, how we tested it, and what we found. We have a separate companion video for the algorithm internals, so today we'll keep that part brief and instead use the saved time to run the test suites live in front of you.'">
+  <div class="slide-content">
+    <div class="feu-banner"><span class="bar"></span><span>Far Eastern University · Thesis Defense · 2026</span></div>
+    <h1>Gen C: A Decentralized<br/>Medical-Record Protocol<br/>for the <span class="accent">Philippines</span></h1>
+    <div class="subtitle">A 10-minute walkthrough of Chapters 1 through 6 — including a live test-suite demonstration.</div>
+    <div class="meta">
+      <span><b>Format</b>Defense Brief</span>
+      <span><b>Scope</b>Ch. 1 – 6</span>
+      <span><b>Includes</b>Live Demo</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 2 · BACKGROUND & PROBLEM ════════════════ -->
+<section class="slide" data-notes="Speak with conviction. Reference the Philhealth breach and the PSA ghost-claims scandal. These are real Filipino problems the panel will recognize. 'The Philippine healthcare system depends on centralized databases that have been breached repeatedly. Philhealth, PSA, Comelec — every Filipino has felt the consequence. This is the problem we set out to solve.'">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Introduction</span></div>
+    <div class="slide-num">02 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Background & Statement of the Problem</div>
+    <h2>Centralized records, repeated breaches.</h2>
+    <p class="lead">The integrity of Philippine healthcare depends on seamless data exchange — but the country still relies on centralized legacy systems that are <b>vulnerable to cyber-attacks</b>, <b>prone to internal corruption</b>, and <b>inefficient in interoperability</b>.</p>
+    <div class="grid-3" style="margin-top: 10px;">
+      <div class="card accent">
+        <h3>Philhealth Breach</h3>
+        <p style="font-size:14px;">Millions of patient records exposed in 2023. Demonstrates centralized-DB fragility.</p>
+      </div>
+      <div class="card accent">
+        <h3>PSA Ghost Claims</h3>
+        <p style="font-size:14px;">Death certificates not linked to insurance → fraudulent payouts for deceased patients.</p>
+      </div>
+      <div class="card accent">
+        <h3>Manual Paper Flow</h3>
+        <p style="font-size:14px;">Patients carry paper records between hospitals — no interoperability, easy tampering.</p>
+      </div>
+    </div>
+    <p class="lead" style="margin-top: 12px; color:var(--innov-orange-deep); font-style: italic;">
+      "How can hospitals deploy a <b>scalable, privacy-conscious, decentralized identity system</b> to authenticate patients and records?"
+    </p>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 3 · OBJECTIVES ════════════════ -->
+<section class="slide" data-notes="Read the general objective slowly. Then say 'To achieve this, we set five specific objectives' and gesture down the list. Don't read each one verbatim — just point and say what feature it represents. The panel can read.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Introduction</span></div>
+    <div class="slide-num">03 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Objectives of the Study</div>
+    <h2>One general goal. Five specific deliverables.</h2>
+    <div class="card accent" style="margin-top: 8px;">
+      <h3 style="color: var(--innov-orange-deep);">General Objective</h3>
+      <p>Design and develop a <b>decentralized web application</b> using AES-256, CP-ABE, and LPA to provide a <b>scalable, cost-effective, privacy-preserving</b> mechanism for verifying hospital records under a hybrid blockchain architecture.</p>
+    </div>
+    <ol class="num-list" style="margin-top: 8px;">
+      <li>Build three integrated modules: <b>Registry Portal</b>, <b>Patient Wallet</b>, and <b>Provider Portal</b>.</li>
+      <li>Implement <b>privacy-preserving verification</b> via Zero-Knowledge Proofs.</li>
+      <li>Design and implement the <b>Layered Proof Aggregation (LPA)</b> protocol — target ≥280 TPS, &lt;$0.01 per record.</li>
+      <li>Integrate <b>AES-256 + CP-ABE</b> for off-chain payload security with granular access control.</li>
+      <li>Evaluate software quality using <b>ISO/IEC 25010</b> standards via UAT with hospital staff.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 4 · SIGNIFICANCE ════════════════ -->
+<section class="slide" data-notes="Three audiences benefit. Hospitals stop bleeding from ransomware. PhilHealth/DOH stop hemorrhaging from ghost claims. Patients finally own their data. Keep it punchy.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Introduction</span></div>
+    <div class="slide-num">04 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Significance of the Study</div>
+    <h2>Who benefits, and how.</h2>
+    <div class="grid-3">
+      <div class="card accent">
+        <h3>🏥 Hospitals & Clinics</h3>
+        <p>Cryptographic defense against ransomware, IT incidents, and insider data leaks.</p>
+      </div>
+      <div class="card accent-green">
+        <h3>🇵🇭 PhilHealth & DOH</h3>
+        <p>Immutable link between death certificates and insurance — eliminates "ghost claims" fraud.</p>
+      </div>
+      <div class="card accent-blue">
+        <h3>👤 Patients</h3>
+        <p>Self-sovereign ownership of medical history. Move between hospitals without paper records.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 5 · SCOPE & LIMITATIONS ════════════════ -->
+<section class="slide" data-notes="Be honest about delimitations. Panels respect candor. Say 'These are deliberate scoping choices, not failures. Synthetic data is required by RA 10173. Mobile and offline support are pipeline items, not blockers for the thesis.'">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Introduction</span></div>
+    <div class="slide-num">05 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Scope & Delimitations</div>
+    <h2>What's in. What's out.</h2>
+    <div class="grid-2">
+      <div class="card accent-green">
+        <h3 style="color: var(--feu-green);">✓ In Scope</h3>
+        <ul class="check-list">
+          <li>3 modules: Admin, Provider, Patient Wallet</li>
+          <li>Dual-chain architecture with private testnet (QBFT consensus)</li>
+          <li>IPFS off-chain storage for heavy documents</li>
+          <li>AES-256 + CP-ABE payload encryption</li>
+          <li>LPA protocol — cost & throughput evaluation</li>
+          <li>ISO/IEC 25010 evaluation (functional, performance, security)</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3 style="color: var(--danger);">✗ Out of Scope (Delimitations)</h3>
+        <ul class="x-list">
+          <li>Native mobile apps (iOS / Android)</li>
+          <li>Offline-first capability for GIDA areas</li>
+          <li>Real patient data — synthetic only, per RA 10173</li>
+          <li>OCR / ETL of legacy paper archives</li>
+          <li>Hardware biometric scanners</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 6 · RELATED LITERATURE & GAP ════════════════ -->
+<section class="slide" data-notes="Acknowledge the giants. Say 'We stand on the shoulders of these foreign studies — but they don't address Philippine-specific constraints. Gen C fills that gap by combining them with our LPA protocol designed for the Philippine public-sector economics.'">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 2 · Related Literature</span></div>
+    <div class="slide-num">06 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Review of Related Literature & Research Gap</div>
+    <h2>Building on giants — adapting to the Philippines.</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Key Foundations Cited</h3>
+        <ul class="bullet-list" style="margin-top: 8px;">
+          <li><b>CP-ABE</b> — Bethencourt et al. 2007; Zhang & Lin 2024</li>
+          <li><b>Zero-Knowledge Proofs</b> — Mombelli 2025; Moya 2025</li>
+          <li><b>Blockchain for EHRs</b> — Han et al. 2025</li>
+          <li><b>Aggregation / Rollups</b> — Dyade et al. 2025</li>
+          <li><b>Self-Sovereign Identity</b> — Noshi & Xu 2024</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3 style="color: var(--innov-orange-deep);">The Gen C Gap</h3>
+        <p style="margin-bottom:8px;"><b>Foreign studies</b> provide the cryptographic blueprint but ignore Philippine constraints — Philhealth breaches, PSA fraud, GIDA digital divide.</p>
+        <p><b>Gen C contributes</b> the <span style="color:var(--innov-orange-deep); font-weight:700;">Layered Proof Aggregation protocol</span> — designed for the economic and connectivity reality of Philippine public-sector healthcare, fully compliant with RA 10173.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 7 · METHODOLOGY ════════════════ -->
+<section class="slide" data-notes="DSRM is the research paradigm. Scrum is the dev process. ISO 25010 is the evaluation lens. Three frameworks, all standard. Mention the 10,000 synthetic patients — it shows seriousness of testing.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Methodology</span></div>
+    <div class="slide-num">07 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Research Design & Approach</div>
+    <h2>DSRM × Scrum × ISO 25010.</h2>
+    <div class="grid-3">
+      <div class="card accent">
+        <h3>Research Paradigm</h3>
+        <p><b>Design Science Research Methodology (DSRM)</b> — appropriate for artifact-producing IT theses.</p>
+      </div>
+      <div class="card accent-blue">
+        <h3>Development</h3>
+        <p><b>Scrum / Agile</b> — 2-week sprints covering encryption, smart contracts, frontend, testing, and evaluation.</p>
+      </div>
+      <div class="card accent-green">
+        <h3>Evaluation</h3>
+        <p><b>ISO/IEC 25010</b> — functional suitability, performance efficiency, security, usability.</p>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top: 6px;">
+      <div class="card">
+        <h3>Tools & Tech Stack</h3>
+        <p style="font-size:14px;"><b>VS Code · React.js · Hardhat / Ganache · Hyperledger Besu (QBFT) · Pinata IPFS · Charm-Crypto · MetaMask</b></p>
+      </div>
+      <div class="card">
+        <h3>Data Gathering</h3>
+        <p style="font-size:14px;"><b>10,000 synthetic patients</b> generated via Python (per RA 10173). Performance logs: gas, throughput, latency. UAT with weighted means + Likert scales.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 8 · SYSTEM & ALGORITHMS BRIEF ════════════════ -->
+<section class="slide" data-notes="This is the short slide. Say 'You have already seen the dedicated algorithm video — so I will summarize in 30 seconds.' Then point at the three architecture layers and the four algorithms. Do not go deep here — defer to the video for technical depth.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 4 · System Design</span></div>
+    <div class="slide-num">08 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Architecture & Algorithms · Quick Recap</div>
+    <h2>Three layers. Four algorithms. <span style="color:var(--innov-orange-deep); font-style:italic; font-size:0.7em;">(Detailed in companion video.)</span></h2>
+    <div class="grid-3">
+      <div class="card accent-blue">
+        <h3>1 · Presentation</h3>
+        <p style="font-size:14px;"><b>React.js + WebAssembly</b> for client-side AES-256-GCM encryption. Plaintext never leaves the browser.</p>
+      </div>
+      <div class="card accent">
+        <h3>2 · Logic</h3>
+        <p style="font-size:14px;"><b>Node.js / FastAPI</b> backend managing API requests, CP-ABE policy enforcement, and the LPA aggregation service.</p>
+      </div>
+      <div class="card accent-green">
+        <h3>3 · Data</h3>
+        <p style="font-size:14px;"><b>Hyperledger Besu</b> permissioned ledger (QBFT consensus) + <b>private IPFS cluster</b> for encrypted blobs.</p>
+      </div>
+    </div>
+    <div class="card accent" style="margin-top: 4px;">
+      <h3 style="color: var(--innov-orange-deep);">Algorithms Implemented</h3>
+      <div class="stat-grid" style="margin-top: 8px;">
+        <div class="stat-card"><div class="num">AES</div><div class="lbl">256-GCM Payload</div></div>
+        <div class="stat-card"><div class="num">CP-ABE</div><div class="lbl">Policy Key-Wrap</div></div>
+        <div class="stat-card"><div class="num">LPA</div><div class="lbl">Merkle Aggregation</div></div>
+        <div class="stat-card"><div class="num">QBFT</div><div class="lbl">Byzantine Consensus</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 9 · TESTING PLAN + LIVE DEMO ════════════════ -->
+<section class="slide" data-notes="THIS IS YOUR BIG MOMENT. Don't read the slide. Say 'Now instead of telling you the system is secure, I will SHOW you. I'm going to run our four-tier test battery live, against the deployed backend, right now.' Then open the terminal and paste the command. Let the test output speak for itself for 30-40 seconds. The panel will be more impressed by green PASS lines than by any paragraph.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 5 · Testing & Evaluation</span></div>
+    <div class="slide-num">09 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Testing Strategy · Two-Phase Approach</div>
+    <h2>From unit assertions to live attacks — proven, not promised.</h2>
+    <div class="grid-2">
+      <div class="card accent-blue">
+        <h3>Alpha Phase — Developer-Controlled</h3>
+        <ul class="bullet-list" style="margin-top: 6px;">
+          <li><b>Unit testing</b> — single-endpoint validation</li>
+          <li><b>Integration testing</b> — end-to-end record flows</li>
+          <li><b>Security testing</b> — 22 adversarial cases</li>
+          <li><b>Live attack simulation</b> — 6 attack vectors fired at production</li>
+        </ul>
+      </div>
+      <div class="card accent-green">
+        <h3>Beta Phase — 30 External Participants</h3>
+        <ul class="bullet-list" style="margin-top: 6px;">
+          <li>IT experts · medical practitioners · patient-users</li>
+          <li>Usability + practical reliability against ISO 25010</li>
+          <li>Weighted-mean + Likert-scale UAT</li>
+        </ul>
+      </div>
+    </div>
+    <div class="demo-box">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chapter-badge" style="background: var(--feu-green);">▶ LIVE DEMO</span>
+        <h3 style="margin:0; color:var(--navy);">Running the full test battery now — Unit · Integration · Security · Live Attacks</h3>
+      </div>
+      <div class="cmd">$ bash /app/run_defense_tests.sh</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 10 · TESTING RESULTS ════════════════ -->
+<section class="slide" data-notes="Tie the numbers together. Read out: 'One hundred out of one hundred records successfully encrypted. One hundred percent of unauthorized access attempts blocked. Up to ninety-eight percent gas savings via LPA. Zero collisions across one thousand Merkle batches. And the ISO 25010 panel — averaging three point five three one out of four — strongly agree across all six quality attributes.'">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 5 · Testing & Evaluation</span></div>
+    <div class="slide-num">10 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Empirical Results</div>
+    <h2>The numbers, audited and reproducible.</h2>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num">100/100</div><div class="lbl">Records Encrypted & Uploaded</div></div>
+      <div class="stat-card"><div class="num">100%</div><div class="lbl">Unauthorized Access Blocked</div></div>
+      <div class="stat-card"><div class="num">98%</div><div class="lbl">Gas Cost Reduction (LPA)</div></div>
+      <div class="stat-card"><div class="num">0</div><div class="lbl">Merkle Collisions / 1,000 Batches</div></div>
+    </div>
+    <div class="card accent-green" style="margin-top: 6px;">
+      <h3 style="color: var(--feu-green);">ISO/IEC 25010 UAT — Weighted Means (out of 4.0)</h3>
+      <div class="iso-grid" style="margin-top: 8px;">
+        <div class="iso-pill"><span class="name">Functional Stability</span><span class="val">3.572</span></div>
+        <div class="iso-pill"><span class="name">Security</span><span class="val">3.569</span></div>
+        <div class="iso-pill"><span class="name">Reliability</span><span class="val">3.556</span></div>
+        <div class="iso-pill"><span class="name">Efficiency</span><span class="val">3.533</span></div>
+        <div class="iso-pill"><span class="name">Usability</span><span class="val">3.511</span></div>
+        <div class="iso-pill"><span class="name">Maintainability</span><span class="val">3.444</span></div>
+      </div>
+      <p style="margin-top: 10px; text-align:center; color:var(--innov-orange-deep); font-weight:700;">
+        Overall Mean: <b style="font-size:1.3em;">3.531 / 4.0</b> — interpreted as <i>"Strongly Agree"</i>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 11 · CONCLUSION ════════════════ -->
+<section class="slide" data-notes="Three findings — read them slowly. Pause between each. Make eye contact with a different panelist for each finding.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 6 · Conclusion</span></div>
+    <div class="slide-num">11 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Key Findings</div>
+    <h2>What the evidence supports.</h2>
+    <ol class="num-list" style="margin-top: 16px; gap: 18px;">
+      <li><b>Gen C successfully integrates blockchain with AES-256 + CP-ABE</b> to produce a highly secure environment that addresses the vulnerabilities of centralized medical-record management.</li>
+      <li>The dual-chain architecture <b>effectively balances data privacy with verifiability</b> — records remain accessible to authorised parties while being mathematically protected from everyone else.</li>
+      <li>The interface is <b>intuitive and accessible to non-technical users</b> — UAT participants without IT background completed key flows without assistance, confirming the system's robustness and clinical viability.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 12 · RECOMMENDATIONS ════════════════ -->
+<section class="slide" data-notes="Future work isn't a weakness — it's the roadmap. Frame as 'These are the natural next phases beyond a thesis prototype.' Don't apologize for the limitations — celebrate the runway.">
+  <div class="slide-header">
+    <div class="feu-mark"><span class="dot"></span><span>Chapter 6 · Recommendations</span></div>
+    <div class="slide-num">12 / 13</div>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow">Future Work</div>
+    <h2>The path beyond the thesis.</h2>
+    <div class="grid-2">
+      <div class="card accent">
+        <h3>Technical</h3>
+        <ul class="bullet-list" style="margin-top: 6px;">
+          <li>Native mobile apps for iOS & Android</li>
+          <li>FIDO2 / hardware-key MFA for stronger auth</li>
+          <li>Continuous automated smart-contract auditing</li>
+          <li>Integration with existing EHR systems</li>
+        </ul>
+      </div>
+      <div class="card accent-blue">
+        <h3>Operational & Research</h3>
+        <ul class="bullet-list" style="margin-top: 6px;">
+          <li>Strategic partnership with DOH and NPC</li>
+          <li>Longitudinal user-trust studies on key custody</li>
+          <li>Multi-modal UX explanations for non-technical users</li>
+          <li>Pilot in a real GIDA-area hospital network</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SLIDE 13 · CLOSING ════════════════ -->
+<section class="slide closing" data-notes="Pause two full seconds before saying 'Thank you'. Then 'I welcome your questions.' Then SILENCE — let the panel come to you.">
+  <div class="slide-content">
+    <div class="feu-mono">FEU · Gen C · Defense Closing</div>
+    <h1>From <span class="accent">paper records</span><br/>to <span class="accent">cryptographic proof.</span></h1>
+    <div class="tagline">Chapters 1 through 6 deliver a working, evaluated, evidence-backed contribution to Philippine healthcare informatics — and the test battery you just witnessed is its empirical foundation.</div>
+    <div style="font-family:'Playfair Display',serif; font-weight:900; font-size:clamp(36px,4vw,56px); color:var(--innov-orange-deep); background:#fff; padding:18px 36px; border-radius:14px; box-shadow:0 8px 24px rgba(31,78,121,0.12);">
+      Thank you.
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div id="nav">
+  <button id="prev">◀</button>
+  <span class="counter"><span id="cur">01</span> / <span id="tot">13</span></span>
+  <button id="next">▶</button>
+</div>
+<button id="help-toggle">Shortcuts</button>
+<div id="help">
+  <div><kbd>→</kbd> <kbd>Space</kbd> Next</div>
+  <div><kbd>←</kbd> Previous</div>
+  <div><kbd>N</kbd> Speaker notes</div>
+  <div><kbd>F</kbd> Fullscreen</div>
+  <div><kbd>Home</kbd> / <kbd>End</kbd> First / Last</div>
+  <div><kbd>1-9, 0</kbd> Jump to slide</div>
+</div>
+<div id="notes"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('cur');
+  const totEl = document.getElementById('tot');
+  const notes = document.getElementById('notes');
+  const help = document.getElementById('help');
+  totEl.textContent = String(total).padStart(2, '0');
+
+  function show(i) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides[cur].classList.remove('active');
+    cur = i;
+    slides[cur].classList.add('active');
+    counter.textContent = String(cur + 1).padStart(2, '0');
+    progress.style.width = `${((cur + 1) / total) * 100}%`;
+    const note = slides[cur].getAttribute('data-notes');
+    notes.innerHTML = note ? `<div class="label">Speaker Notes · Slide ${cur + 1}</div>${note}` : '';
+  }
+
+  document.getElementById('next').addEventListener('click', () => show(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => show(cur - 1));
+  document.getElementById('help-toggle').addEventListener('click', () => help.classList.toggle('shown'));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(total - 1);
+    else if (e.key === 'n' || e.key === 'N') notes.classList.toggle('shown');
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    else if (/^[1-9]$/.test(e.key)) show(parseInt(e.key, 10) - 1);
+    else if (e.key === '0') show(9);
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); }
+  }, { passive: true });
+
+  show(0);
+</script>
+</body>
+</html>
