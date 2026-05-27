@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gen C · Chapters 1–6 Defense · 10-Minute Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@600;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --feu-green: #006837;
+    --feu-green-deep: #003d20;
+    --feu-gold: #c89200;
+    --feu-gold-dim: #a07400;
+    --innov-blue: #5B9BD5;
+    --innov-blue-deep: #1F4E79;
+    --innov-orange: #ED7D31;
+    --innov-peach: #FDECC8;
+    --paper: #ffffff;
+    --ink: #1F2D3D;
+    --ink-soft: #4a5568;
+    --muted: #7d8ba1;
+    --line: rgba(31, 78, 121, 0.15);
+    --danger: #c0392b;
+    --success: #008060;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #ffffff; color: var(--ink); overflow: hidden;
+               font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--innov-blue) 0%, var(--innov-orange) 100%);
+    z-index: 1000; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 12px rgba(91, 155, 213, 0.5);
+  }
+
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #ffffff; }
+
+  .slide {
+    position: absolute; inset: 0; padding: 56px 76px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    background-image: url('/feu-bg-light.jpg');
+    background-size: cover; background-position: center;
+    background-color: var(--paper);
+  }
+  .slide.title-slide,
+  .slide.closing-slide {
+    background-image: url('/feu-bg-cover.png');
+    background-size: cover; background-position: center;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  .slide::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.80) 0%,
+      rgba(255, 255, 255, 0.94) 30%,
+      rgba(255, 255, 255, 0.94) 70%,
+      rgba(255, 255, 255, 0.80) 100%);
+  }
+  .slide.title-slide::after,
+  .slide.closing-slide::after {
+    background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.74) 40%,
+      rgba(255, 255, 255, 0.86) 75%,
+      rgba(255, 255, 255, 0.48) 100%);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif; font-weight: 900;
+    font-size: clamp(38px, 5vw, 70px); line-height: 1.05;
+    color: var(--ink); letter-spacing: -0.02em; margin-bottom: 22px;
+  }
+  h1 .accent { color: var(--innov-orange); }
+  h2 {
+    font-family: 'Playfair Display', serif; font-weight: 700;
+    font-size: clamp(26px, 3.3vw, 44px); line-height: 1.1;
+    color: var(--ink); margin-bottom: 16px; letter-spacing: -0.01em;
+  }
+  h3 {
+    font-family: 'Manrope', sans-serif; font-weight: 700;
+    font-size: clamp(18px, 1.8vw, 24px); color: var(--innov-blue-deep);
+    margin-bottom: 10px;
+  }
+  p { font-size: clamp(14px, 1.1vw, 17px); line-height: 1.6; color: var(--ink-soft); max-width: 72ch; }
+  p.lead { font-size: clamp(17px, 1.4vw, 21px); color: var(--ink); max-width: 78ch; font-weight: 500; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--innov-orange); margin-bottom: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ''; width: 24px; height: 2px; background: var(--innov-orange); }
+
+  .slide-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 24px; position: relative; z-index: 2;
+  }
+  .feu-mark {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 2px; color: var(--innov-blue-deep); text-transform: uppercase;
+    font-weight: 600;
+  }
+  .feu-mark .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--innov-orange); box-shadow: 0 0 8px rgba(237, 125, 49, 0.5);
+  }
+  .slide-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 2px;
+  }
+  .slide-content { flex: 1; display: flex; flex-direction: column;
+                   position: relative; z-index: 2; overflow: hidden; }
+
+  #nav {
+    position: fixed; bottom: 22px; right: 22px; z-index: 100;
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; box-shadow: 0 4px 16px rgba(31, 78, 121, 0.1);
+  }
+  #nav button {
+    background: none; border: none; color: var(--ink); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  #nav button:hover { background: rgba(237, 125, 49, 0.15); color: var(--innov-orange); }
+  #nav .counter {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--innov-orange); letter-spacing: 2px; padding: 0 10px; font-weight: 600;
+  }
+
+  #help-toggle {
+    position: fixed; bottom: 22px; left: 22px; z-index: 100;
+    background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; padding: 6px 12px; border-radius: 999px;
+    cursor: pointer; transition: color 0.2s;
+    box-shadow: 0 4px 16px rgba(31, 78, 121, 0.1);
+  }
+  #help-toggle:hover { color: var(--innov-orange); }
+  #help {
+    position: fixed; bottom: 58px; left: 22px; z-index: 99;
+    background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; font-size: 12px; max-width: 280px;
+    display: none; line-height: 1.7; color: var(--ink-soft);
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.15);
+  }
+  #help.shown { display: block; }
+  #help kbd {
+    background: rgba(237, 125, 49, 0.12); color: var(--innov-orange);
+    padding: 1px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    border: 1px solid rgba(237, 125, 49, 0.3);
+  }
+  #notes {
+    position: fixed; bottom: 60px; right: 22px; z-index: 99;
+    max-width: 460px; max-height: 380px; overflow-y: auto;
+    background: rgba(255, 245, 220, 0.97); color: var(--ink);
+    border-radius: 12px; padding: 16px 20px;
+    font-size: 13px; line-height: 1.6;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--innov-orange);
+    display: none;
+  }
+  #notes.shown { display: block; }
+  #notes .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--feu-green); font-weight: 700;
+    margin-bottom: 8px; text-transform: uppercase;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 26px; backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(31, 78, 121, 0.06);
+  }
+  .gold-callout {
+    border-left: 4px solid var(--innov-orange);
+    background: linear-gradient(90deg, rgba(253, 236, 200, 0.45), rgba(255, 255, 255, 0.7));
+    padding: 16px 22px; border-radius: 0 12px 12px 0;
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: 19px; line-height: 1.4; color: var(--ink);
+  }
+  .green-pill, .gold-pill, .red-pill, .blue-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px; border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+  }
+  .green-pill { background: rgba(0, 104, 55, 0.1); color: var(--feu-green); border: 1px solid rgba(0, 104, 55, 0.3); }
+  .gold-pill  { background: rgba(253, 236, 200, 0.6); color: var(--feu-gold-dim); border: 1px solid var(--innov-orange); }
+  .red-pill   { background: rgba(192, 57, 43, 0.08); color: var(--danger); border: 1px solid rgba(192, 57, 43, 0.3); }
+  .blue-pill  { background: rgba(91, 155, 213, 0.12); color: var(--innov-blue-deep); border: 1px solid rgba(91, 155, 213, 0.4); }
+
+  /* Bullet list */
+  ul.bullets { list-style: none; margin-top: 8px; }
+  ul.bullets li {
+    padding: 8px 0 8px 26px; position: relative;
+    font-size: 15px; line-height: 1.55; color: var(--ink); max-width: 78ch;
+    border-bottom: 1px dashed rgba(31, 78, 121, 0.08);
+  }
+  ul.bullets li:last-child { border-bottom: none; }
+  ul.bullets li::before {
+    content: '◆'; position: absolute; left: 4px; top: 8px;
+    color: var(--innov-orange); font-size: 11px;
+  }
+  ul.bullets li b { color: var(--innov-blue-deep); font-weight: 700; }
+
+  /* Two-column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; align-content: start; margin-top: 8px; }
+
+  /* Three-column layout */
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; flex: 1; align-content: start; margin-top: 8px; }
+
+  .mini-card {
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line);
+    border-top: 4px solid var(--innov-orange);
+    border-radius: 12px; padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 4px 14px rgba(31, 78, 121, 0.06);
+  }
+  .mini-card.green { border-top-color: var(--feu-green); }
+  .mini-card.blue  { border-top-color: var(--innov-blue); }
+  .mini-card h3 { margin-bottom: 0; font-size: 17px; color: var(--ink); }
+  .mini-card p  { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; max-width: none; }
+  .mini-card .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--innov-orange);
+    font-weight: 700; margin-bottom: 2px;
+  }
+
+  /* SOP numbered list */
+  .sop-list { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+  .sop-item {
+    display: grid; grid-template-columns: 56px 1fr; gap: 18px;
+    background: rgba(255, 255, 255, 0.9); border: 1px solid var(--line);
+    border-left: 4px solid var(--innov-orange);
+    border-radius: 10px; padding: 14px 18px;
+  }
+  .sop-item .n {
+    font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 900;
+    color: var(--innov-orange); line-height: 1;
+  }
+  .sop-item .t { font-size: 14.5px; line-height: 1.55; color: var(--ink); align-self: center; }
+
+  /* Stat strip */
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 22px; }
+  .stat {
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 16px; text-align: center;
+  }
+  .stat .v {
+    font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 900;
+    color: var(--innov-orange); line-height: 1;
+  }
+  .stat .l {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; color: var(--ink-soft); text-transform: uppercase;
+    margin-top: 8px; font-weight: 600;
+  }
+
+  /* IPO framework boxes */
+  .ipo-grid { display: grid; grid-template-columns: 1fr 60px 1fr 60px 1fr; align-items: stretch; gap: 0; margin-top: 16px; flex: 1; }
+  .ipo-box {
+    background: rgba(255, 255, 255, 0.93); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .ipo-box.input  { border-top: 4px solid var(--innov-blue); }
+  .ipo-box.proc   { border-top: 4px solid var(--innov-orange); }
+  .ipo-box.output { border-top: 4px solid var(--feu-green); }
+  .ipo-box .head {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase; font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .ipo-box.input  .head { color: var(--innov-blue-deep); }
+  .ipo-box.proc   .head { color: var(--innov-orange); }
+  .ipo-box.output .head { color: var(--feu-green); }
+  .ipo-box ul { list-style: none; }
+  .ipo-box li {
+    padding: 5px 0 5px 14px; font-size: 12.5px; color: var(--ink); line-height: 1.45;
+    position: relative;
+  }
+  .ipo-box li::before {
+    content: '›'; position: absolute; left: 0; top: 5px;
+    color: var(--innov-orange); font-weight: 700;
+  }
+  .ipo-arrow {
+    align-self: center; font-size: 28px; color: var(--innov-orange);
+    font-family: 'Playfair Display', serif; text-align: center;
+  }
+
+  /* Title slide */
+  .title-slide { align-items: flex-start; justify-content: center; padding: 60px 96px; }
+  .title-slide .slide-content {
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px);
+    border-left: 8px solid var(--innov-orange);
+    border-radius: 0 18px 18px 0;
+    padding: 44px 52px; max-width: 1020px;
+    box-shadow: 0 16px 48px rgba(31, 78, 121, 0.18);
+    flex: 0 1 auto;
+  }
+  .title-slide .feu-banner {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 4px; color: var(--innov-orange);
+    margin-bottom: 28px; display: flex; align-items: center; gap: 14px;
+    font-weight: 700;
+  }
+  .title-slide .feu-banner .bar { width: 60px; height: 2px; background: var(--innov-orange); }
+  .title-slide h1 {
+    font-size: clamp(44px, 6vw, 84px); line-height: 0.98; margin-bottom: 24px;
+    color: #0c2640;
+  }
+  .title-slide h1 .accent { color: #c54a0e; }
+  .title-slide .subtitle {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(19px, 2vw, 26px); color: #1F2D3D;
+    margin-bottom: 36px; max-width: 36ch; line-height: 1.3; font-weight: 500;
+  }
+  .title-slide .meta {
+    display: flex; gap: 28px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: #1F2D3D; letter-spacing: 2px; text-transform: uppercase;
+    padding-top: 20px; border-top: 1px solid var(--line);
+    font-weight: 500;
+  }
+  .title-slide .meta span { display: flex; flex-direction: column; gap: 4px; }
+  .title-slide .meta span b { color: var(--innov-orange); font-weight: 700; }
+
+  /* Closing slide */
+  .closing-slide { align-items: center; justify-content: center; text-align: center; }
+  .closing-slide .slide-content { align-items: center; max-width: 1200px; gap: 22px; }
+  .closing-slide .feu-mono {
+    font-family: 'JetBrains Mono', monospace; color: #fff;
+    font-size: 12px; letter-spacing: 4px; margin-bottom: 10px; font-weight: 700;
+    background: var(--innov-orange); padding: 10px 22px; border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(237, 125, 49, 0.35);
+    display: inline-block; align-self: center;
+  }
+  .closing-slide h1 {
+    font-size: clamp(52px, 6.5vw, 96px); margin-bottom: 22px;
+    color: #0c2640;
+    background: #ffffff;
+    padding: 32px 52px; border-radius: 18px;
+    border-left: 8px solid var(--innov-orange);
+    box-shadow: 0 16px 48px rgba(31, 78, 121, 0.2);
+    line-height: 1.0;
+    align-self: center;
+  }
+  .closing-slide h1 .accent { color: #c54a0e !important; }
+  .closing-slide .tagline {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(17px, 1.7vw, 22px); color: #0c2640; max-width: 60ch;
+    margin: 0 auto 36px;
+    background: #ffffff; padding: 16px 28px; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.12);
+    font-weight: 500;
+  }
+
+  @media (max-width: 1200px) {
+    .slide { padding: 40px 50px; }
+    .ipo-grid { grid-template-columns: 1fr; gap: 12px; }
+    .ipo-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ════ SLIDE 1 · TITLE ════ -->
+  <section class="slide title-slide active" data-notes="Greet the panel formally. 'Good day, esteemed members of the panel. The proponents respectfully present the defense of Gen C — a privacy-controlled and verifiable medical-record decentralized application, framed within Chapters 1 through 6 of the manuscript. The next ten minutes will summarize the problem domain, the objectives, the methodology, the algorithms, the empirical results, and the recommendations arising from this study.'">
+    <div class="slide-content">
+      <div class="feu-banner">
+        <span class="bar"></span>
+        <span>Far Eastern University · The Innovation College · Thesis Defense 2026</span>
+      </div>
+      <h1>Gen <span class="accent">C</span><br/>Chapters 1–6 Defense</h1>
+      <div class="subtitle">A privacy-controlled and verifiable medical-record decentralized application using Layered Proof Aggregation and AES-CP-ABE hybrid encryption.</div>
+      <div class="meta">
+        <span><b>Format</b>10-Minute Brief</span>
+        <span><b>Scope</b>Chapters 1 – 6</span>
+        <span><b>Standards</b>RA 10173 · ISO/IEC 25010</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 2 · BACKGROUND ════ -->
+  <section class="slide" data-notes="Spend roughly 60 seconds here. Anchor the panel in the local crisis. 'Chapter 1 begins by establishing that Philippine hospitals remain reliant on centralized legacy infrastructure. The proponents cite two converging threats: first, the 2023 Medusa ransomware attack against PhilHealth that exposed millions of records — a direct consequence of single-point-of-failure storage; and second, the systemic civil-registry fraud surfaced by the Alice Guo case, where the Late Registration system was exploited by criminal syndicates. These incidents jointly demonstrate that the Philippine healthcare and registry sectors require a system that is decentralized, immutable, and privacy-preserving by design.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Background of the Study</span></div>
+      <div class="slide-num">02 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">The Local Crisis</div>
+      <h2>Why Filipino medical records need a new foundation.</h2>
+      <p class="lead" style="margin-bottom: 22px;">Two converging failures expose the limits of centralized legacy infrastructure in the Philippine healthcare and civil-registry sectors.</p>
+
+      <div class="two-col">
+        <div class="mini-card">
+          <span class="tag">Confidentiality Failure</span>
+          <h3>PhilHealth Medusa Attack (2023)</h3>
+          <p>Exposed millions of citizen records due to absence of encryption-at-rest and a single-point-of-failure database (former DICT Sec. Uy, 2023).</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Integrity Failure</span>
+          <h3>Civil-Registry Forgery</h3>
+          <p>The Alice Guo case revealed how the Late Registration system was exploited to backdate authentic-looking PSA documents — undetectable under manual verification (Sen. Gatchalian, 2024).</p>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 22px;">
+        Gen C addresses both failures simultaneously by combining a hybrid encryption layer with the Layered Proof Aggregation (LPA) protocol.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 3 · STATEMENT OF THE PROBLEM ════ -->
+  <section class="slide" data-notes="Read each of the four sub-problems clearly. They are quoted directly from the manuscript (Section 1.2). 'The general challenge addressed in this research is how hospitals and medical clinics can adopt a scalable, privacy-conscious, decentralized identity system. From this general problem, the study answers four specific questions.' Then read the four numbered items deliberately.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Statement of the Problem</span></div>
+      <div class="slide-num">03 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Section 1.2</div>
+      <h2>Four specific questions guide this study.</h2>
+
+      <div class="sop-list">
+        <div class="sop-item"><div class="n">1</div><div class="t">How can a <b>decentralized architecture</b> prevent mass data exfiltration in the event of a breach?</div></div>
+        <div class="sop-item"><div class="n">2</div><div class="t">How can <b>immutable timestamping</b> prevent retroactive document falsification, as observed in fraudulent late registrations?</div></div>
+        <div class="sop-item"><div class="n">3</div><div class="t">How can the <b>Layered Proof Aggregation (LPA)</b> protocol reduce gas fees for processing thousands of daily hospital transactions?</div></div>
+        <div class="sop-item"><div class="n">4</div><div class="t">How can the system ensure medical data is accessible <b>only to doctors with specific attributes</b>, in compliance with the Data Privacy Act of 2012 (RA 10173)?</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 4 · OBJECTIVES ════ -->
+  <section class="slide" data-notes="Open with the general objective, then summarize the five specifics. Roughly 60 seconds. 'The general objective is to design and develop a decentralized web application that uses AES-256, CP-ABE, and the Layered Proof Aggregation protocol to provide a scalable, cost-effective, and privacy-preserving mechanism for verifying hospital records. From this, the study commits to five specific objectives.' Read them, but lean into objective 3 — the throughput target.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Objectives of the Study</span></div>
+      <div class="slide-num">04 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Section 1.3</div>
+      <h2>One general goal. Five measurable commitments.</h2>
+
+      <div class="card" style="margin-bottom: 16px;">
+        <span class="green-pill">General Objective</span>
+        <p style="margin-top: 10px; color: var(--ink);">
+          To design and develop a decentralized web application that uses <b>AES-256</b>, <b>CP-ABE</b>, and the <b>Layered Proof Aggregation (LPA)</b> protocol to provide a <i>scalable, cost-effective, and privacy-preserving</i> mechanism for verifying hospital records under a hybrid blockchain architecture.
+        </p>
+      </div>
+
+      <ul class="bullets">
+        <li><b>SO 1.</b> Build three integrated modules — a <b>Registry Portal</b>, a <b>Patient Wallet</b>, and a <b>Provider Portal</b>.</li>
+        <li><b>SO 2.</b> Implement privacy-preserving verification through <b>Zero-Knowledge Proofs</b> (proof without disclosure).</li>
+        <li><b>SO 3.</b> Deploy the proprietary <b>LPA protocol</b> to achieve ≥ <b>280 TPS</b> at < <b>$0.01</b> per record.</li>
+        <li><b>SO 4.</b> Integrate <b>AES-256</b> and <b>CP-ABE</b> to secure off-chain payloads with granular access control.</li>
+        <li><b>SO 5.</b> Evaluate software quality against <b>ISO/IEC 25010</b> through structured UAT with hospital staff.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 5 · SCOPE & DELIMITATIONS ════ -->
+  <section class="slide" data-notes="Be precise and unhurried — the panel will probe this slide. 'The scope and delimitations are taken verbatim from Section 1.7. The system is deliberately bounded along five axes.' Walk down the two columns. Emphasize the synthetic-data delimitation: it is the proponents' compliance posture toward RA 10173.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Scope &amp; Delimitations</span></div>
+      <div class="slide-num">05 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Section 1.7</div>
+      <h2>Where the study begins — and where it deliberately stops.</h2>
+
+      <div class="two-col">
+        <div class="mini-card blue">
+          <span class="tag">Scope</span>
+          <h3>What the study covers</h3>
+          <p style="margin-top: 4px;">
+            • Three modules: <b>Admin Dashboard</b>, <b>Hospital Interface</b>, <b>Patient Wallet</b><br/>
+            • <b>Dual-chain architecture</b>: private permissioned testnet for consensus<br/>
+            • <b>AES-256</b> payload encryption + <b>CP-ABE</b> access policy<br/>
+            • <b>IPFS</b> for off-chain storage of heavy documents<br/>
+            • <b>LPA protocol</b> tested for throughput and gas reduction<br/>
+            • Evaluated under <b>ISO/IEC 25010</b> (functional suitability, performance, security)
+          </p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Delimitations</span>
+          <h3>What lies outside this study</h3>
+          <p style="margin-top: 4px;">
+            • <b>No native mobile app</b> (iOS / Android); web-based for desktop &amp; tablet only<br/>
+            • <b>No offline-first capability</b> for GIDA areas without connectivity<br/>
+            • <b>Synthetic data only</b> (10,000 dummy records via Python) — strict RA 10173 compliance<br/>
+            • <b>No OCR / ETL</b> of legacy paper records held by the PSA<br/>
+            • <b>No biometric hardware</b> (fingerprint / iris); cryptographic identity only
+          </p>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 20px;">
+        These delimitations preserve the integrity of the experimental design while keeping the study within the proponents' resource envelope.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 6 · THEORETICAL & CONCEPTUAL FRAMEWORK ════ -->
+  <section class="slide" data-notes="Roughly 45 seconds. 'The study rests on three theoretical pillars and follows an Input-Process-Output conceptual model.' Read the pillars briefly, then trace the IPO flow left to right. Anchor on the Principle of Cryptographic Truth as the rebuttal to the Alice Guo case.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 1 · Theoretical &amp; Conceptual Framework</span></div>
+      <div class="slide-num">06 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 1.4 – 1.5</div>
+      <h2>Three pillars. One Input → Process → Output model.</h2>
+
+      <div class="three-col" style="margin-bottom: 16px;">
+        <div class="mini-card green">
+          <span class="tag">Pillar I</span>
+          <h3>Cryptographic Truth</h3>
+          <p>Trust rests on mathematics, not institutions — a 2024 birth certificate cannot be backdated to 1990.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Pillar II</span>
+          <h3>Self-Sovereign Identity</h3>
+          <p>Patients own their records through Decentralized Identifiers (DIDs), not the hospital.</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Pillar III</span>
+          <h3>Decentralized Governance</h3>
+          <p>Authority is distributed across the network — no single administrator controls the ledger.</p>
+        </div>
+      </div>
+
+      <div class="ipo-grid">
+        <div class="ipo-box input">
+          <div class="head">Input</div>
+          <ul>
+            <li>Knowledge: ZKPs, Solidity, RA 10173</li>
+            <li>Software: Hardhat, IPFS, React.js</li>
+            <li>Hardware: i5/Ryzen 3 · 16 GB RAM</li>
+            <li>System design artefacts (DFD, architecture)</li>
+          </ul>
+        </div>
+        <div class="ipo-arrow">→</div>
+        <div class="ipo-box proc">
+          <div class="head">Process</div>
+          <ul>
+            <li>AES-256 payload encryption</li>
+            <li>CP-ABE access policy enforcement</li>
+            <li>LPA Merkle aggregation</li>
+            <li>Benchmarking · gas analysis · UAT</li>
+          </ul>
+        </div>
+        <div class="ipo-arrow">→</div>
+        <div class="ipo-box output">
+          <div class="head">Output</div>
+          <ul>
+            <li>Gen C decentralized application</li>
+            <li>Secure digital birth/death records</li>
+            <li>Consent &amp; attribute management</li>
+            <li>Portable, immutable medical records</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 7 · REVIEW OF RELATED LITERATURE ════ -->
+  <section class="slide" data-notes="45 seconds. Foreign literature gave the proponents the blueprint; local literature exposed the urgency. Mention by name only: Bethencourt et al. for CP-ABE, Mombelli for ZKPs, Moya et al. for dual-chain. On the local side, the National Privacy Commission (2023), Gatchalian (2024), and Herbosa for GIDA. Close with the research gap sentence — that is the proponents' justification.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 2 · Review of Related Literature</span></div>
+      <div class="slide-num">07 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Foreign &amp; Local Synthesis</div>
+      <h2>Mature global cryptography meets unresolved local need.</h2>
+
+      <div class="two-col">
+        <div class="mini-card blue">
+          <span class="tag">Foreign Literature — The Blueprint</span>
+          <ul class="bullets">
+            <li><b>Bethencourt et al. (2007)</b> · CP-ABE for dynamic hospital staff hierarchies</li>
+            <li><b>Mombelli (2025)</b> · ZKPs as the resolution of the privacy–transparency paradox</li>
+            <li><b>Han et al. (2025)</b> · Blockchain as the "connective tissue" between EHR silos</li>
+            <li><b>Moya et al. (2025)</b> · Empirical validation of dual-chain ZKBAR-V architecture</li>
+            <li><b>Dyade et al. (2025)</b> · Rollups &amp; aggregation as the path to public-sector viability</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Local Literature — The Urgency</span>
+          <ul class="bullets">
+            <li><b>NPC (2023)</b> · PhilHealth breach proved centralized storage is indefensible</li>
+            <li><b>Gatchalian (2024)</b> · Civil-registry fraud unmasked by Alice Guo case</li>
+            <li><b>Herbosa (2024)</b> · Digital divide in GIDA areas demands lightweight batching</li>
+            <li><b>Agup (2024)</b> · RA 10173 compliance remains administrative, not technical</li>
+            <li><b>De Mesa et al. (2024)</b> · 94 % EMR intent-to-use, hampered by connectivity</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 22px;">
+        <b>Research gap:</b> the technology exists globally, but no localized framework integrates high-grade cryptography with Philippine infrastructure constraints. Gen C closes this gap with LPA.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 8 · METHODOLOGY ════ -->
+  <section class="slide" data-notes="60 seconds. 'The study follows the Design Science Research Methodology — iterative cycles of problem identification, design, construction, demonstration, and evaluation.' Move directly into the three-layer architecture diagram. Highlight that the Presentation Layer performs client-side encryption via WebAssembly — so cleartext never leaves the device.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Methodology &amp; System Architecture</span></div>
+      <div class="slide-num">08 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 3.1 – 3.3</div>
+      <h2>Design Science Research, executed in three layers.</h2>
+
+      <p class="lead" style="margin-bottom: 18px;">
+        The proponents adopt <b>Design Science Research Methodology (DSRM)</b> — iterative cycles of problem identification, artefact design, construction, demonstration, and rigorous evaluation.
+      </p>
+
+      <div class="three-col">
+        <div class="mini-card blue">
+          <span class="tag">Layer 1 · Presentation</span>
+          <h3>React.js + Wasm</h3>
+          <p>Responsive frontend with <b>client-side AES-256-GCM encryption</b> — cleartext medical data never leaves the user's device.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Layer 2 · Logic</span>
+          <h3>Node.js Middleware</h3>
+          <p>Hosts the <b>CP-ABE authority</b> for attribute-based key issuance and the <b>LPA service</b> that batches records into Merkle roots.</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Layer 3 · Data</span>
+          <h3>EVM Permissioned Ledger + IPFS</h3>
+          <p>Encrypted payloads pinned to a <b>private IPFS cluster</b>; only the Merkle root is anchored on-chain via <b>QBFT</b> consensus.</p>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 22px;">
+        Authentication uses <b>SMTP-OTP multi-factor</b> only — SMS is rejected to defeat SIM-swap attacks and to remain accessible across GIDA satellite links.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 9 · ALGORITHMS ════ -->
+  <section class="slide" data-notes="60 seconds — be brisk but precise. Three algorithms, one job each: AES-256 hides the payload, CP-ABE controls who can decrypt, LPA aggregates proofs so the ledger remains cheap. Close on the complexity collapse: linear to logarithmic — that is the proponents' contribution.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Algorithmic Core</span></div>
+      <div class="slide-num">09 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 3.5.1 – 3.5.6</div>
+      <h2>Three algorithms. Three orthogonal jobs.</h2>
+
+      <div class="three-col" style="margin-bottom: 18px;">
+        <div class="mini-card">
+          <span class="tag">Algorithm I · Confidentiality</span>
+          <h3>AES-256-GCM</h3>
+          <p>Symmetric cipher with 256-bit key — encrypts the medical payload (PDFs, DICOMs, abstracts) before it leaves the browser. Chosen over RSA-2048 for throughput on multi-megabyte files.</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Algorithm II · Access Control</span>
+          <h3>CP-ABE</h3>
+          <p>Ciphertext-Policy Attribute-Based Encryption. The AES key is encapsulated under a policy expression (e.g., <span class="mono">role=Cardiologist ∧ status=On-Duty</span>) — only attribute holders can decrypt.</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Algorithm III · Scalability</span>
+          <h3>Layered Proof Aggregation</h3>
+          <p>Merkle-tree batching of <i>N</i> record hashes into a single root. One on-chain anchor settles the entire batch, collapsing complexity from <b>O(n)</b> to <b>O(log n)</b>.</p>
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat"><div class="v">256-bit</div><div class="l">AES Key Strength</div></div>
+        <div class="stat"><div class="v">O(log n)</div><div class="l">LPA Verification</div></div>
+        <div class="stat"><div class="v">≥ 280</div><div class="l">Target TPS</div></div>
+        <div class="stat"><div class="v">&lt; $0.01</div><div class="l">Cost / Record</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 10 · TESTING & EVALUATION ════ -->
+  <section class="slide" data-notes="45 seconds. Four testing tiers, each tied to ISO/IEC 25010. Unit, integration, security, and UAT. Briefly note that synthetic data of 10,000 records was used to stress-test the LPA protocol across batch sizes from 10 to 500.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 3 · Evaluation &amp; Testing Methods</span></div>
+      <div class="slide-num">10 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 3.6 – 3.8</div>
+      <h2>Four testing tiers, anchored on ISO/IEC 25010.</h2>
+
+      <div class="two-col" style="margin-top: 6px;">
+        <div class="mini-card">
+          <span class="tag">Tier 1 · Unit Testing</span>
+          <h3>Cryptographic primitives</h3>
+          <p>AES-256, CP-ABE, hashing, and signature verification — automated coverage in CI pipelines.</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Tier 2 · Integration Testing</span>
+          <h3>LPA, IPFS, Anchor Flow</h3>
+          <p>End-to-end batch issuance and Merkle anchoring — gas measured via <span class="mono">hardhat-gas-reporter</span>; latency via custom JS scripts.</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Tier 3 · Security Testing</span>
+          <h3>Adversarial Red-Team</h3>
+          <p>Simulated data leaks, key-management compromise, smart-contract injection, and privilege escalation.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Tier 4 · User Acceptance</span>
+          <h3>ISO/IEC 25010 Survey</h3>
+          <p>5-point Likert scale across functional suitability, performance, usability, reliability, and security — administered to 10 purposively-sampled IT and clinical respondents.</p>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 18px;">
+        Testing input: <b>10,000 synthetic records</b> generated via Python — zero exposure of real patient data, in full compliance with RA 10173.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 11 · RESULTS & FINDINGS ════ -->
+  <section class="slide" data-notes="60 seconds. Walk the panel through the headline numbers from Chapter 4 and Chapter 5. Note: 100/100 encryption integrity, zero Merkle-root collisions, 100 % rejection of unauthorized access attempts, 98 % gas savings on large batches, and an overall ISO 25010 weighted mean of 3.531 — interpreted as Strongly Agree.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 4 &amp; 5 · Results and Findings</span></div>
+      <div class="slide-num">11 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Alpha · Beta · UAT</div>
+      <h2>The system meets every objective declared in Chapter 1.</h2>
+
+      <div class="two-col" style="margin-top: 6px;">
+        <div class="mini-card green">
+          <span class="tag">Alpha · Technical Findings</span>
+          <ul class="bullets">
+            <li><b>100 / 100</b> records encrypted &amp; pinned to IPFS without corruption</li>
+            <li><b>Zero Merkle-root collisions</b> across 1,000 simulated batches</li>
+            <li><b>100 %</b> of 20 unauthorized access attempts blocked by CP-ABE</li>
+            <li>Average access-request notification delivered in <b>1.8 seconds</b></li>
+            <li>Merkle root generation &amp; on-chain verification: <b>&lt; 15 s</b></li>
+            <li>LPA reduces transaction cost by up to <b>98 %</b> at large batch sizes</li>
+          </ul>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Beta · UAT (ISO/IEC 25010)</span>
+          <ul class="bullets">
+            <li>Functional Stability — <b>3.572</b> · Strongly Agree</li>
+            <li>Maintainability — <b>3.444</b> · Strongly Agree</li>
+            <li>Efficiency — <b>3.533</b> · Strongly Agree</li>
+            <li>Usability — <b>3.511</b> · Strongly Agree</li>
+            <li>Security — <b>3.569</b> · Strongly Agree</li>
+            <li>Reliability — <b>3.556</b> · Strongly Agree</li>
+            <li><b>Overall mean: 3.531 — Strongly Agree</b></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 18px;">
+        Across 50 evaluators — IT professionals, healthcare workers, and prospective users — Gen C is empirically validated as a robust, privacy-preserving alternative to centralized EMR systems.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 12 · CONCLUSION & RECOMMENDATIONS ════ -->
+  <section class="slide" data-notes="45 seconds. State the conclusion verbatim from Section 5.2. Then enumerate the recommendations from Chapter 6 quickly. The most important recommendations to highlight are EHR integration, MFA hardening, and partnership with the DOH and the National Privacy Commission — these signal the proponents' awareness of real-world deployment.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapters 5 &amp; 6 · Conclusion and Recommendations</span></div>
+      <div class="slide-num">12 / 13</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 5.2 &amp; 6.1</div>
+      <h2>A capable, effective, and standards-aligned artefact.</h2>
+
+      <div class="card" style="margin-bottom: 14px;">
+        <span class="green-pill">Conclusion</span>
+        <p style="margin-top: 8px; color: var(--ink); font-size: 15px;">
+          The proponents conclude that Gen C is a <b>capable and effective</b> decentralized solution that meets <b>ISO/IEC 25010</b> standards across functional stability, security, usability, and reliability. The system successfully integrates blockchain anchoring with hybrid encryption to address the vulnerabilities of centralized medical-record management — reinforcing its potential for <b>real-world deployment in the Philippine healthcare sector</b>.
+        </p>
+      </div>
+
+      <div class="two-col">
+        <ul class="bullets">
+          <li><b>R1.</b> Integrate Gen C with existing EHR systems used in local hospitals.</li>
+          <li><b>R2.</b> Harden authentication with biometric or FIDO2 hardware keys.</li>
+          <li><b>R3.</b> Expand to dedicated <b>iOS / Android</b> mobile clients.</li>
+          <li><b>R4.</b> Use IPFS for high-resolution X-ray, MRI, and laboratory imaging.</li>
+        </ul>
+        <ul class="bullets">
+          <li><b>R5.</b> Conduct longitudinal trust studies on self-custody of encryption keys.</li>
+          <li><b>R6.</b> Implement continuous, automated smart-contract auditing.</li>
+          <li><b>R7.</b> Partner with the <b>DOH</b> and <b>National Privacy Commission</b> for compliance.</li>
+          <li><b>R8.</b> Add multi-modal explanations for non-technical end-users.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 13 · CLOSING ════ -->
+  <section class="slide closing-slide" data-notes="Close with poise. 'On behalf of the proponents, thank you for your time and your guidance. The team welcomes the panel's questions and recommendations to further strengthen this study.' Stand still, smile, and wait for the panel.">
+    <div class="slide-content">
+      <div class="feu-mono">Far Eastern University · The Innovation College</div>
+      <h1>Thank <span class="accent">You</span></h1>
+      <div class="tagline">The proponents respectfully invite the panel's questions, recommendations, and guidance to further refine Gen C.</div>
+    </div>
+  </section>
+
+</div>
+
+<div id="nav">
+  <button id="prev" aria-label="Previous slide" data-testid="defense-prev-slide">◀</button>
+  <span class="counter"><span id="cur">01</span> / <span id="tot">13</span></span>
+  <button id="next" aria-label="Next slide" data-testid="defense-next-slide">▶</button>
+</div>
+
+<button id="help-toggle" data-testid="defense-help-toggle">Shortcuts</button>
+<div id="help">
+  <div><kbd>→</kbd> <kbd>Space</kbd> Next slide</div>
+  <div><kbd>←</kbd> Previous slide</div>
+  <div><kbd>N</kbd> Toggle speaker notes</div>
+  <div><kbd>F</kbd> Fullscreen</div>
+  <div><kbd>Home</kbd> First slide</div>
+  <div><kbd>End</kbd> Last slide</div>
+  <div><kbd>1-9</kbd> Jump to slide N</div>
+</div>
+
+<div id="notes"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('cur');
+  const totEl = document.getElementById('tot');
+  const notes = document.getElementById('notes');
+  const help = document.getElementById('help');
+  totEl.textContent = String(total).padStart(2, '0');
+
+  function show(i) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides[cur].classList.remove('active');
+    cur = i;
+    slides[cur].classList.add('active');
+    counter.textContent = String(cur + 1).padStart(2, '0');
+    progress.style.width = `${((cur + 1) / total) * 100}%`;
+    const note = slides[cur].getAttribute('data-notes');
+    notes.innerHTML = note
+      ? `<div class="label">Speaker Notes · Slide ${cur + 1}</div>${note}`
+      : '';
+  }
+
+  document.getElementById('next').addEventListener('click', () => show(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => show(cur - 1));
+  document.getElementById('help-toggle').addEventListener('click', () => help.classList.toggle('shown'));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(total - 1);
+    else if (e.key === 'n' || e.key === 'N') notes.classList.toggle('shown');
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    else if (/^[1-9]$/.test(e.key)) show(parseInt(e.key, 10) - 1);
+    else if (e.key === '0') show(9);
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); }
+  }, { passive: true });
+
+  show(0);
+</script>
+
+</body>
+</html>
