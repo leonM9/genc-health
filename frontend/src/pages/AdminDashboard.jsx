@@ -19,7 +19,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy, Lightning, Trash } from "@phosphor-icons/react";
+import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy, Lightning, Trash, ClipboardText } from "@phosphor-icons/react";
 
 const STAGE_ICONS = { encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor };
 
@@ -32,6 +32,13 @@ export default function AdminDashboard() {
   const [adminRecords, setAdminRecords] = useState([]);
   const [deletingRec, setDeletingRec] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);  // record pending deletion confirmation
+
+  // Audit log state
+  const [auditEvents, setAuditEvents] = useState([]);
+  const [auditSummary, setAuditSummary] = useState(null);
+  const [auditEvent, setAuditEvent] = useState("all");
+  const [auditAddr, setAuditAddr] = useState("");
+  const [auditLoading, setAuditLoading] = useState(false);
   const [preview, setPreview] = useState({ root: "", layers: [] });
   const [anchoring, setAnchoring] = useState(false);
   const [polygonAnchoring, setPolygonAnchoring] = useState(false);
@@ -59,6 +66,29 @@ export default function AdminDashboard() {
     setUsers(u.data); setPending(p.data); setAnchors(a.data); setStats(s.data);
     setAdminRecords(ar.data);
     setPreview(p.data.length ? merklePreview(p.data.map((x) => x.cid)) : { root: "", layers: [] });
+  };
+
+  const loadAuditLog = async () => {
+    setAuditLoading(true);
+    try {
+      const { message, signature } = await buildSig("view-audit-log");
+      const params = new URLSearchParams();
+      if (auditEvent && auditEvent !== "all") params.set("event", auditEvent);
+      if (auditAddr.trim()) params.set("address", auditAddr.trim());
+      params.set("limit", "300");
+      const [r, s] = await Promise.all([
+        api.post(`/admin/audit-log?${params.toString()}`, {
+          admin_address: session.address, signature, message,
+        }),
+        api.get("/admin/audit-log/summary"),
+      ]);
+      setAuditEvents(r.data.events || []);
+      setAuditSummary(s.data);
+    } catch (e) {
+      toast.error("Audit fetch failed", { description: e?.response?.data?.detail || e.message });
+    } finally {
+      setAuditLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -292,6 +322,7 @@ export default function AdminDashboard() {
             { v: "lpa", l: "LPA Batch", i: Cube },
             { v: "upload", l: "Attach File", i: UploadSimple },
             { v: "records", l: `Records (${adminRecords.length})`, i: FileLock },
+            { v: "audit", l: "Audit Log", i: ClipboardText },
             { v: "register-doctor", l: "Register Doctor", i: Stethoscope },
             { v: "register-patient", l: "Register Patient", i: UserPlus },
             { v: "anchors", l: "Anchored Roots", i: Anchor },
@@ -558,6 +589,158 @@ export default function AdminDashboard() {
                           <Trash size={12} weight="bold" />
                           {deletingRec === r.id ? "Unpinning…" : "Unpin & Delete"}
                         </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Audit Log — RA 10173 §16 & §20 compliance trail */}
+        <TabsContent value="audit">
+          <div className="card-modern p-6">
+            <div className="flex items-start justify-between gap-6 mb-5 flex-wrap">
+              <div className="flex-1 min-w-[280px]">
+                <div className="eyebrow mb-1">ra 10173 § 16 / § 20 · tamper-evident trail</div>
+                <h3 className="heading-display text-xl font-bold">Audit Log</h3>
+                <p className="text-zinc-400 text-sm mt-2 max-w-2xl">
+                  Every privacy-relevant action — access requests, approvals, denials, revocations, record uploads,
+                  decryptions, deletions, and Merkle anchors — is appended here with a <span className="text-sky-400 font-mono">SHA-256</span>
+                  &nbsp;hash of the wallet signature, so consent decisions are verifiable without storing the raw signature blob.
+                </p>
+              </div>
+              {auditSummary && (
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                  <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-white/5">
+                    <div className="eyebrow !text-[9px]">total events</div>
+                    <div className="text-sky-400 text-lg font-bold mt-0.5">{auditSummary.total}</div>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-white/5">
+                    <div className="eyebrow !text-[9px]">event types</div>
+                    <div className="text-sky-400 text-lg font-bold mt-0.5">{auditSummary.by_event?.length || 0}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-end mb-5 p-4 rounded-lg bg-zinc-900/40 border border-white/5">
+              <div className="flex-1 min-w-[180px]">
+                <Label className="eyebrow">event type</Label>
+                <Select value={auditEvent} onValueChange={setAuditEvent}>
+                  <SelectTrigger data-testid="audit-event-select" className="mt-1.5 rounded-lg bg-zinc-950 border-white/10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                    <SelectItem value="all">All events</SelectItem>
+                    <SelectItem value="access.request">access.request</SelectItem>
+                    <SelectItem value="access.approve">access.approve</SelectItem>
+                    <SelectItem value="access.deny">access.deny</SelectItem>
+                    <SelectItem value="access.revoke">access.revoke (§16)</SelectItem>
+                    <SelectItem value="record.upload">record.upload</SelectItem>
+                    <SelectItem value="record.decrypt">record.decrypt</SelectItem>
+                    <SelectItem value="record.decrypt.denied">record.decrypt.denied</SelectItem>
+                    <SelectItem value="record.delete">record.delete (§16)</SelectItem>
+                    <SelectItem value="anchor.create">anchor.create</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 min-w-[260px]">
+                <Label className="eyebrow">address (actor / target / subject)</Label>
+                <Input
+                  value={auditAddr}
+                  onChange={(e) => setAuditAddr(e.target.value)}
+                  placeholder="0x… leave blank for all"
+                  data-testid="audit-address-input"
+                  className="mt-1.5 rounded-lg bg-zinc-950 border-white/10 font-mono text-xs"
+                />
+              </div>
+              <button
+                onClick={loadAuditLog}
+                disabled={auditLoading}
+                data-testid="audit-fetch-btn"
+                className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                <ArrowsClockwise size={14} weight="bold" className={auditLoading ? "animate-spin" : ""} />
+                {auditLoading ? "Loading…" : "Fetch & Sign"}
+              </button>
+            </div>
+
+            {auditSummary && auditSummary.by_event?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {auditSummary.by_event.map((b) => (
+                  <button
+                    key={b.event_type}
+                    onClick={() => { setAuditEvent(b.event_type); }}
+                    className="px-3 py-1.5 rounded-full bg-zinc-900/60 border border-white/10 text-[10px] font-mono hover:border-sky-400/40 transition"
+                    data-testid={`audit-chip-${b.event_type}`}
+                  >
+                    <span className="text-zinc-400">{b.event_type}</span>
+                    <span className="text-sky-400 ml-2 font-bold">{b.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="overflow-x-auto rounded-lg border border-white/5">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/5">
+                    <TableHead className="eyebrow">timestamp</TableHead>
+                    <TableHead className="eyebrow">event</TableHead>
+                    <TableHead className="eyebrow">actor</TableHead>
+                    <TableHead className="eyebrow">subject / target</TableHead>
+                    <TableHead className="eyebrow">decision</TableHead>
+                    <TableHead className="eyebrow">sig hash</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {auditEvents.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-zinc-500 font-mono py-12">
+                      {auditLoading ? "Loading…" : "Click \"Fetch & Sign\" to load the audit trail"}
+                    </TableCell></TableRow>
+                  )}
+                  {auditEvents.map((ev) => (
+                    <TableRow key={ev.id} className="border-white/5" data-testid={`audit-row-${ev.id}`}>
+                      <TableCell className="font-mono text-[10px] text-zinc-500 whitespace-nowrap">
+                        {new Date(ev.ts).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full border ${
+                          ev.event_type.startsWith("access.revoke") || ev.event_type === "record.delete"
+                            ? "border-rose/40 bg-rose/5 text-rose"
+                            : ev.event_type.endsWith("denied")
+                            ? "border-amber/40 bg-amber/5 text-amber"
+                            : ev.event_type === "anchor.create"
+                            ? "border-emerald/40 bg-emerald/5 text-emerald-400"
+                            : "border-sky-400/30 bg-sky-500/5 text-sky-400"
+                        }`}>{ev.event_type}</span>
+                        {ev.metadata?.ra_10173_clause && (
+                          <div className="text-[9px] text-zinc-500 font-mono mt-1">{ev.metadata.ra_10173_clause}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {ev.actor_role && <div className="text-[10px] uppercase font-mono text-zinc-500">{ev.actor_role}</div>}
+                        <div className="font-mono text-[11px] text-zinc-300">{shortAddr(ev.actor_address)}</div>
+                      </TableCell>
+                      <TableCell>
+                        {ev.subject_address && <div className="font-mono text-[11px] text-zinc-300">{shortAddr(ev.subject_address)}</div>}
+                        {ev.record_id && <div className="text-[9px] text-zinc-600 font-mono">rec · {ev.record_id.slice(0, 8)}…</div>}
+                      </TableCell>
+                      <TableCell>
+                        {ev.decision ? (
+                          <span className={`font-mono text-[10px] ${ev.decision === "approved" || ev.decision === "allowed" || ev.decision === "unpinned" ? "text-emerald-400" : ev.decision === "denied" || ev.decision === "revoked" ? "text-rose" : "text-zinc-400"}`}>
+                            {ev.decision}
+                          </span>
+                        ) : <span className="text-zinc-600 text-[10px]">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        {ev.signature_hash ? (
+                          <span className="font-mono text-[10px] text-zinc-500" title={ev.signature_hash}>
+                            {ev.signature_hash.slice(0, 10)}…{ev.signature_hash.slice(-6)}
+                          </span>
+                        ) : <span className="text-zinc-600 text-[10px]">—</span>}
                       </TableCell>
                     </TableRow>
                   ))}

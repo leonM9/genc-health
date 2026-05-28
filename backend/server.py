@@ -95,6 +95,48 @@ def build_merkle(leaves: List[str]) -> Dict[str, Any]:
     return {"root": "0x" + layer[0], "layers": [["0x" + n for n in lay] for lay in layers]}
 
 
+# ---------- Audit Log (RA 10173 §16 — Right to Withdraw Consent · §20 — Security Measures) ----------
+# Every privacy-relevant action is appended here with a SHA-256 hash of the
+# signature so the panel can demonstrate that consent decisions are recorded
+# tamper-evidently without storing the raw signature blob.
+async def audit_log_event(
+    event_type: str,
+    actor_address: str,
+    *,
+    actor_role: Optional[str] = None,
+    target_address: Optional[str] = None,
+    subject_address: Optional[str] = None,
+    record_id: Optional[str] = None,
+    signature: Optional[str] = None,
+    message: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    decision: Optional[str] = None,
+) -> None:
+    """Append a single event to the immutable audit_log collection.
+    Never raises — audit logging must never break a request flow."""
+    try:
+        entry = {
+            "id": str(uuid.uuid4()),
+            "ts": utcnow(),
+            "event_type": event_type,
+            "actor_address": actor_address,
+            "actor_address_lower": addr_norm(actor_address) if actor_address else None,
+            "actor_role": actor_role,
+            "target_address": target_address,
+            "target_address_lower": addr_norm(target_address) if target_address else None,
+            "subject_address": subject_address,
+            "subject_address_lower": addr_norm(subject_address) if subject_address else None,
+            "record_id": record_id,
+            "signature_hash": hashlib.sha256(signature.encode()).hexdigest() if signature else None,
+            "message": message,
+            "decision": decision,
+            "metadata": metadata or {},
+        }
+        await db.audit_log.insert_one(entry)
+    except Exception as e:
+        log.error(f"audit_log insert failed for {event_type}: {e}")
+
+
 # ---------- Models ----------
 class SigPayload(BaseModel):
     address: str
@@ -556,6 +598,17 @@ async def records_create(p: RecordCreate):
             {"id": p.upload_request_id, "doctor_address_lower": addr_norm(p.uploader_address)},
             {"$set": {"status": "fulfilled", "fulfilled_at": utcnow(), "record_id": rec["id"]}},
         )
+    await audit_log_event(
+        "record.upload",
+        actor_address=p.uploader_address,
+        actor_role="admin" if is_admin else "doctor",
+        target_address=p.patient_address,
+        subject_address=p.patient_address,
+        record_id=rec["id"],
+        signature=p.uploader_signature,
+        message=p.uploader_message,
+        metadata={"cid": p.cid, "file_name": p.file_name, "diagnosis": p.diagnosis, "policy": p.policy},
+    )
     rec.pop("_id", None)
     return rec
 
@@ -640,6 +693,24 @@ async def admin_records_delete(record_id: str, p: AdminRecordDelete):
     # Remove from DB + drop pending entry
     await db.records.delete_one({"id": record_id})
     pending_drop = await db.lpa_pending.delete_many({"record_id": record_id})
+    await audit_log_event(
+        "record.delete",
+        actor_address=p.admin_address,
+        actor_role="admin",
+        target_address=rec.get("patient_address"),
+        record_id=record_id,
+        signature=p.signature,
+        message=p.message,
+        decision="unpinned" if unpin["unpinned"] else "kept_on_pinata",
+        metadata={
+            "cid": cid,
+            "file_name": rec.get("file_name"),
+            "pinata_reason": unpin.get("reason"),
+            "pending_dropped": pending_drop.deleted_count,
+            "anchor_status": rec.get("anchor_status"),
+            "ra_10173_clause": "§16 Right to Erasure",
+        },
+    )
     return {
         "ok": True,
         "record_id": record_id,
@@ -679,7 +750,29 @@ async def decrypt_key(p: DecryptKeyReq):
                 allowed = True
                 reason = "Granted via patient signature"
     if not allowed:
+        await audit_log_event(
+            "record.decrypt.denied",
+            actor_address=p.requester_address,
+            actor_role=attrs.get("role"),
+            target_address=rec.get("patient_address"),
+            record_id=rec["id"],
+            signature=p.signature,
+            message=p.message,
+            decision="denied",
+            metadata={"reason": reason},
+        )
         raise HTTPException(403, f"Policy not satisfied: {reason}")
+    await audit_log_event(
+        "record.decrypt",
+        actor_address=p.requester_address,
+        actor_role=attrs.get("role"),
+        target_address=rec.get("patient_address"),
+        record_id=rec["id"],
+        signature=p.signature,
+        message=p.message,
+        decision="allowed",
+        metadata={"reason": reason, "policy": rec.get("policy")},
+    )
     return {
         "record_id": rec["id"],
         "encrypted_key_b64": rec["encrypted_key_b64"],
@@ -776,6 +869,14 @@ async def access_request(p: AccessRequest):
     }
     await db.access_requests.insert_one(doc)
     doc.pop("_id", None)
+    await audit_log_event(
+        "access.request",
+        actor_address=p.doctor_address,
+        actor_role="doctor",
+        target_address=p.patient_address,
+        subject_address=p.patient_address,
+        metadata={"request_id": doc["id"], "reason": p.reason or ""},
+    )
     return doc
 
 
@@ -815,6 +916,17 @@ async def access_respond(p: AccessRespond):
             }},
             upsert=True,
         )
+    await audit_log_event(
+        "access.approve" if p.approve else "access.deny",
+        actor_address=p.patient_address,
+        actor_role="patient",
+        target_address=p.patient_address,
+        subject_address=req["doctor_address"],
+        signature=p.signature,
+        message=p.message,
+        decision=new_status,
+        metadata={"request_id": p.request_id},
+    )
     return {"ok": True, "status": new_status}
 
 
@@ -892,10 +1004,80 @@ async def access_revoke(p: AccessRevoke):
         {"patient_address_lower": pat_lo, "doctor_address_lower": doc_lo, "status": "approved"},
         {"$set": {"status": "revoked", "revoked_at": utcnow()}},
     )
+    await audit_log_event(
+        "access.revoke",
+        actor_address=p.patient_address,
+        actor_role="patient",
+        target_address=p.patient_address,
+        subject_address=p.doctor_address,
+        signature=p.signature,
+        message=p.message,
+        decision="revoked",
+        metadata={"ra_10173_clause": "§16 Right to Withdraw Consent"},
+    )
     return {"ok": True, "status": "revoked"}
 
 
-# ---------- LPA: Layered Proof Aggregation ----------
+# ---------- Audit Log Endpoints (RA 10173 §16 / §20 compliance evidence) ----------
+class AuditLogQuery(BaseModel):
+    admin_address: str
+    signature: str
+    message: str
+
+
+@api.post("/admin/audit-log")
+async def admin_audit_log(p: AuditLogQuery, event: Optional[str] = None, address: Optional[str] = None, limit: int = 200):
+    """Admin-only full audit trail. Filters: event_type, address (matches actor/target/subject)."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if addr_norm(p.admin_address) != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    q: Dict[str, Any] = {}
+    if event:
+        q["event_type"] = event
+    if address:
+        a = address.lower()
+        q["$or"] = [
+            {"actor_address_lower": a},
+            {"target_address_lower": a},
+            {"subject_address_lower": a},
+        ]
+    items = await db.audit_log.find(q, {"_id": 0}).sort("ts", -1).to_list(max(1, min(limit, 1000)))
+    return {"count": len(items), "events": items}
+
+
+@api.get("/audit-log/patient/{patient_address}")
+async def audit_log_for_patient(patient_address: str, limit: int = 100):
+    """Read-only view a patient can fetch of their OWN audit trail (no admin sig required)."""
+    a = patient_address.lower()
+    items = await db.audit_log.find(
+        {"$or": [
+            {"actor_address_lower": a},
+            {"target_address_lower": a},
+            {"subject_address_lower": a},
+        ]},
+        {"_id": 0, "signature_hash": 1, "ts": 1, "event_type": 1, "actor_address": 1,
+         "actor_role": 1, "subject_address": 1, "record_id": 1, "decision": 1,
+         "metadata": 1, "id": 1},
+    ).sort("ts", -1).to_list(max(1, min(limit, 500)))
+    return items
+
+
+@api.get("/admin/audit-log/summary")
+async def admin_audit_log_summary():
+    """Aggregate counts per event_type — used by the panel-demo dashboard tile."""
+    pipeline = [
+        {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    rows = []
+    async for r in db.audit_log.aggregate(pipeline):
+        rows.append({"event_type": r["_id"], "count": r["count"]})
+    total = await db.audit_log.count_documents({})
+    return {"total": total, "by_event": rows}
+
+
+
 @api.get("/lpa/pending")
 async def lpa_pending():
     pending = await db.lpa_pending.find({}, {"_id": 0}).sort("added_at", 1).to_list(1000)
@@ -967,6 +1149,20 @@ async def lpa_anchor(p: AnchorReq):
     )
     await db.lpa_pending.delete_many({})
     anchor.pop("_id", None)
+    await audit_log_event(
+        "anchor.create",
+        actor_address=p.admin_address,
+        actor_role="admin",
+        signature=p.signature,
+        message=p.message,
+        metadata={
+            "root": root,
+            "tx_hash": tx_hash,
+            "block_number": block_number,
+            "leaf_count": len(cids),
+            "network": "simulated",
+        },
+    )
     return anchor
 
 

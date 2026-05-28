@@ -26,6 +26,7 @@ export default function PatientDashboard() {
   const [activeGrants, setActiveGrants] = useState([]);
   const [revoking, setRevoking] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);  // grant pending confirmation
+  const [activity, setActivity] = useState([]);
   const [decrypting, setDecrypting] = useState(null);
   const [certOpen, setCertOpen] = useState(false);
   const [certData, setCertData] = useState(null);
@@ -41,18 +42,20 @@ export default function PatientDashboard() {
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
-    const [r, q, u, ur, g] = await Promise.all([
+    const [r, q, u, ur, g, act] = await Promise.all([
       api.get(`/records/patient/${session.address}`),
       api.get(`/access/by-patient/${session.address}`),
       api.get(`/users`),
       api.get(`/upload-requests/patient/${session.address}`),
       api.get(`/access/granted-by-patient/${session.address}`),
+      api.get(`/audit-log/patient/${session.address}?limit=50`),
     ]);
     setRecords(r.data);
     setRequests(q.data);
     setDoctors(u.data.filter((x) => x.role === "doctor"));
     setUploadReqs(ur.data);
     setActiveGrants(g.data);
+    setActivity(act.data);
   };
   useEffect(() => { load(); }, []);
 
@@ -346,6 +349,44 @@ export default function PatientDashboard() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* My Activity — read-only audit-log slice for THIS patient */}
+          {activity.length > 0 && (
+            <div className="card-modern overflow-hidden" data-testid="patient-activity-panel">
+              <div className="p-4 border-b border-white/5">
+                <div className="eyebrow text-sky-400">my activity · ra 10173 trail</div>
+                <div className="text-[11px] text-zinc-500 font-mono mt-1">
+                  Every action involving your data, signed and hashed. Last {activity.length} events.
+                </div>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto">
+                <Table>
+                  <TableBody>
+                    {activity.map((ev) => (
+                      <TableRow key={ev.id} className="border-white/5" data-testid={`activity-${ev.id}`}>
+                        <TableCell className="py-2.5">
+                          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full border ${
+                            ev.event_type.startsWith("access.revoke") || ev.event_type === "record.delete"
+                              ? "border-rose/40 bg-rose/5 text-rose"
+                              : ev.event_type.endsWith("denied")
+                              ? "border-amber/40 bg-amber/5 text-amber"
+                              : "border-sky-400/30 bg-sky-500/5 text-sky-400"
+                          }`}>{ev.event_type}</span>
+                        </TableCell>
+                        <TableCell className="py-2.5 text-[11px] text-zinc-400 font-mono">
+                          {ev.actor_role || "—"}
+                          {ev.subject_address && <span className="text-zinc-600"> · w/ {shortAddr(ev.subject_address)}</span>}
+                        </TableCell>
+                        <TableCell className="py-2.5 font-mono text-[10px] text-zinc-500 whitespace-nowrap text-right">
+                          {new Date(ev.ts).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </TabsContent>

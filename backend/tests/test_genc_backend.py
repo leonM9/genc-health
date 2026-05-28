@@ -572,6 +572,97 @@ def test_admin_delete_unknown_record_404():
     assert r.status_code == 404
 
 
+# ---- Audit Log (RA 10173 §16 / §20 compliance trail) ----
+def test_audit_log_summary_endpoint():
+    """Aggregate summary is public-ish (no admin sig) and returns expected shape."""
+    r = requests.get(BASE + "/admin/audit-log/summary")
+    assert r.status_code == 200
+    body = r.json()
+    assert "total" in body and "by_event" in body
+    assert isinstance(body["by_event"], list)
+
+
+def test_audit_log_admin_fetch_flow(record_id):
+    """Admin-signed audit-log query returns the events created by the test suite.
+    The earlier flow tests (access request/approve/revoke, record upload) MUST
+    have produced corresponding audit entries."""
+    _ = record_id  # ensure the prior flow has run
+    msg = "view-audit-log"
+    r = requests.post(
+        BASE + "/admin/audit-log",
+        json={"admin_address": ADMIN_ADDR, "signature": sign(ADMIN_PK, msg), "message": msg},
+        params={"limit": 500},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "events" in body and "count" in body
+    types = {ev["event_type"] for ev in body["events"]}
+    # At minimum, the suite produced these — they exercise the §16 path
+    assert "access.revoke" in types, f"expected access.revoke in {types}"
+    assert "record.upload" in types
+    # Signature hashes must be present (sha-256, 64 hex chars)
+    for ev in body["events"]:
+        if ev.get("signature_hash"):
+            assert len(ev["signature_hash"]) == 64
+
+
+def test_audit_log_admin_filter_by_event(record_id):
+    """Event filter narrows the trail to a single type."""
+    _ = record_id
+    msg = "view-audit-log"
+    r = requests.post(
+        BASE + "/admin/audit-log",
+        json={"admin_address": ADMIN_ADDR, "signature": sign(ADMIN_PK, msg), "message": msg},
+        params={"event": "access.revoke", "limit": 50},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert all(ev["event_type"] == "access.revoke" for ev in body["events"])
+
+
+def test_audit_log_admin_filter_by_address(record_id):
+    """Address filter matches actor/target/subject."""
+    _ = record_id
+    msg = "view-audit-log"
+    r = requests.post(
+        BASE + "/admin/audit-log",
+        json={"admin_address": ADMIN_ADDR, "signature": sign(ADMIN_PK, msg), "message": msg},
+        params={"address": PATIENT.address, "limit": 100},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    pa = PATIENT.address.lower()
+    for ev in body["events"]:
+        assert pa in {
+            ev.get("actor_address_lower"),
+            ev.get("target_address_lower"),
+            ev.get("subject_address_lower"),
+        }, f"event {ev['event_type']} doesn't reference patient"
+
+
+def test_audit_log_non_admin_rejected():
+    """SECURITY: only the admin wallet may pull the global audit trail."""
+    msg = "view-audit-log"
+    r = requests.post(
+        BASE + "/admin/audit-log",
+        json={"admin_address": DOCTOR.address, "signature": sign(DOCTOR.key.hex(), msg), "message": msg},
+    )
+    assert r.status_code in (401, 403)
+
+
+def test_audit_log_patient_view(record_id):
+    """A patient can fetch their own slice with no admin signature."""
+    _ = record_id
+    r = requests.get(BASE + f"/audit-log/patient/{PATIENT.address}?limit=50")
+    assert r.status_code == 200
+    events = r.json()
+    assert isinstance(events, list)
+    assert len(events) > 0
+    # raw signature must NEVER leak — only hash should be present
+    for ev in events:
+        assert "signature" not in ev
+
+
 # ---- Upload Requests (Patient -> Doctor) ----
 def _patient_signed_upload_req(doctor_addr: str, title: str = "Need ECG record", reason: str = "Follow-up"):
     msg = f"upload-request {doctor_addr} {time.time()}"
