@@ -25,6 +25,7 @@ export default function PatientDashboard() {
   const [uploadReqs, setUploadReqs] = useState([]);
   const [activeGrants, setActiveGrants] = useState([]);
   const [revoking, setRevoking] = useState(null);
+  const [confirmRevoke, setConfirmRevoke] = useState(null);  // grant pending confirmation
   const [decrypting, setDecrypting] = useState(null);
   const [certOpen, setCertOpen] = useState(false);
   const [certData, setCertData] = useState(null);
@@ -69,7 +70,6 @@ export default function PatientDashboard() {
   };
 
   const revokeAccess = async (grant) => {
-    if (!window.confirm(`Revoke access for ${grant.doctor_name || shortAddr(grant.doctor_address)}? They will lose decrypt rights immediately.`)) return;
     setRevoking(grant.doctor_address_lower);
     try {
       const { message, signature } = await buildSig("revoke-access");
@@ -79,6 +79,7 @@ export default function PatientDashboard() {
         signature, message,
       });
       toast.success("Access revoked", { description: `${grant.doctor_name || shortAddr(grant.doctor_address)} can no longer decrypt your records` });
+      setConfirmRevoke(null);
       load();
     } catch (e) {
       toast.error("Revoke failed", { description: e?.response?.data?.detail || e.message });
@@ -296,7 +297,7 @@ export default function PatientDashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <button
-                          onClick={() => revokeAccess(g)}
+                          onClick={() => setConfirmRevoke(g)}
                           disabled={revoking === g.doctor_address_lower}
                           data-testid={`revoke-${g.doctor_address_lower}-btn`}
                           className="h-9 px-4 rounded-lg border border-rose/40 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/15 disabled:opacity-50 inline-flex items-center gap-2"
@@ -484,6 +485,52 @@ export default function PatientDashboard() {
             <button onClick={downloadCert} disabled={!certData} data-testid="download-cert-btn"
               className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2">
               <Download size={14} weight="bold" /> Download .json
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* REVOKE ACCESS CONFIRMATION (native window.confirm is blocked inside Emergent's iframe) */}
+      <Dialog open={!!confirmRevoke} onOpenChange={(o) => !o && setConfirmRevoke(null)}>
+        <DialogContent className="max-w-md rounded-2xl bg-zinc-950 border-rose/30" data-testid="confirm-revoke-modal">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Revoke doctor access?</DialogTitle>
+          </DialogHeader>
+          {confirmRevoke && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-rose/30 bg-rose/5 p-4">
+                <div className="eyebrow !text-rose mb-2">about to revoke</div>
+                <div className="font-medium text-sm">{confirmRevoke.doctor_name || "Unknown doctor"}</div>
+                <div className="text-[11px] text-zinc-500 font-mono mt-1">
+                  {confirmRevoke.doctor_department || "—"}
+                  {confirmRevoke.doctor_hospital ? ` · ${confirmRevoke.doctor_hospital}` : ""}
+                </div>
+                <div className="text-[10px] text-zinc-600 font-mono mt-2 break-all">{confirmRevoke.doctor_address}</div>
+              </div>
+              <ul className="text-xs text-zinc-400 space-y-2 list-disc pl-5">
+                <li>The doctor will <span className="text-rose font-medium">immediately</span> lose decrypt rights to your records.</li>
+                <li>You will sign a revocation message with your wallet (RA 10173 §16 — Right to Withdraw Consent).</li>
+                <li>The doctor must request access again if you change your mind.</li>
+              </ul>
+            </div>
+          )}
+          <DialogFooter className="gap-2 mt-2">
+            <button
+              onClick={() => setConfirmRevoke(null)}
+              disabled={!!revoking}
+              data-testid="cancel-revoke-btn"
+              className="btn-ghost-modern h-10 px-5 text-xs font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => confirmRevoke && revokeAccess(confirmRevoke)}
+              disabled={!!revoking}
+              data-testid="confirm-revoke-btn"
+              className="h-10 px-5 rounded-lg border border-rose/40 bg-rose/10 text-rose font-semibold text-xs hover:bg-rose/20 disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              <X size={14} weight="bold" />
+              {revoking ? "Revoking…" : "Revoke & Sign"}
             </button>
           </DialogFooter>
         </DialogContent>

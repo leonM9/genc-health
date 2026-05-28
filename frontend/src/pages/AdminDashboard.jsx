@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { useWallet } from "@/lib/walletContext";
 import { Hash, StatusBadge } from "@/components/CryptoString";
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({});
   const [adminRecords, setAdminRecords] = useState([]);
   const [deletingRec, setDeletingRec] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);  // record pending deletion confirmation
   const [preview, setPreview] = useState({ root: "", layers: [] });
   const [anchoring, setAnchoring] = useState(false);
   const [polygonAnchoring, setPolygonAnchoring] = useState(false);
@@ -158,7 +160,6 @@ export default function AdminDashboard() {
   };
 
   const deleteRecord = async (rec) => {
-    if (!window.confirm(`Unpin "${rec.file_name}" from Pinata and delete it permanently?\n\nCID: ${rec.cid}\nPatient: ${rec.patient_name}\n\nThis cannot be undone. If the record was anchored, the Merkle root remains valid but this CID will no longer resolve.`)) return;
     setDeletingRec(rec.id);
     try {
       const { message, signature } = await buildSig(`delete-record-${rec.id}`);
@@ -167,6 +168,7 @@ export default function AdminDashboard() {
       });
       const pinMsg = r.data.pinata?.unpinned ? "unpinned from Pinata" : `Pinata: ${r.data.pinata?.reason || "not unpinned"}`;
       toast.success("Record deleted", { description: pinMsg });
+      setConfirmDelete(null);
       load();
     } catch (e) {
       toast.error("Delete failed", { description: e?.response?.data?.detail || e.message });
@@ -548,7 +550,7 @@ export default function AdminDashboard() {
                       <TableCell><StatusBadge status={r.anchor_status || "pending"} /></TableCell>
                       <TableCell className="text-right">
                         <button
-                          onClick={() => deleteRecord(r)}
+                          onClick={() => setConfirmDelete(r)}
                           disabled={deletingRec === r.id}
                           data-testid={`admin-delete-rec-${r.id}`}
                           className="h-9 px-3 rounded-lg border border-rose/40 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/15 disabled:opacity-50 inline-flex items-center gap-2"
@@ -1041,6 +1043,58 @@ export default function AdminDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* UNPIN & DELETE CONFIRMATION (native window.confirm is blocked inside Emergent's iframe) */}
+      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <DialogContent className="max-w-md rounded-2xl bg-zinc-950 border-rose/30" data-testid="confirm-delete-modal">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Unpin &amp; delete record?</DialogTitle>
+          </DialogHeader>
+          {confirmDelete && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-rose/30 bg-rose/5 p-4">
+                <div className="eyebrow !text-rose mb-2">about to delete</div>
+                <div className="font-medium text-sm">{confirmDelete.file_name}</div>
+                <div className="text-[11px] text-zinc-500 mt-1">{confirmDelete.diagnosis || "—"} · {(confirmDelete.file_size / 1024).toFixed(1)} KB</div>
+                <div className="mt-3">
+                  <div className="eyebrow !text-[9px]">patient</div>
+                  <div className="text-xs text-zinc-300 mt-0.5">{confirmDelete.patient_name}</div>
+                </div>
+                <div className="mt-2">
+                  <div className="eyebrow !text-[9px]">cid</div>
+                  <div className="text-[10px] text-zinc-500 font-mono mt-0.5 break-all">{confirmDelete.cid}</div>
+                </div>
+              </div>
+              <ul className="text-xs text-zinc-400 space-y-2 list-disc pl-5">
+                <li>The CID will be <span className="text-rose font-medium">unpinned from Pinata IPFS</span>.</li>
+                <li>The record row will be removed from MongoDB.</li>
+                <li>If pending, it will be dropped from the LPA queue.</li>
+                <li><span className="text-amber font-medium">Anchored Merkle roots remain valid</span> — they prove what <em>was</em> stored, but the CID will no longer resolve.</li>
+                <li>This cannot be undone.</li>
+              </ul>
+            </div>
+          )}
+          <DialogFooter className="gap-2 mt-2">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              disabled={!!deletingRec}
+              data-testid="cancel-delete-btn"
+              className="btn-ghost-modern h-10 px-5 text-xs font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => confirmDelete && deleteRecord(confirmDelete)}
+              disabled={!!deletingRec}
+              data-testid="confirm-delete-btn"
+              className="h-10 px-5 rounded-lg border border-rose/40 bg-rose/10 text-rose font-semibold text-xs hover:bg-rose/20 disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              <Trash size={14} weight="bold" />
+              {deletingRec ? "Unpinning…" : "Unpin & Delete"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
