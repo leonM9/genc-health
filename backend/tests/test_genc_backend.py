@@ -335,6 +335,81 @@ def test_access_request_and_grant_flow(record_id):
     assert any(g["patient_address_lower"] == PATIENT.address.lower() for g in r.json())
 
 
+# ---- Access REVOKE flow (patient yanks doctor's decrypt rights) ----
+def test_access_revoke_flow(record_id):
+    """Patient revokes the OTHER_DOCTOR grant created in the previous flow.
+    After revoke, the doctor MUST NO LONGER be able to decrypt the record,
+    and the patient's active-grants list must no longer include them."""
+    # Sanity: doctor currently CAN decrypt (granted in previous flow test)
+    msg0 = "pre-revoke decrypt"
+    r = requests.post(BASE + "/records/decrypt-key", json={
+        "record_id": record_id, "requester_address": OTHER_DOCTOR.address,
+        "signature": sign(OTHER_DOCTOR.key.hex(), msg0), "message": msg0
+    })
+    assert r.status_code == 200, "Precondition failed: doctor should have access from prior grant test"
+
+    # Patient revokes
+    msg = "revoke other doctor"
+    r = requests.post(BASE + "/access/revoke", json={
+        "patient_address": PATIENT.address,
+        "doctor_address": OTHER_DOCTOR.address,
+        "signature": sign(PATIENT.key.hex(), msg), "message": msg,
+    })
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "revoked"
+
+    # Active grants list no longer includes them
+    r = requests.get(BASE + f"/access/granted-by-patient/{PATIENT.address}")
+    assert r.status_code == 200
+    assert not any(g["doctor_address_lower"] == OTHER_DOCTOR.address.lower() for g in r.json())
+
+    # Granted-by-doctor side: empty too
+    r = requests.get(BASE + f"/access/granted/{OTHER_DOCTOR.address}")
+    assert r.status_code == 200
+    assert not any(g["patient_address_lower"] == PATIENT.address.lower() and g.get("status") == "approved" for g in r.json())
+
+    # Idempotent re-revoke
+    msg2 = "revoke again"
+    r = requests.post(BASE + "/access/revoke", json={
+        "patient_address": PATIENT.address, "doctor_address": OTHER_DOCTOR.address,
+        "signature": sign(PATIENT.key.hex(), msg2), "message": msg2,
+    })
+    assert r.status_code == 200 and r.json().get("already") is True
+
+
+def test_revoked_doctor_rejected_for_decrypt(record_id):
+    """SECURITY: once the patient revokes, the doctor's decrypt attempt must be denied.
+    This protects RA 10173 §16 (Right to Withdraw Consent)."""
+    msg = "post-revoke decrypt"
+    r = requests.post(BASE + "/records/decrypt-key", json={
+        "record_id": record_id, "requester_address": OTHER_DOCTOR.address,
+        "signature": sign(OTHER_DOCTOR.key.hex(), msg), "message": msg
+    })
+    assert r.status_code == 403, f"Doctor decrypted after revoke: {r.text}"
+
+
+def test_access_revoke_bad_signature_rejected():
+    """SECURITY: a revoke request signed by someone else MUST be rejected."""
+    msg = "fake revoke"
+    # OTHER_DOCTOR tries to sign a revoke for PATIENT — impossible, must fail
+    r = requests.post(BASE + "/access/revoke", json={
+        "patient_address": PATIENT.address, "doctor_address": OTHER_DOCTOR.address,
+        "signature": sign(OTHER_DOCTOR.key.hex(), msg), "message": msg,
+    })
+    assert r.status_code == 401, r.text
+
+
+def test_access_revoke_unknown_grant_rejected():
+    """Revoking a non-existent grant returns 404, not silent success."""
+    bogus = Account.from_key("0x" + hashlib.sha256(b"never_granted").hexdigest())
+    msg = "revoke nobody"
+    r = requests.post(BASE + "/access/revoke", json={
+        "patient_address": PATIENT.address, "doctor_address": bogus.address,
+        "signature": sign(PATIENT.key.hex(), msg), "message": msg,
+    })
+    assert r.status_code == 404
+
+
 # ---- LPA ----
 def test_lpa_pending_enriched(record_id):
     r = requests.get(BASE + "/lpa/pending")
@@ -415,6 +490,86 @@ def test_register_doctor_with_hospital_roundtrip():
     assert r.status_code == 200
     rec = next((u for u in r.json() if u["address_lower"] == DOCTOR.address.lower()), None)
     assert rec is not None and rec.get("hospital") == "Gen C General Hospital"
+
+
+# ---- Admin Record Management (Unpin from Pinata + DB delete) ----
+def test_admin_records_list():
+    """The /admin/records endpoint returns every non-simulated record."""
+    r = requests.get(BASE + "/admin/records")
+    assert r.status_code == 200
+    items = r.json()
+    assert isinstance(items, list)
+    # All returned rows must include the expected schema
+    if items:
+        assert "id" in items[0] and "cid" in items[0] and "patient_address_lower" in items[0]
+
+
+def test_admin_delete_record_non_admin_rejected(record_id):
+    """SECURITY: only the admin wallet may unpin & delete a record. A doctor's signature must be rejected."""
+    msg = f"delete-record-{record_id}"
+    r = requests.delete(
+        BASE + f"/admin/records/{record_id}",
+        json={"admin_address": DOCTOR.address, "signature": sign(DOCTOR.key.hex(), msg), "message": msg},
+    )
+    assert r.status_code in (401, 403), r.text
+
+
+def test_admin_delete_record_flow(record_id):
+    """End-to-end: create a throwaway record, admin signs delete, record vanishes
+    from DB and from /lpa/pending. Pinata unpin is best-effort and reported.
+    Depends on `record_id` only to guarantee DOCTOR / PATIENT are registered."""
+    _ = record_id  # fixture used for its registration side effect
+    # Use a fresh CID (re-using pinata isn't necessary — backend accepts any CID-shaped string)
+    cid = "bafkreitestdelete" + uuid.uuid4().hex[:24]
+    msg_up = "upload throwaway"
+    sig_up = sign(DOCTOR.key.hex(), msg_up)
+    enc_key = base64.b64encode(b"\x00" * 32).decode()
+    policy = f"Owner:{PATIENT.address.lower()}"
+    payload = {
+        "uploader_address": DOCTOR.address, "uploader_signature": sig_up, "uploader_message": msg_up,
+        "patient_address": PATIENT.address, "cid": cid, "file_name": "throwaway.pdf",
+        "file_size": 32, "encrypted_key_b64": enc_key, "policy": policy,
+        "diagnosis": "deletable", "notes": "",
+    }
+    r = requests.post(BASE + "/records", json=payload)
+    assert r.status_code == 200, r.text
+    rec_id = r.json()["id"]
+
+    # The record is in /admin/records
+    r = requests.get(BASE + "/admin/records")
+    assert any(x["id"] == rec_id for x in r.json())
+
+    # Admin signs the delete
+    msg_d = f"delete-record-{rec_id}"
+    r = requests.delete(
+        BASE + f"/admin/records/{rec_id}",
+        json={"admin_address": ADMIN_ADDR, "signature": sign(ADMIN_PK, msg_d), "message": msg_d},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True
+    assert body["record_id"] == rec_id
+    assert body["cid"] == cid
+    assert "pinata" in body and "unpinned" in body["pinata"]
+
+    # Gone from /admin/records
+    r = requests.get(BASE + "/admin/records")
+    assert not any(x["id"] == rec_id for x in r.json())
+
+    # Gone from /lpa/pending
+    r = requests.get(BASE + "/lpa/pending")
+    assert not any(x.get("record_id") == rec_id for x in r.json())
+
+
+def test_admin_delete_unknown_record_404():
+    """Deleting a non-existent record yields 404."""
+    bogus = "00000000-0000-0000-0000-000000000000"
+    msg = f"delete-record-{bogus}"
+    r = requests.delete(
+        BASE + f"/admin/records/{bogus}",
+        json={"admin_address": ADMIN_ADDR, "signature": sign(ADMIN_PK, msg), "message": msg},
+    )
+    assert r.status_code == 404
 
 
 # ---- Upload Requests (Patient -> Doctor) ----

@@ -144,6 +144,13 @@ class AccessRespond(BaseModel):
     approve: bool
 
 
+class AccessRevoke(BaseModel):
+    patient_address: str
+    doctor_address: str
+    signature: str
+    message: str
+
+
 class DecryptKeyReq(BaseModel):
     record_id: str
     requester_address: str
@@ -575,6 +582,73 @@ async def records_for_doctor(address: str):
     return {"uploaded": own, "accessible": accessible, "grants": grants}
 
 
+# ---------- Admin · Record Management (Unpin from Pinata + DB delete) ----------
+def _pinata_unpin(cid: str) -> Dict[str, Any]:
+    """Best-effort unpin from Pinata. Returns a status dict.
+    Never raises — Pinata 404 (already unpinned) is treated as success."""
+    if not PINATA_JWT:
+        return {"unpinned": False, "reason": "Pinata not configured (local fallback)"}
+    try:
+        r = requests.delete(
+            f"https://api.pinata.cloud/pinning/unpin/{cid}",
+            headers={"Authorization": f"Bearer {PINATA_JWT}"},
+            timeout=20,
+        )
+        if r.status_code in (200, 204):
+            return {"unpinned": True, "reason": "ok"}
+        if r.status_code == 404:
+            return {"unpinned": True, "reason": "already unpinned"}
+        return {"unpinned": False, "reason": f"Pinata {r.status_code}: {r.text[:140]}"}
+    except Exception as e:  # network failure — record still gets removed from DB
+        return {"unpinned": False, "reason": f"request failed: {e}"}
+
+
+@api.get("/admin/records")
+async def admin_records_list():
+    """Full list of real (non-simulated) records for the admin records-management tab."""
+    items = await db.records.find(
+        {"simulated": {"$ne": True}}, {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+    return items
+
+
+class AdminRecordDelete(BaseModel):
+    admin_address: str
+    signature: str
+    message: str
+
+
+@api.delete("/admin/records/{record_id}")
+async def admin_records_delete(record_id: str, p: AdminRecordDelete):
+    """Admin-signed delete: unpins the CID from Pinata, removes the record from the
+    DB, drops it from the LPA pending queue, revokes any grants tied to it, and
+    cancels any linked upload-request fulfilment."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid admin signature")
+    if addr_norm(p.admin_address) != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    rec = await db.records.find_one({"id": record_id}, {"_id": 0})
+    if not rec:
+        raise HTTPException(404, "Record not found")
+    cid = rec["cid"]
+    # Only unpin if no other record references the same CID (rare, but safe)
+    other = await db.records.count_documents({"cid": cid, "id": {"$ne": record_id}})
+    if other == 0:
+        unpin = _pinata_unpin(cid)
+    else:
+        unpin = {"unpinned": False, "reason": f"CID re-used by {other} other record(s); kept on Pinata"}
+    # Remove from DB + drop pending entry
+    await db.records.delete_one({"id": record_id})
+    pending_drop = await db.lpa_pending.delete_many({"record_id": record_id})
+    return {
+        "ok": True,
+        "record_id": record_id,
+        "cid": cid,
+        "pinata": unpin,
+        "pending_dropped": pending_drop.deleted_count,
+    }
+
+
 @api.post("/records/decrypt-key")
 async def decrypt_key(p: DecryptKeyReq):
     """Simulated CP-ABE: verify requester satisfies policy then release AES key."""
@@ -767,6 +841,58 @@ async def access_granted(doctor_address: str):
         {"doctor_address_lower": doctor_address.lower(), "status": "approved"}, {"_id": 0}
     ).to_list(500)
     return items
+
+
+@api.get("/access/granted-by-patient/{patient_address}")
+async def access_granted_by_patient(patient_address: str):
+    """Active (approved) grants the patient has issued, enriched with doctor profile."""
+    grants = await db.access_grants.find(
+        {"patient_address_lower": patient_address.lower(), "status": "approved"}, {"_id": 0}
+    ).sort("approved_at", -1).to_list(500)
+    if not grants:
+        return []
+    doc_addrs = list({g["doctor_address_lower"] for g in grants})
+    users = await db.users.find({"address_lower": {"$in": doc_addrs}}, {"_id": 0}).to_list(500)
+    umap = {u["address_lower"]: u for u in users}
+    for g in grants:
+        u = umap.get(g["doctor_address_lower"], {})
+        g["doctor_name"] = u.get("name", "")
+        g["doctor_department"] = u.get("department", "")
+        g["doctor_hospital"] = u.get("hospital", "")
+    return grants
+
+
+@api.post("/access/revoke")
+async def access_revoke(p: AccessRevoke):
+    """Patient revokes a previously approved grant for a specific doctor.
+    Requires the patient's wallet signature. Doctors immediately lose decrypt rights."""
+    if not verify_sig(p.patient_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid patient signature")
+    pat_lo = addr_norm(p.patient_address)
+    doc_lo = addr_norm(p.doctor_address)
+    grant = await db.access_grants.find_one(
+        {"patient_address_lower": pat_lo, "doctor_address_lower": doc_lo}, {"_id": 0}
+    )
+    if not grant:
+        raise HTTPException(404, "No grant found for this doctor")
+    if grant.get("status") == "revoked":
+        return {"ok": True, "status": "revoked", "already": True}
+    await db.access_grants.update_one(
+        {"patient_address_lower": pat_lo, "doctor_address_lower": doc_lo},
+        {"$set": {
+            "status": "revoked",
+            "revoked_at": utcnow(),
+            "revoke_signature": p.signature,
+            "revoke_message": p.message,
+        }},
+    )
+    # Flip any historical "approved" requests to "revoked" so the patient's request
+    # history reflects the change and stale UI rows don't show as still-active.
+    await db.access_requests.update_many(
+        {"patient_address_lower": pat_lo, "doctor_address_lower": doc_lo, "status": "approved"},
+        {"$set": {"status": "revoked", "revoked_at": utcnow()}},
+    )
+    return {"ok": True, "status": "revoked"}
 
 
 # ---------- LPA: Layered Proof Aggregation ----------

@@ -23,6 +23,8 @@ export default function PatientDashboard() {
   const [requests, setRequests] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [uploadReqs, setUploadReqs] = useState([]);
+  const [activeGrants, setActiveGrants] = useState([]);
+  const [revoking, setRevoking] = useState(null);
   const [decrypting, setDecrypting] = useState(null);
   const [certOpen, setCertOpen] = useState(false);
   const [certData, setCertData] = useState(null);
@@ -38,16 +40,18 @@ export default function PatientDashboard() {
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
-    const [r, q, u, ur] = await Promise.all([
+    const [r, q, u, ur, g] = await Promise.all([
       api.get(`/records/patient/${session.address}`),
       api.get(`/access/by-patient/${session.address}`),
       api.get(`/users`),
       api.get(`/upload-requests/patient/${session.address}`),
+      api.get(`/access/granted-by-patient/${session.address}`),
     ]);
     setRecords(r.data);
     setRequests(q.data);
     setDoctors(u.data.filter((x) => x.role === "doctor"));
     setUploadReqs(ur.data);
+    setActiveGrants(g.data);
   };
   useEffect(() => { load(); }, []);
 
@@ -61,6 +65,25 @@ export default function PatientDashboard() {
       load();
     } catch (e) {
       toast.error("Failed", { description: e?.response?.data?.detail || e.message });
+    }
+  };
+
+  const revokeAccess = async (grant) => {
+    if (!window.confirm(`Revoke access for ${grant.doctor_name || shortAddr(grant.doctor_address)}? They will lose decrypt rights immediately.`)) return;
+    setRevoking(grant.doctor_address_lower);
+    try {
+      const { message, signature } = await buildSig("revoke-access");
+      await api.post("/access/revoke", {
+        patient_address: session.address,
+        doctor_address: grant.doctor_address,
+        signature, message,
+      });
+      toast.success("Access revoked", { description: `${grant.doctor_name || shortAddr(grant.doctor_address)} can no longer decrypt your records` });
+      load();
+    } catch (e) {
+      toast.error("Revoke failed", { description: e?.response?.data?.detail || e.message });
+    } finally {
+      setRevoking(null);
     }
   };
 
@@ -244,9 +267,51 @@ export default function PatientDashboard() {
         </TabsContent>
 
         <TabsContent value="access" className="space-y-4">
-          {pendingAccess.length === 0 && otherAccess.length === 0 && (
+          {pendingAccess.length === 0 && otherAccess.length === 0 && activeGrants.length === 0 && (
             <div className="card-modern p-16 text-center text-zinc-500 font-mono text-sm">No access requests</div>
           )}
+
+          {/* ACTIVE GRANTS — currently-approved doctors with a Revoke button */}
+          {activeGrants.length > 0 && (
+            <div className="card-modern overflow-hidden border-emerald/30" data-testid="active-grants-panel">
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <div>
+                  <div className="eyebrow text-emerald">active grants ({activeGrants.length})</div>
+                  <div className="text-[11px] text-zinc-500 font-mono mt-1">Doctors who can currently decrypt your records. Revoke any anytime.</div>
+                </div>
+              </div>
+              <Table>
+                <TableBody>
+                  {activeGrants.map((g) => (
+                    <TableRow key={g.doctor_address_lower} className="border-white/5" data-testid={`grant-${g.doctor_address_lower}`}>
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm">{g.doctor_name || "Unknown doctor"}</div>
+                        <div className="text-[11px] text-zinc-500 font-mono">
+                          {g.doctor_department || "—"}{g.doctor_hospital ? ` · ${g.doctor_hospital}` : ""}
+                        </div>
+                      </TableCell>
+                      <TableCell><Hash value={g.doctor_address} testId={`grant-addr-${g.doctor_address_lower}`} /></TableCell>
+                      <TableCell className="font-mono text-[10px] text-zinc-500">
+                        approved · {new Date(g.approved_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={() => revokeAccess(g)}
+                          disabled={revoking === g.doctor_address_lower}
+                          data-testid={`revoke-${g.doctor_address_lower}-btn`}
+                          className="h-9 px-4 rounded-lg border border-rose/40 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/15 disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          <X size={12} weight="bold" />
+                          {revoking === g.doctor_address_lower ? "Revoking…" : "Revoke & Sign"}
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
           {pendingAccess.map((req) => (
             <div key={req.id} className="card-modern p-5 border-amber/30" data-testid={`req-${req.id}`}>
               <div className="flex flex-col sm:flex-row sm:justify-between gap-4">

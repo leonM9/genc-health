@@ -31,6 +31,7 @@ export function StatusBadge({ status }) {
     anchored: "bg-sky-500/10 text-sky-400 border-sky-400/30",
     approved: "bg-sky-500/10 text-sky-400 border-sky-400/30",
     denied: "bg-rose/10 text-rose border-rose/30",
+    revoked: "bg-rose/10 text-rose border-rose/30",
     encrypted: "bg-cyan-400/10 text-cyan-300 border-cyan-300/30",
     admin: "bg-amber/10 text-amber border-amber/30",
     doctor: "bg-cyan-400/10 text-cyan-300 border-cyan-300/30",

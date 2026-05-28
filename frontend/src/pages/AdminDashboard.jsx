@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState([]);
   const [anchors, setAnchors] = useState([]);
   const [stats, setStats] = useState({});
+  const [adminRecords, setAdminRecords] = useState([]);
+  const [deletingRec, setDeletingRec] = useState(null);
   const [preview, setPreview] = useState({ root: "", layers: [] });
   const [anchoring, setAnchoring] = useState(false);
   const [polygonAnchoring, setPolygonAnchoring] = useState(false);
@@ -48,10 +50,12 @@ export default function AdminDashboard() {
   const [pipeline, setPipeline] = useState([]);
 
   const load = async () => {
-    const [u, p, a, s] = await Promise.all([
+    const [u, p, a, s, ar] = await Promise.all([
       api.get("/users"), api.get("/lpa/pending"), api.get("/lpa/anchors"), api.get("/lpa/stats"),
+      api.get("/admin/records"),
     ]);
     setUsers(u.data); setPending(p.data); setAnchors(a.data); setStats(s.data);
+    setAdminRecords(ar.data);
     setPreview(p.data.length ? merklePreview(p.data.map((x) => x.cid)) : { root: "", layers: [] });
   };
   useEffect(() => { load(); }, []);
@@ -150,6 +154,24 @@ export default function AdminDashboard() {
       load();
     } catch (e) {
       toast.error("Clear failed", { description: e?.response?.data?.detail || e.message });
+    }
+  };
+
+  const deleteRecord = async (rec) => {
+    if (!window.confirm(`Unpin "${rec.file_name}" from Pinata and delete it permanently?\n\nCID: ${rec.cid}\nPatient: ${rec.patient_name}\n\nThis cannot be undone. If the record was anchored, the Merkle root remains valid but this CID will no longer resolve.`)) return;
+    setDeletingRec(rec.id);
+    try {
+      const { message, signature } = await buildSig(`delete-record-${rec.id}`);
+      const r = await api.delete(`/admin/records/${rec.id}`, {
+        data: { admin_address: session.address, signature, message },
+      });
+      const pinMsg = r.data.pinata?.unpinned ? "unpinned from Pinata" : `Pinata: ${r.data.pinata?.reason || "not unpinned"}`;
+      toast.success("Record deleted", { description: pinMsg });
+      load();
+    } catch (e) {
+      toast.error("Delete failed", { description: e?.response?.data?.detail || e.message });
+    } finally {
+      setDeletingRec(null);
     }
   };
 
@@ -267,6 +289,7 @@ export default function AdminDashboard() {
           {[
             { v: "lpa", l: "LPA Batch", i: Cube },
             { v: "upload", l: "Attach File", i: UploadSimple },
+            { v: "records", l: `Records (${adminRecords.length})`, i: FileLock },
             { v: "register-doctor", l: "Register Doctor", i: Stethoscope },
             { v: "register-patient", l: "Register Patient", i: UserPlus },
             { v: "anchors", l: "Anchored Roots", i: Anchor },
@@ -473,6 +496,71 @@ export default function AdminDashboard() {
                   })}
                 </AnimatePresence>
               </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Records — admin view with unpin/delete */}
+        <TabsContent value="records">
+          <div className="card-modern p-6">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <div className="eyebrow mb-1">all medical records</div>
+                <h3 className="heading-display text-xl font-bold">Stored Records ({adminRecords.length})</h3>
+                <p className="text-zinc-400 text-sm mt-2 max-w-2xl">
+                  Every encrypted record currently pinned to Pinata IPFS. Use <span className="text-rose font-medium">Unpin & Delete</span>
+                  &nbsp;to remove a record permanently — the CID is unpinned from Pinata, the row is removed from MongoDB, and any
+                  pending LPA queue entry is dropped. Anchored Merkle roots remain valid on-chain (they prove what <em>was</em> stored).
+                </p>
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-white/5">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/5">
+                    <TableHead className="eyebrow">file</TableHead>
+                    <TableHead className="eyebrow">patient</TableHead>
+                    <TableHead className="eyebrow">uploader</TableHead>
+                    <TableHead className="eyebrow">cid</TableHead>
+                    <TableHead className="eyebrow">anchor</TableHead>
+                    <TableHead className="eyebrow text-right">action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {adminRecords.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-zinc-500 font-mono py-12">No records yet</TableCell></TableRow>
+                  )}
+                  {adminRecords.map((r) => (
+                    <TableRow key={r.id} className="border-white/5" data-testid={`admin-rec-${r.id}`}>
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm">{r.file_name}</div>
+                        <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{r.diagnosis || "—"} · {(r.file_size / 1024).toFixed(1)} KB</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{r.patient_name}</div>
+                        <Hash value={r.patient_address} testId={`admin-rec-pat-${r.id}`} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs text-zinc-400">{r.uploader_name}</div>
+                        <div className="text-[10px] text-zinc-600 font-mono">{r.uploader_role}</div>
+                      </TableCell>
+                      <TableCell><Hash value={r.cid} testId={`admin-rec-cid-${r.id}`} /></TableCell>
+                      <TableCell><StatusBadge status={r.anchor_status || "pending"} /></TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={() => deleteRecord(r)}
+                          disabled={deletingRec === r.id}
+                          data-testid={`admin-delete-rec-${r.id}`}
+                          className="h-9 px-3 rounded-lg border border-rose/40 bg-rose/5 text-rose font-semibold text-xs hover:bg-rose/15 disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          <Trash size={12} weight="bold" />
+                          {deletingRec === r.id ? "Unpinning…" : "Unpin & Delete"}
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
         </TabsContent>
