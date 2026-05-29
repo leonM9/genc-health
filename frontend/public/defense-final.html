@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gen C · Final Defense Deck · Chapters 1–6 + Compliance Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@600;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --feu-green: #006837; --feu-green-deep: #003d20;
+    --feu-gold: #c89200; --feu-gold-dim: #a07400;
+    --innov-blue: #5B9BD5; --innov-blue-deep: #1F4E79;
+    --innov-orange: #ED7D31; --innov-peach: #FDECC8;
+    --paper: #ffffff; --ink: #1F2D3D; --ink-soft: #4a5568; --muted: #7d8ba1;
+    --line: rgba(31, 78, 121, 0.15);
+    --danger: #c0392b; --success: #008060;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #ffffff; color: var(--ink); overflow: hidden;
+               font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif; }
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--innov-blue) 0%, var(--innov-orange) 100%);
+    z-index: 1000; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 12px rgba(91, 155, 213, 0.5);
+  }
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #ffffff; }
+  .slide {
+    position: absolute; inset: 0; padding: 46px 68px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    background-image: url('/feu-bg-light.jpg');
+    background-size: cover; background-position: center;
+    background-color: var(--paper);
+  }
+  .slide.title-slide, .slide.closing-slide, .slide.section-divider {
+    background-image: url('/feu-bg-cover.png');
+    background-size: cover; background-position: center;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .slide::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.80) 0%, rgba(255, 255, 255, 0.94) 30%,
+      rgba(255, 255, 255, 0.94) 70%, rgba(255, 255, 255, 0.80) 100%);
+  }
+  .slide.title-slide::after, .slide.closing-slide::after, .slide.section-divider::after {
+    background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.74) 40%,
+      rgba(255, 255, 255, 0.86) 75%, rgba(255, 255, 255, 0.48) 100%);
+  }
+  h1 { font-family: 'Playfair Display', serif; font-weight: 900;
+       font-size: clamp(36px, 4.8vw, 64px); line-height: 1.05;
+       color: var(--ink); letter-spacing: -0.02em; margin-bottom: 20px; }
+  h1 .accent { color: var(--innov-orange); }
+  h2 { font-family: 'Playfair Display', serif; font-weight: 700;
+       font-size: clamp(22px, 2.8vw, 38px); line-height: 1.1;
+       color: var(--ink); margin-bottom: 10px; letter-spacing: -0.01em; }
+  h3 { font-family: 'Manrope', sans-serif; font-weight: 700;
+       font-size: clamp(16px, 1.6vw, 21px); color: var(--innov-blue-deep);
+       margin-bottom: 6px; }
+  p { font-size: clamp(13px, 1vw, 15.5px); line-height: 1.55; color: var(--ink-soft); max-width: 72ch; }
+  p.lead { font-size: clamp(15px, 1.2vw, 18px); color: var(--ink); max-width: 78ch; font-weight: 500; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--innov-orange); margin-bottom: 10px;
+    font-weight: 600; display: inline-flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ''; width: 22px; height: 2px; background: var(--innov-orange); }
+  .slide-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 14px; position: relative; z-index: 2;
+  }
+  .feu-mark {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 2px; color: var(--innov-blue-deep); text-transform: uppercase;
+    font-weight: 600;
+  }
+  .feu-mark .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--innov-orange); box-shadow: 0 0 8px rgba(237, 125, 49, 0.5);
+  }
+  .slide-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--muted); letter-spacing: 2px;
+  }
+  .slide-content { flex: 1; display: flex; flex-direction: column;
+                   position: relative; z-index: 2; overflow: hidden; }
+  #nav {
+    position: fixed; bottom: 22px; right: 22px; z-index: 100;
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; box-shadow: 0 4px 16px rgba(31, 78, 121, 0.1);
+  }
+  #nav button {
+    background: none; border: none; color: var(--ink); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  #nav button:hover { background: rgba(237, 125, 49, 0.15); color: var(--innov-orange); }
+  #nav .counter {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--innov-orange); letter-spacing: 2px; padding: 0 10px; font-weight: 600;
+  }
+  #help-toggle {
+    position: fixed; bottom: 22px; left: 22px; z-index: 100;
+    background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; padding: 6px 12px; border-radius: 999px;
+    cursor: pointer; transition: color 0.2s;
+    box-shadow: 0 4px 16px rgba(31, 78, 121, 0.1);
+  }
+  #help-toggle:hover { color: var(--innov-orange); }
+  #help {
+    position: fixed; bottom: 58px; left: 22px; z-index: 99;
+    background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; font-size: 12px; max-width: 280px;
+    display: none; line-height: 1.7; color: var(--ink-soft);
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.15);
+  }
+  #help.shown { display: block; }
+  #help kbd {
+    background: rgba(237, 125, 49, 0.12); color: var(--innov-orange);
+    padding: 1px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    border: 1px solid rgba(237, 125, 49, 0.3);
+  }
+  #notes {
+    position: fixed; bottom: 60px; right: 22px; z-index: 99;
+    max-width: 480px; max-height: 400px; overflow-y: auto;
+    background: rgba(255, 245, 220, 0.97); color: var(--ink);
+    border-radius: 12px; padding: 16px 20px;
+    font-size: 13px; line-height: 1.6;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--innov-orange);
+    display: none;
+  }
+  #notes.shown { display: block; }
+  #notes .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--feu-green); font-weight: 700;
+    margin-bottom: 8px; text-transform: uppercase;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 22px; backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(31, 78, 121, 0.06);
+  }
+  .gold-callout {
+    border-left: 4px solid var(--innov-orange);
+    background: linear-gradient(90deg, rgba(253, 236, 200, 0.45), rgba(255, 255, 255, 0.7));
+    padding: 13px 20px; border-radius: 0 12px 12px 0;
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: 16.5px; line-height: 1.4; color: var(--ink);
+  }
+  .green-pill, .gold-pill, .red-pill, .blue-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px; border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+  }
+  .green-pill { background: rgba(0, 104, 55, 0.1); color: var(--feu-green); border: 1px solid rgba(0, 104, 55, 0.3); }
+  .gold-pill  { background: rgba(253, 236, 200, 0.6); color: var(--feu-gold-dim); border: 1px solid var(--innov-orange); }
+  .red-pill   { background: rgba(192, 57, 43, 0.08); color: var(--danger); border: 1px solid rgba(192, 57, 43, 0.3); }
+  .blue-pill  { background: rgba(91, 155, 213, 0.12); color: var(--innov-blue-deep); border: 1px solid rgba(91, 155, 213, 0.4); }
+
+  ul.bullets { list-style: none; margin-top: 4px; }
+  ul.bullets li {
+    padding: 6px 0 6px 22px; position: relative;
+    font-size: 13.5px; line-height: 1.5; color: var(--ink); max-width: 78ch;
+    border-bottom: 1px dashed rgba(31, 78, 121, 0.08);
+  }
+  ul.bullets li:last-child { border-bottom: none; }
+  ul.bullets li::before {
+    content: '◆'; position: absolute; left: 2px; top: 6px;
+    color: var(--innov-orange); font-size: 10px;
+  }
+  ul.bullets li b { color: var(--innov-blue-deep); font-weight: 700; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; align-content: start; margin-top: 4px; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; align-content: start; margin-top: 4px; }
+  .four-col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex: 1; align-content: start; margin-top: 4px; }
+
+  .mini-card {
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line);
+    border-top: 4px solid var(--innov-orange);
+    border-radius: 12px; padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 4px 14px rgba(31, 78, 121, 0.06);
+  }
+  .mini-card.green { border-top-color: var(--feu-green); }
+  .mini-card.blue  { border-top-color: var(--innov-blue); }
+  .mini-card.red   { border-top-color: var(--danger); }
+  .mini-card h3 { margin-bottom: 0; font-size: 15.5px; color: var(--ink); }
+  .mini-card p  { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; max-width: none; }
+  .mini-card .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--innov-orange);
+    font-weight: 700; margin-bottom: 2px;
+  }
+  .mini-card.green .tag { color: var(--feu-green); }
+  .mini-card.blue  .tag { color: var(--innov-blue-deep); }
+  .mini-card.red   .tag { color: var(--danger); }
+
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+  .stat-strip.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .stat-strip.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .stat {
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 12px; text-align: center;
+  }
+  .stat .v {
+    font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 900;
+    color: var(--innov-orange); line-height: 1;
+  }
+  .stat .l {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--ink-soft); text-transform: uppercase;
+    margin-top: 6px; font-weight: 600;
+  }
+
+  /* Architecture stack */
+  .arch-stack { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .arch-layer {
+    background: rgba(255, 255, 255, 0.93); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 20px;
+    display: grid; grid-template-columns: 130px 1fr 1fr; gap: 16px; align-items: center;
+  }
+  .arch-layer.l1 { border-left: 5px solid var(--innov-blue); }
+  .arch-layer.l2 { border-left: 5px solid var(--innov-orange); }
+  .arch-layer.l3 { border-left: 5px solid var(--feu-green); }
+  .arch-layer .lab {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 2.5px; text-transform: uppercase; font-weight: 700;
+  }
+  .arch-layer.l1 .lab { color: var(--innov-blue-deep); }
+  .arch-layer.l2 .lab { color: var(--innov-orange); }
+  .arch-layer.l3 .lab { color: var(--feu-green); }
+  .arch-layer .title {
+    font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700;
+    color: var(--ink);
+  }
+  .arch-layer .desc { font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+
+  /* Compliance table */
+  table.compliance {
+    width: 100%; border-collapse: collapse; margin-top: 6px;
+    background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden;
+  }
+  table.compliance th, table.compliance td {
+    padding: 9px 13px; text-align: left; vertical-align: middle;
+    border-bottom: 1px solid rgba(31, 78, 121, 0.08);
+    font-size: 12px; line-height: 1.4;
+  }
+  table.compliance th {
+    background: rgba(91, 155, 213, 0.1);
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--innov-blue-deep); font-weight: 700;
+  }
+  table.compliance tr:last-child td { border-bottom: none; }
+  table.compliance td.algo-name { font-weight: 700; color: var(--ink); white-space: nowrap; }
+  table.compliance td.our { background: rgba(0, 104, 55, 0.05); }
+  table.compliance tr.our td { background: rgba(0, 104, 55, 0.05); }
+  table.compliance .check { color: var(--feu-green); font-weight: 700; }
+  table.compliance .cross { color: var(--danger); font-weight: 700; }
+  table.compliance .partial { color: var(--feu-gold-dim); font-weight: 700; }
+
+  /* Test list with checkbox feel */
+  .test-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin-top: 6px; }
+  .test-list .t-row {
+    display: grid; grid-template-columns: 28px 1fr auto;
+    gap: 10px; align-items: center; padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line);
+    border-left: 3px solid var(--feu-green); border-radius: 8px;
+  }
+  .test-list .t-row .check { color: var(--feu-green); font-weight: 700; font-size: 14px; }
+  .test-list .t-row .name {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--ink);
+  }
+  .test-list .t-row .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--feu-green);
+    background: rgba(0, 104, 55, 0.08); padding: 2px 8px; border-radius: 999px;
+  }
+
+  /* Live demo cue */
+  .live-cue { display: flex; flex-direction: column; gap: 22px; flex: 1;
+              justify-content: center; align-items: flex-start; max-width: 100%; }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 14px;
+    background: var(--innov-orange); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+    padding: 10px 22px; border-radius: 999px;
+    box-shadow: 0 8px 28px rgba(237, 125, 49, 0.4);
+  }
+  .live-badge .pulse-dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8);
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); transform: scale(1); }
+    70%  { box-shadow: 0 0 0 14px rgba(255, 255, 255, 0); transform: scale(1.05); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); transform: scale(1); }
+  }
+  .demo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; }
+  .demo-tier {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--line); border-top: 4px solid var(--innov-orange);
+    border-radius: 14px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.1);
+  }
+  .demo-tier.green { border-top-color: var(--feu-green); }
+  .demo-tier.blue  { border-top-color: var(--innov-blue); }
+  .demo-tier .tier-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 3px; color: var(--innov-orange);
+    text-transform: uppercase; font-weight: 700;
+  }
+  .demo-tier h3 {
+    font-family: 'Playfair Display', serif; font-size: 20px;
+    color: var(--ink); margin-bottom: 2px; font-weight: 700; line-height: 1.1;
+  }
+  .demo-tier .what { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+  .demo-tier .cmd {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    background: rgba(31, 78, 121, 0.06); color: var(--innov-blue-deep);
+    padding: 6px 10px; border-radius: 6px;
+    border: 1px dashed rgba(31, 78, 121, 0.2);
+    margin-top: auto; word-break: break-all;
+  }
+  .demo-tier .cmd::before { content: '$ '; color: var(--innov-orange); font-weight: 700; }
+  .terminal-strip {
+    background: #0c2640; color: #d6e4f0; border-radius: 12px;
+    padding: 14px 20px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; width: 100%;
+    box-shadow: 0 12px 32px rgba(12, 38, 64, 0.3);
+    border: 1px solid rgba(237, 125, 49, 0.3);
+  }
+  .terminal-strip .ts-line { display: block; }
+  .terminal-strip .ts-prompt { color: var(--innov-orange); font-weight: 700; }
+  .terminal-strip .ts-cmd    { color: #ffffff; }
+  .terminal-strip .ts-out    { color: #7ed4a8; }
+  .terminal-strip .ts-cursor {
+    display: inline-block; width: 8px; height: 12px;
+    background: var(--innov-orange); margin-left: 4px; vertical-align: text-bottom;
+    animation: cursor-blink 1s steps(2, end) infinite;
+  }
+  @keyframes cursor-blink { 50% { opacity: 0; } }
+
+  /* Section divider */
+  .section-divider { align-items: center; justify-content: center; text-align: center; }
+  .section-divider .slide-content { align-items: center; justify-content: center; gap: 14px; max-width: 1100px; }
+  .section-divider .chapter-stamp {
+    font-family: 'JetBrains Mono', monospace; color: var(--innov-orange);
+    font-size: 12px; letter-spacing: 5px; font-weight: 700;
+    background: #fff; padding: 8px 22px; border-radius: 999px;
+    box-shadow: 0 4px 16px rgba(31, 78, 121, 0.12);
+    align-self: center;
+  }
+  .section-divider h1 {
+    font-size: clamp(44px, 5.6vw, 78px); align-self: center;
+    background: #ffffff; padding: 24px 44px; border-radius: 18px;
+    border-left: 8px solid var(--innov-orange);
+    box-shadow: 0 16px 48px rgba(31, 78, 121, 0.18);
+    margin-bottom: 10px;
+  }
+  .section-divider .sd-deck { font-family: 'Playfair Display', serif;
+    font-style: italic; font-size: clamp(15px, 1.5vw, 21px); color: var(--ink);
+    background: #fff; padding: 11px 22px; border-radius: 10px;
+    box-shadow: 0 6px 22px rgba(31, 78, 121, 0.1); max-width: 60ch;
+  }
+
+  /* Title slide */
+  .title-slide { align-items: flex-start; justify-content: center; padding: 50px 86px; }
+  .title-slide .slide-content {
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px);
+    border-left: 8px solid var(--innov-orange);
+    border-radius: 0 18px 18px 0;
+    padding: 38px 48px; max-width: 1020px;
+    box-shadow: 0 16px 48px rgba(31, 78, 121, 0.18);
+    flex: 0 1 auto;
+  }
+  .title-slide .feu-banner {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 4px; color: var(--innov-orange);
+    margin-bottom: 22px; display: flex; align-items: center; gap: 14px; font-weight: 700;
+  }
+  .title-slide .feu-banner .bar { width: 60px; height: 2px; background: var(--innov-orange); }
+  .title-slide h1 {
+    font-size: clamp(42px, 5.6vw, 76px); line-height: 0.98; margin-bottom: 20px;
+    color: #0c2640;
+  }
+  .title-slide h1 .accent { color: #c54a0e; }
+  .title-slide .subtitle {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(16px, 1.75vw, 23px); color: #1F2D3D;
+    margin-bottom: 28px; max-width: 36ch; line-height: 1.3; font-weight: 500;
+  }
+  .title-slide .meta {
+    display: flex; gap: 26px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #1F2D3D; letter-spacing: 2px; text-transform: uppercase;
+    padding-top: 18px; border-top: 1px solid var(--line); font-weight: 500;
+  }
+  .title-slide .meta span { display: flex; flex-direction: column; gap: 3px; }
+  .title-slide .meta span b { color: var(--innov-orange); font-weight: 700; }
+
+  /* Closing */
+  .closing-slide { align-items: center; justify-content: center; text-align: center; }
+  .closing-slide .slide-content { align-items: center; max-width: 1200px; gap: 18px; }
+  .closing-slide .feu-mono {
+    font-family: 'JetBrains Mono', monospace; color: #fff;
+    font-size: 12px; letter-spacing: 4px; margin-bottom: 8px; font-weight: 700;
+    background: var(--innov-orange); padding: 10px 22px; border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(237, 125, 49, 0.35);
+    display: inline-block; align-self: center;
+  }
+  .closing-slide h1 {
+    font-size: clamp(46px, 5.8vw, 88px); margin-bottom: 18px;
+    color: #0c2640; background: #ffffff;
+    padding: 26px 46px; border-radius: 18px;
+    border-left: 8px solid var(--innov-orange);
+    box-shadow: 0 16px 48px rgba(31, 78, 121, 0.2);
+    line-height: 1.0; align-self: center;
+  }
+  .closing-slide h1 .accent { color: #c54a0e !important; }
+  .closing-slide .tagline {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(15px, 1.5vw, 20px); color: #0c2640; max-width: 60ch;
+    margin: 0 auto 28px;
+    background: #ffffff; padding: 14px 26px; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(31, 78, 121, 0.12); font-weight: 500;
+  }
+
+  /* SOP/Obj */
+  .sop-obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; margin-top: 4px; }
+  .panel {
+    background: rgba(255, 255, 255, 0.93); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .panel.left  { border-top: 4px solid var(--innov-blue); }
+  .panel.right { border-top: 4px solid var(--feu-green); }
+  .panel .head {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase; font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .panel.left  .head { color: var(--innov-blue-deep); }
+  .panel.right .head { color: var(--feu-green); }
+  .panel .panel-title {
+    font-family: 'Playfair Display', serif; font-size: 17.5px;
+    color: var(--ink); margin-bottom: 4px; font-weight: 700;
+  }
+  .panel ol, .panel ul { padding-left: 18px; }
+  .panel li { font-size: 12.5px; line-height: 1.5; color: var(--ink); padding: 4px 0; }
+  .panel li b { color: var(--innov-blue-deep); }
+
+  /* Compliance index footer */
+  .comp-index {
+    position: absolute; bottom: 14px; left: 68px; right: 68px;
+    z-index: 2;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    color: var(--muted); letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .comp-index .pip {
+    width: 8px; height: 8px; border-radius: 50%; background: rgba(91, 155, 213, 0.3);
+  }
+  .comp-index .pip.on { background: var(--innov-orange); box-shadow: 0 0 8px rgba(237, 125, 49, 0.6); }
+  .comp-index .label { color: var(--innov-orange); font-weight: 700; }
+
+  @media (max-width: 1200px) {
+    .slide { padding: 32px 40px; }
+    .arch-layer { grid-template-columns: 1fr; gap: 6px; }
+    .sop-obj-grid, .two-col, .three-col, .four-col, .demo-grid, .test-list { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ════ SLIDE 1 · TITLE ════ -->
+  <section class="slide title-slide active" data-notes="Greet the panel: 'Good day, esteemed members of the panel. We respectfully present the final defense of Gen C — a privacy-controlled and verifiable medical-record decentralized application, covering Chapters 1 through 6 and our compliance report for the previous term. Over the next ten minutes we will walk you through our theoretical framework, the problem statement and objectives, the system architecture, our comprehensive compliance report responding to last term's directives, and our final results, conclusion, and recommendations.'">
+    <div class="slide-content">
+      <div class="feu-banner">
+        <span class="bar"></span>
+        <span>Far Eastern University · The Innovation College · Final Defense 2026</span>
+      </div>
+      <h1>Gen <span class="accent">C</span><br/>Final Defense</h1>
+      <div class="subtitle">A privacy-controlled and verifiable medical-record decentralized application — Chapters 1–6 with compliance report of the previous term.</div>
+      <div class="meta">
+        <span><b>Format</b>10-Minute Brief</span>
+        <span><b>Scope</b>Ch. 1 – 6 + Compliance</span>
+        <span><b>Standards</b>RA 10173 · ISO/IEC 25010</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 2 · THEORETICAL + ALGORITHMIC DISCUSSION ════ -->
+  <section class="slide" data-notes="50 seconds. 'Our study is anchored on three theoretical pillars and operationalized through three algorithms. Each pillar resolves a specific failure of the current centralized system in Philippine healthcare.' Walk down the three pillars briefly, then the three algorithms. Land on O(n) → O(log n).">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Theoretical &amp; Conceptual Framework + Algorithmic Core</span></div>
+      <div class="slide-num">02 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 1.4 – 1.5 &amp; 3.5</div>
+      <h2>Three pillars. Three algorithms. One privacy-by-design system.</h2>
+
+      <div class="three-col" style="margin-bottom: 12px;">
+        <div class="mini-card green">
+          <span class="tag">Pillar I</span>
+          <h3>Cryptographic Truth</h3>
+          <p>Trust derives from mathematics, not institutions — a backdated certificate is mathematically impossible.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Pillar II</span>
+          <h3>Self-Sovereign Identity</h3>
+          <p>Patients own their records through Decentralized Identifiers (DIDs).</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Pillar III</span>
+          <h3>Decentralized Governance</h3>
+          <p>Authority is distributed across the consortium — no single administrator controls the ledger.</p>
+        </div>
+      </div>
+
+      <div class="three-col" style="margin-bottom: 10px;">
+        <div class="mini-card">
+          <span class="tag">Algorithm I · Confidentiality</span>
+          <h3>AES-256-GCM</h3>
+          <p>Symmetric, 256-bit, authenticated. Encrypts the payload <i>before</i> it leaves the browser.</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Algorithm II · Access Control</span>
+          <h3>CP-ABE</h3>
+          <p>Wraps the AES key under a Boolean policy. Only matching attributes can decrypt.</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Algorithm III · Scalability</span>
+          <h3>Layered Proof Aggregation</h3>
+          <p>Merkle batching of <i>N</i> hashes. <b>O(n) → O(log n)</b>.</p>
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat"><div class="v">256-bit</div><div class="l">AES Key</div></div>
+        <div class="stat"><div class="v">Boolean</div><div class="l">CP-ABE Policy</div></div>
+        <div class="stat"><div class="v">O(log n)</div><div class="l">LPA Verify</div></div>
+        <div class="stat"><div class="v">≥ 280 TPS</div><div class="l">Target Throughput</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 3 · SOP + OBJECTIVES ════ -->
+  <section class="slide" data-notes="50 seconds. State the four sub-problems and the five objectives — they map one-to-one. Anchor on 280 TPS and sub-cent cost — those are our quantifiable promises.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Statement of the Problem &amp; Objectives of the Study</span></div>
+      <div class="slide-num">03 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 1.2 &amp; 1.3</div>
+      <h2>Four problems. Five objectives. One-to-one alignment.</h2>
+
+      <div class="sop-obj-grid">
+        <div class="panel left">
+          <div class="head">Statement of the Problem</div>
+          <div class="panel-title">How can hospitals adopt a scalable, privacy-conscious, decentralized identity system?</div>
+          <ol>
+            <li>How can a <b>decentralized architecture</b> prevent mass data exfiltration during a breach?</li>
+            <li>How can <b>immutable timestamping</b> prevent retroactive document falsification?</li>
+            <li>How can the <b>LPA protocol</b> reduce the gas cost of thousands of daily transactions?</li>
+            <li>How can data be accessible <b>only to authorized attributes</b>, compliant with RA 10173?</li>
+          </ol>
+        </div>
+        <div class="panel right">
+          <div class="head">Objectives — General &amp; Specific</div>
+          <div class="panel-title">Design and develop a decentralized application using AES-256, CP-ABE, and LPA.</div>
+          <ul>
+            <li><b>SO 1.</b> Build three modules — Registry, Patient Wallet, Provider.</li>
+            <li><b>SO 2.</b> Implement privacy-preserving verification via Zero-Knowledge Proofs.</li>
+            <li><b>SO 3.</b> Deploy LPA for ≥ <b>280 TPS</b> at &lt; <b>$0.01 / record</b>.</li>
+            <li><b>SO 4.</b> Integrate <b>AES-256</b> + <b>CP-ABE</b> for granular off-chain access.</li>
+            <li><b>SO 5.</b> Evaluate against <b>ISO/IEC 25010</b> via structured UAT.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 4 · SYSTEM ARCHITECTURE ════ -->
+  <section class="slide" data-notes="50 seconds. Walk top to bottom. 'Cleartext is encrypted at the Presentation Layer using WebAssembly so the medical payload never leaves the user's device unencrypted. The Logic Layer hosts the CP-ABE authority and the LPA batcher. The Data Layer pins ciphertext to a private IPFS cluster and anchors only the Merkle root on the EVM permissioned ledger using QBFT consensus.' Close with SMTP-OTP rejecting SIM-swap.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>System Architecture</span></div>
+      <div class="slide-num">04 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Sections 3.2 – 3.3</div>
+      <h2>Three layers — cleartext never leaves the browser.</h2>
+
+      <div class="arch-stack">
+        <div class="arch-layer l1">
+          <div>
+            <div class="lab">Layer 1 · Presentation</div>
+            <div class="title">React.js + WebAssembly</div>
+          </div>
+          <div class="desc"><b>Client-side AES-256-GCM encryption.</b> The medical payload is encrypted on-device before any network call. Holds the patient's DID private key.</div>
+          <div class="desc"><b>Patient Wallet · Provider Portal · Admin Dashboard</b> — role-scoped UIs.</div>
+        </div>
+        <div class="arch-layer l2">
+          <div>
+            <div class="lab">Layer 2 · Logic</div>
+            <div class="title">Node.js / FastAPI Middleware</div>
+          </div>
+          <div class="desc"><b>CP-ABE authority</b> issues attribute-based decryption keys. <b>LPA service</b> aggregates record hashes into Merkle batches.</div>
+          <div class="desc"><b>SMTP multi-factor OTP</b> — SMS rejected to defeat SIM-swap; reachable over GIDA satellite links.</div>
+        </div>
+        <div class="arch-layer l3">
+          <div>
+            <div class="lab">Layer 3 · Data</div>
+            <div class="title">EVM Permissioned Ledger + IPFS</div>
+          </div>
+          <div class="desc"><b>QBFT consensus</b> for immediate finality. The chain stores only the Merkle root — never the payload.</div>
+          <div class="desc"><b>Private IPFS cluster</b> pins encrypted ciphertext; CIDs are content-addressed and tamper-evident.</div>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Cleartext medical data never crosses a network boundary in plaintext — privacy is enforced cryptographically, not procedurally.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 5 · COMPLIANCE REPORT · OVERVIEW (divider) ════ -->
+  <section class="slide section-divider" data-notes="15 seconds. Anchor the panel firmly. 'The next twelve slides constitute our compliance report responding to every directive raised during the previous term. We address testing rigor, computational analysis, complexity bounds, cost amortization, comparative analysis, and authentication hardening.'">
+    <div class="slide-content">
+      <span class="chapter-stamp">Compliance Report · Previous Term</span>
+      <h1>What <span style="color: var(--innov-orange);">we corrected.</span></h1>
+      <div class="sd-deck">Twelve dimensions of strengthened evidence — a formal response to the panel's directives.</div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 6 · COMPLIANCE 1 · UNIT TESTING ════ -->
+  <section class="slide" data-notes="40 seconds. 'Compliance item one — unit testing. We expanded our unit-test suite to 18 tests covering every cryptographic primitive in isolation. AES-256-GCM key derivation, GCM nonce uniqueness, CP-ABE attribute satisfaction, keccak-256 hashing, secp256k1 signature recovery, and our audit-log SHA-256 hashing. All 18 pass on every commit through pytest in our CI pipeline.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 1 · Unit Testing</span></div>
+      <div class="slide-num">06 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 01 of 12</div>
+      <h2>Unit Testing — every primitive verified in isolation.</h2>
+
+      <div class="stat-strip cols-3" style="margin-bottom: 10px;">
+        <div class="stat"><div class="v">18 / 18</div><div class="l">Tests Passing</div></div>
+        <div class="stat"><div class="v">100 %</div><div class="l">Primitive Coverage</div></div>
+        <div class="stat"><div class="v">&lt; 5 s</div><div class="l">CI Runtime</div></div>
+      </div>
+
+      <div class="test-list">
+        <div class="t-row"><span class="check">✓</span><span class="name">test_aes_key_derivation</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_gcm_nonce_uniqueness</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_cpabe_attribute_match</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_cpabe_policy_eval</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_keccak256_hash_chain</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_merkle_root_deterministic</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_secp256k1_sign_recover</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_eip191_message_format</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_audit_sig_sha256_hash</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_did_identifier_format</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_cid_validation</span><span class="tag">unit</span></div>
+        <div class="t-row"><span class="check">✓</span><span class="name">test_pbae_policy_serializer</span><span class="tag">unit</span></div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Each unit test isolates a single cryptographic guarantee — together they form the mathematical foundation that every higher-tier test depends on.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 7 · COMPLIANCE 2 · INTEGRATION TESTING ════ -->
+  <section class="slide" data-notes="40 seconds. 'Compliance item two — integration testing. We exercise the full pipeline: encrypt the payload, pin to IPFS, batch into a Merkle root, anchor on-chain, allow CP-ABE decryption, revoke access, and verify audit-log emission. 25 integration tests in total, all passing in the run_defense_tests.sh script.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 2 · Integration Testing</span></div>
+      <div class="slide-num">07 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 02 of 12</div>
+      <h2>Integration Testing — the full pipeline, end-to-end.</h2>
+
+      <div class="stat-strip cols-3" style="margin-bottom: 10px;">
+        <div class="stat"><div class="v">25 / 25</div><div class="l">Tests Passing</div></div>
+        <div class="stat"><div class="v">7</div><div class="l">Pipeline Stages</div></div>
+        <div class="stat"><div class="v">~11 s</div><div class="l">CI Runtime</div></div>
+      </div>
+
+      <div class="three-col">
+        <div class="mini-card green">
+          <span class="tag">Stages 1–3 · Encrypt → Pin → Batch</span>
+          <ul class="bullets" style="margin-top: 4px;">
+            <li>encrypt_payload_aes_gcm</li>
+            <li>wrap_key_with_cpabe</li>
+            <li>pin_ciphertext_to_ipfs</li>
+            <li>append_to_lpa_pending</li>
+            <li>build_merkle_root</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Stages 4–5 · Anchor → Decrypt</span>
+          <ul class="bullets" style="margin-top: 4px;">
+            <li>anchor_root_polygon</li>
+            <li>fetch_ciphertext_by_cid</li>
+            <li>request_access_grant</li>
+            <li>approve_signed_grant</li>
+            <li>cpabe_decrypt_record</li>
+          </ul>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Stages 6–7 · Revoke → Audit</span>
+          <ul class="bullets" style="margin-top: 4px;">
+            <li>revoke_access_signed</li>
+            <li>post_revoke_decrypt_blocked</li>
+            <li>delete_record_signed</li>
+            <li>pinata_unpin_on_delete</li>
+            <li>audit_log_event_emitted</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Every integration test simulates a real clinical workflow — onboarding, upload, consent, decrypt, withdrawal — proving the system holds together at the seams.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 8 · COMPLIANCE 3 · SECURITY TESTING ════ -->
+  <section class="slide" data-notes="50 seconds. 'Compliance item three — security testing. We adopted an adversarial red-team methodology, simulating every realistic attack against a Philippine medical system. 27 security tests and 6 distinct attack vectors. Every one is defended. Unauthorized decrypt fails. Post-revoke decrypt fails. Admin-signature spoof fails. Ciphertext tampering is detected. Replay attacks are rejected. Brute-force OTP triggers exponential lockout. Defense rate — one hundred percent.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 3 · Security Testing</span></div>
+      <div class="slide-num">08 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 03 of 12</div>
+      <h2>Security Testing — adversarial, exhaustive, defended.</h2>
+
+      <div class="stat-strip cols-3" style="margin-bottom: 10px;">
+        <div class="stat"><div class="v">27 / 27</div><div class="l">Security Tests Pass</div></div>
+        <div class="stat"><div class="v">6 / 6</div><div class="l">Attack Vectors Defended</div></div>
+        <div class="stat"><div class="v">100 %</div><div class="l">Defense Rate</div></div>
+      </div>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Attack Vector</th>
+            <th>Mechanism</th>
+            <th>Defense</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="algo-name">A1 · Unauthorized Decrypt</td>
+            <td>Doctor without CP-ABE attributes attempts decryption</td>
+            <td>Policy evaluation fails → key withheld</td>
+            <td class="check">✓ blocked (403)</td>
+          </tr>
+          <tr>
+            <td class="algo-name">A2 · Post-Revoke Decrypt</td>
+            <td>Revoked doctor tries to decrypt a previously-accessed record</td>
+            <td>Audit log check + grant.status = revoked</td>
+            <td class="check">✓ blocked (403)</td>
+          </tr>
+          <tr>
+            <td class="algo-name">A3 · Admin Signature Spoof</td>
+            <td>Doctor signs an admin-only delete request</td>
+            <td>verify_admin() rejects non-admin signer</td>
+            <td class="check">✓ blocked (401)</td>
+          </tr>
+          <tr>
+            <td class="algo-name">A4 · Ciphertext Tampering</td>
+            <td>Malicious byte injected into pinned ciphertext</td>
+            <td>GCM auth tag mismatch → decrypt aborts</td>
+            <td class="check">✓ detected</td>
+          </tr>
+          <tr>
+            <td class="algo-name">A5 · Replay Attack</td>
+            <td>Captured signed request resubmitted</td>
+            <td>Nonce + timestamp window rejection</td>
+            <td class="check">✓ blocked (409)</td>
+          </tr>
+          <tr>
+            <td class="algo-name">A6 · Brute-Force OTP</td>
+            <td>Automated OTP guessing against SMTP-OTP</td>
+            <td>Exponential lockout (1m → 15m → 24h)</td>
+            <td class="check">✓ locked out</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Empirical proof of our security posture under RA 10173 §20 — every adversarial path is closed by cryptography, not by procedure.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 9 · COMPLIANCE 4 · UAT ════ -->
+  <section class="slide" data-notes="40 seconds. 'Compliance item four — User Acceptance Testing. We administered the ISO/IEC 25010 questionnaire on a five-point Likert scale to fifty respondents — a mix of IT professionals, clinical staff, and prospective users. Every characteristic scored above 3.4, putting the overall weighted mean at 3.531, interpreted as Strongly Agree.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 4 · User Acceptance Testing (ISO/IEC 25010)</span></div>
+      <div class="slide-num">09 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 04 of 12</div>
+      <h2>UAT — 50 respondents · ISO/IEC 25010 weighted mean 3.531.</h2>
+
+      <div class="stat-strip" style="margin-bottom: 10px;">
+        <div class="stat"><div class="v">50</div><div class="l">Respondents</div></div>
+        <div class="stat"><div class="v">6</div><div class="l">Characteristics</div></div>
+        <div class="stat"><div class="v">3.531</div><div class="l">Overall Mean</div></div>
+        <div class="stat"><div class="v">SA</div><div class="l">Interpretation</div></div>
+      </div>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>ISO/IEC 25010 Characteristic</th>
+            <th>Weighted Mean</th>
+            <th>Interpretation</th>
+            <th>Highest-Rated Sub-Item</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="algo-name">Functional Stability</td><td><b>3.572</b></td><td class="check">Strongly Agree</td><td>Functional completeness · 3.61</td></tr>
+          <tr><td class="algo-name">Security</td><td><b>3.569</b></td><td class="check">Strongly Agree</td><td>Confidentiality · 3.64</td></tr>
+          <tr><td class="algo-name">Reliability</td><td><b>3.556</b></td><td class="check">Strongly Agree</td><td>Fault tolerance · 3.59</td></tr>
+          <tr><td class="algo-name">Efficiency</td><td><b>3.533</b></td><td class="check">Strongly Agree</td><td>Time behavior · 3.57</td></tr>
+          <tr><td class="algo-name">Usability</td><td><b>3.511</b></td><td class="check">Strongly Agree</td><td>Learnability · 3.55</td></tr>
+          <tr><td class="algo-name">Maintainability</td><td><b>3.444</b></td><td class="check">Strongly Agree</td><td>Modularity · 3.51</td></tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Across all six ISO/IEC 25010 characteristics, the respondent cohort returned Strongly Agree — empirically supporting clinical deployability.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 10 · COMPLIANCE 5 · AMORTIZATION ════ -->
+  <section class="slide" data-notes="50 seconds. 'Compliance item five — cost amortization. The panel asked for empirical evidence that LPA actually reduces per-record cost. Here is the table. At a batch of one, we pay the full anchor fee. At a batch of one hundred, that same on-chain transaction settles one hundred records, dropping per-record cost by two orders of magnitude. At five hundred records per batch, we are paying twenty-eight microdollars per record — meeting Specific Objective Three by a comfortable margin.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 5 · LPA Cost Amortization</span></div>
+      <div class="slide-num">10 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 05 of 12</div>
+      <h2>One on-chain transaction settles an entire batch.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Batch Size (N)</th>
+            <th>Anchor Cost (Polygon)</th>
+            <th>Per-Record Cost</th>
+            <th>Naive (1 tx / record)</th>
+            <th>Savings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="algo-name">1</td><td>≈ $0.010</td><td>$0.010</td><td>$0.010</td><td>baseline</td></tr>
+          <tr><td class="algo-name">10</td><td>≈ $0.011</td><td>$0.00110</td><td>$0.100</td><td class="check">89.0 %</td></tr>
+          <tr class="our"><td class="algo-name">100</td><td>≈ $0.012</td><td>$0.00012</td><td>$1.000</td><td class="check">98.8 %</td></tr>
+          <tr class="our"><td class="algo-name">500</td><td>≈ $0.014</td><td><b>$0.000028</b></td><td>$5.000</td><td class="check">99.7 %</td></tr>
+          <tr><td class="algo-name">1000</td><td>≈ $0.016</td><td>$0.000016</td><td>$10.00</td><td class="check">99.84 %</td></tr>
+        </tbody>
+      </table>
+
+      <div class="stat-strip cols-3" style="margin-top: 12px;">
+        <div class="stat"><div class="v">≤ $0.01</div><div class="l">Per Record (SO 3)</div></div>
+        <div class="stat"><div class="v">99 %</div><div class="l">Savings vs. Naive</div></div>
+        <div class="stat"><div class="v">280+ TPS</div><div class="l">Effective Throughput</div></div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Per-record cost falls as <b>1 / N</b> — the empirical confirmation that LPA achieves the cost target declared in Specific Objective Three.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 11 · COMPLIANCE 6 · COMPUTATIONAL ANALYSIS ════ -->
+  <section class="slide" data-notes="45 seconds. 'Compliance item six — overall computational analysis. We benchmarked every operation in the pipeline against the clinical tolerance threshold. AES encryption of a 5-megabyte DICOM completes in under 80 milliseconds with hardware acceleration. CP-ABE wrap takes around 120 milliseconds for a 4-attribute policy. The full encrypt-pin-batch path completes in under three seconds on a mid-range workstation, well within emergency-care expectations.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 6 · Computational Analysis</span></div>
+      <div class="slide-num">11 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 06 of 12</div>
+      <h2>Empirical benchmark of every pipeline operation.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Input Size</th>
+            <th>Measured Time</th>
+            <th>Clinical Threshold</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="algo-name">AES-256-GCM Encrypt</td><td>5 MB DICOM</td><td>≈ 78 ms</td><td>&lt; 500 ms</td><td class="check">✓ pass</td></tr>
+          <tr><td class="algo-name">CP-ABE Key Wrap</td><td>4-attribute policy</td><td>≈ 121 ms</td><td>&lt; 500 ms</td><td class="check">✓ pass</td></tr>
+          <tr><td class="algo-name">SHA-256 Hash</td><td>5 MB ciphertext</td><td>≈ 22 ms</td><td>&lt; 100 ms</td><td class="check">✓ pass</td></tr>
+          <tr><td class="algo-name">IPFS Pin (Pinata)</td><td>5 MB ciphertext</td><td>≈ 1.4 s</td><td>&lt; 5 s</td><td class="check">✓ pass</td></tr>
+          <tr><td class="algo-name">Merkle Root Build</td><td>500 leaves</td><td>≈ 38 ms</td><td>&lt; 1 s</td><td class="check">✓ pass</td></tr>
+          <tr><td class="algo-name">Polygon Anchor TX</td><td>32-byte root</td><td>≈ 2.4 s</td><td>&lt; 15 s</td><td class="check">✓ pass</td></tr>
+          <tr class="our"><td class="algo-name"><b>End-to-End Upload</b></td><td>5 MB record</td><td><b>≈ 2.9 s</b></td><td>&lt; 10 s</td><td class="check">✓ pass</td></tr>
+          <tr class="our"><td class="algo-name"><b>End-to-End Decrypt</b></td><td>5 MB record</td><td><b>≈ 1.6 s</b></td><td>&lt; 5 s</td><td class="check">✓ pass</td></tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        No single operation in the Gen C pipeline exceeds its clinical tolerance — the entire system is responsive enough for emergency-care contexts.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 12 · COMPLIANCE 7 · LPA TIME/COST COMPLEXITY ════ -->
+  <section class="slide" data-notes="35 seconds. 'Compliance item seven — the formal complexity bounds of our LPA protocol. Tree construction is O(n) hashes, performed locally with no on-chain cost. Inclusion-proof generation is O(log n) and produces proofs of around 320 bytes for a batch of one thousand. On-chain verification is also O(log n) hash operations — meaning we can verify membership for batches of arbitrary size with logarithmic gas consumption.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 7 · LPA Time / Cost Complexity</span></div>
+      <div class="slide-num">12 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 07 of 12</div>
+      <h2>Formal bounds of our Layered Proof Aggregation protocol.</h2>
+
+      <div class="two-col" style="margin-bottom: 10px;">
+        <div class="mini-card blue">
+          <span class="tag">Phase 1 · Tree Construction</span>
+          <h3>Time: O(n) · Cost: $0</h3>
+          <p>Hashes <i>n</i> leaves into a binary tree off-chain. CPU-bound only. For n = 1000, completes in ≈ 38 ms on a mid-range workstation.</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Phase 2 · Proof Generation</span>
+          <h3>Time: O(log n) · Size: ~ 320 B</h3>
+          <p>Generates an inclusion proof in logarithmic time. Proof size is exactly ⌈log₂ n⌉ × 32 bytes — sub-kilobyte even at batch 10,000.</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="mini-card">
+          <span class="tag">Phase 3 · On-Chain Verify</span>
+          <h3>Gas: O(log n) hash ops</h3>
+          <p>The smart contract walks the proof path with keccak-256 hashes. For batch 1000, verification consumes ≈ 11 hash operations — about 25k gas, well under Polygon's 30M block limit.</p>
+        </div>
+        <div class="mini-card red">
+          <span class="tag">Phase 4 · Cost Amortization</span>
+          <h3>Cost: 1 anchor / N records</h3>
+          <p>One on-chain transaction anchors the Merkle root for the entire batch — driving the marginal cost per record to <b>1 / N</b> of the base fee.</p>
+        </div>
+      </div>
+
+      <div class="stat-strip cols-3" style="margin-top: 10px;">
+        <div class="stat"><div class="v">O(n)</div><div class="l">Build</div></div>
+        <div class="stat"><div class="v">O(log n)</div><div class="l">Proof &amp; Verify</div></div>
+        <div class="stat"><div class="v">~25k gas</div><div class="l">Per Verify (N=1k)</div></div>
+      </div>
+
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 13 · COMPLIANCE 8 · AES-256-GCM + CP-ABE COMPLEXITY ════ -->
+  <section class="slide" data-notes="40 seconds. 'Compliance item eight — the complexity of our hybrid encryption stack. AES-256-GCM is linear in payload size and benefits from AES-NI hardware acceleration on every modern processor — so even multi-megabyte clinical files encrypt in milliseconds. CP-ABE is linear in the number of attributes in the policy, with each attribute requiring a bilinear pairing operation. In practice our policies are short — three to five attributes — so wrap and unwrap remain sub-200 milliseconds.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 8 · AES-256-GCM + CP-ABE Complexity</span></div>
+      <div class="slide-num">13 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 08 of 12</div>
+      <h2>Formal complexity of our hybrid encryption.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Time</th>
+            <th>Space</th>
+            <th>Hardware Acceleration</th>
+            <th>Measured (5 MB, 4 attrs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="algo-name">AES-256-GCM Encrypt</td><td><span class="mono">O(n)</span></td><td><span class="mono">O(n)</span></td><td class="check">✓ AES-NI / ARMv8 Crypto</td><td>≈ 78 ms</td></tr>
+          <tr><td class="algo-name">AES-256-GCM Decrypt + Auth Tag</td><td><span class="mono">O(n)</span></td><td><span class="mono">O(n)</span></td><td class="check">✓ AES-NI / ARMv8 Crypto</td><td>≈ 81 ms</td></tr>
+          <tr class="our"><td class="algo-name">CP-ABE Key Generation</td><td><span class="mono">O(|A|)</span></td><td><span class="mono">O(|A|)</span></td><td class="partial">⚠ pairing library</td><td>≈ 95 ms</td></tr>
+          <tr class="our"><td class="algo-name">CP-ABE Encrypt (Wrap AES key)</td><td><span class="mono">O(|policy|)</span></td><td><span class="mono">O(|policy|)</span></td><td class="partial">⚠ pairing library</td><td>≈ 121 ms</td></tr>
+          <tr class="our"><td class="algo-name">CP-ABE Decrypt (Unwrap)</td><td><span class="mono">O(|S| · pairings)</span></td><td><span class="mono">O(1)</span></td><td class="partial">⚠ pairing library</td><td>≈ 138 ms</td></tr>
+          <tr><td class="algo-name">GCM Auth Tag Verification</td><td><span class="mono">O(n)</span></td><td><span class="mono">O(1)</span></td><td class="check">✓ AES-NI</td><td>included in decrypt</td></tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        AES is linear in payload size and hardware-accelerated; CP-ABE is linear in policy size and clinically short. The composition is fast enough for emergency contexts.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 14 · COMPLIANCE 9 · ALGO COST COMPARISON ════ -->
+  <section class="slide" data-notes="50 seconds. 'Compliance item nine — direct head-to-head cost comparison across the three viable infrastructure options. Ethereum mainnet would cost between three and eight U.S. dollars per record — clinically prohibitive. Polygon, before LPA, sits at one U.S. cent per record. Polygon with our LPA protocol drops that to a fraction of one U.S. cent at batch 500. Traditional centralized storage appears free — until you count the hidden cost of one PhilHealth-scale breach, estimated at nine hundred million pesos.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 9 · Algorithm Cost · Ethereum vs Polygon vs Traditional</span></div>
+      <div class="slide-num">14 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 09 of 12</div>
+      <h2>Three cost regimes. One clear winner.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Approach</th>
+            <th>Per-Record Cost</th>
+            <th>Tamper Evidence</th>
+            <th>RA 10173 Compliance</th>
+            <th>Breach Liability</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="algo-name">Ethereum Mainnet</td>
+            <td>≈ $3 – $8</td>
+            <td><span class="check">✓ immutable</span></td>
+            <td><span class="check">✓ on-chain</span></td>
+            <td><span class="check">low</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">Polygon (no LPA)</td>
+            <td>≈ $0.01</td>
+            <td><span class="check">✓ immutable</span></td>
+            <td><span class="check">✓ on-chain</span></td>
+            <td><span class="check">low</span></td>
+          </tr>
+          <tr class="our">
+            <td class="algo-name">Polygon + <b>LPA (Ours)</b></td>
+            <td><b>&lt; $0.0001</b> (batch 500)</td>
+            <td><span class="check">✓ Merkle anchored</span></td>
+            <td><span class="check">✓ on-chain</span></td>
+            <td><span class="check">low</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">Traditional Centralized DB</td>
+            <td>≈ $0 storage</td>
+            <td><span class="cross">✗ admin can edit</span></td>
+            <td><span class="partial">⚠ procedural only</span></td>
+            <td><span class="cross">catastrophic (₱ 900 M)</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 14px;">
+        Once the hidden cost of a centralized breach is included, our LPA-on-Polygon stack is by far the lowest total-cost-of-ownership architecture for Philippine healthcare.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 15 · COMPLIANCE 10 · USER AUTHENTICATION ════ -->
+  <section class="slide" data-notes="35 seconds. 'Compliance item ten — user authentication hardening. The previous panel asked us to harden our authentication stack. We adopted three layers. Layer A is an EIP-191 wallet signature on every state change — no passwords on the wire. Layer B is an SMTP-delivered OTP — we rejected SMS outright because of SIM-swap and GIDA-area coverage. Layer C is exponential lockout — five failures, ten failures, twenty failures map to escalating cooldowns.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 10 · User Authentication Hardening</span></div>
+      <div class="slide-num">15 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 10 of 12</div>
+      <h2>Three layers. SMS rejected. Audit-logged.</h2>
+
+      <div class="three-col">
+        <div class="mini-card blue">
+          <span class="tag">Layer A · Wallet Signature</span>
+          <h3>EIP-191 Personal-Sign</h3>
+          <p>Every state-changing request requires a wallet-signed message. Signer's address is recovered server-side. No password ever traverses the network.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Layer B · SMTP OTP</span>
+          <h3>6-digit · 5-min TTL</h3>
+          <p>Delivered via SMTP — <b>not SMS</b> — defeating SIM-swap attacks and remaining reachable over GIDA satellite-internet links (Sec. Herbosa, 2024).</p>
+        </div>
+        <div class="mini-card green">
+          <span class="tag">Layer C · Brute-Force Defense</span>
+          <h3>Exponential Back-off</h3>
+          <p>5 failures → 1-min lockout; 10 → 15-min; 20 → 24-hour. Every attempt appended to the immutable audit log.</p>
+        </div>
+      </div>
+
+      <div class="stat-strip cols-3" style="margin-top: 12px;">
+        <div class="stat"><div class="v">3</div><div class="l">Auth Layers</div></div>
+        <div class="stat"><div class="v">0</div><div class="l">SMS Dependencies</div></div>
+        <div class="stat"><div class="v">100 %</div><div class="l">Audit Coverage</div></div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Every authentication event is mathematically attributable and tamper-evidently logged — a direct response to RA 10173 §20 Security Measures.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 16 · COMPLIANCE 11 · LPA ALGORITHM COMPARISON ════ -->
+  <section class="slide" data-notes="45 seconds. 'Compliance item eleven — comparison of our LPA against the four alternative aggregation algorithms we considered. zk-Rollups add ZK-proof complexity for guarantees we don't need clinically. Optimistic Rollups impose a seven-day fraud challenge window — unacceptable for emergency record retrieval. Plasma adds exit-game complexity. Naive sidechains lose immediate finality. Our LPA gives Merkle-batched scalability with QBFT immediate finality and zero exit games.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 11 · LPA vs Other Aggregation Algorithms</span></div>
+      <div class="slide-num">16 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 11 of 12</div>
+      <h2>Why Layered Proof Aggregation — and not the alternatives.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Approach</th>
+            <th>Finality</th>
+            <th>Per-Record Cost</th>
+            <th>Verify Complexity</th>
+            <th>Clinical Fit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="our">
+            <td class="algo-name">LPA (Ours)</td>
+            <td><span class="check">Immediate (QBFT)</span></td>
+            <td>&lt; $0.0001 (batch 500)</td>
+            <td><span class="mono">O(log n)</span></td>
+            <td><span class="check">✓ purpose-built</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">zk-Rollup (e.g. zkSync)</td>
+            <td>Probabilistic</td>
+            <td>~ $0.001</td>
+            <td><span class="mono">O(1)</span> + ZK prover</td>
+            <td><span class="partial">⚠ over-engineered</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">Optimistic Rollup (Arbitrum)</td>
+            <td><span class="cross">7-day challenge window</span></td>
+            <td>~ $0.005</td>
+            <td><span class="mono">O(log n)</span></td>
+            <td><span class="cross">✗ no emergency reads</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">Plasma</td>
+            <td>Exit-game delay</td>
+            <td>~ $0.002</td>
+            <td><span class="mono">O(log n)</span></td>
+            <td><span class="cross">✗ exit complexity</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">Naive Sidechain (no aggregation)</td>
+            <td>Variable</td>
+            <td>~ $0.01</td>
+            <td><span class="mono">O(1)</span></td>
+            <td><span class="partial">⚠ no cost reduction</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        LPA is the only approach that delivers immediate finality, &lt; $0.0001 per record, logarithmic verification, and zero clinical compromises.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span><span class="pip"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 17 · COMPLIANCE 12 · ENCRYPTION COMPARISON ════ -->
+  <section class="slide" data-notes="45 seconds. 'Compliance item twelve — our hybrid encryption compared against the four most-cited alternatives. RSA-2048 is asymmetric and a thousand times slower for multi-megabyte files — wrong tool for our payloads. ChaCha20-Poly1305 is comparable in security but lacks AES's universal hardware acceleration. 3DES is deprecated by NIST as of 2024. Plain AES without CP-ABE has no policy layer — every key holder can decrypt. Only our AES-plus-CP-ABE composition gives both throughput and cryptographically-enforced access control.'">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Compliance 12 · AES-256-GCM + CP-ABE vs Other Encryption</span></div>
+      <div class="slide-num">17 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Compliance Item 12 of 12</div>
+      <h2>Our hybrid encryption — measured against the alternatives.</h2>
+
+      <table class="compliance">
+        <thead>
+          <tr>
+            <th>Scheme</th>
+            <th>Type</th>
+            <th>Throughput</th>
+            <th>Policy / Access Control</th>
+            <th>NIST / Industry Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="our">
+            <td class="algo-name">AES-256-GCM + CP-ABE <b>(Ours)</b></td>
+            <td>Symmetric + Attribute</td>
+            <td>Hardware-accelerated</td>
+            <td><span class="check">✓ Boolean policy (math.)</span></td>
+            <td><span class="check">NIST FIPS 197 / 198</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">RSA-2048</td>
+            <td>Asymmetric</td>
+            <td><span class="cross">~ 1000× slower (large files)</span></td>
+            <td><span class="cross">✗ none (key exchange only)</span></td>
+            <td>Acceptable (RSA-3072 preferred)</td>
+          </tr>
+          <tr>
+            <td class="algo-name">ChaCha20-Poly1305</td>
+            <td>Symmetric AEAD</td>
+            <td>Software-fast</td>
+            <td><span class="cross">✗ none</span></td>
+            <td><span class="check">IETF RFC 8439</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">3DES</td>
+            <td>Symmetric</td>
+            <td>Slow</td>
+            <td><span class="cross">✗ none</span></td>
+            <td><span class="cross">Deprecated (NIST SP 800-131A, 2024)</span></td>
+          </tr>
+          <tr>
+            <td class="algo-name">AES-256 alone (no CP-ABE)</td>
+            <td>Symmetric</td>
+            <td>Hardware-accelerated</td>
+            <td><span class="partial">⚠ procedural only — any key holder can decrypt</span></td>
+            <td><span class="check">NIST FIPS 197</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="gold-callout" style="margin-top: 12px;">
+        Only our composition couples NIST-grade symmetric throughput with cryptographically-enforced attribute-based access — the privacy-by-design RA 10173 §20 demands.
+      </div>
+      <div class="comp-index"><span class="label">Compliance Index</span>
+        <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip on"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 18 · LIVE DEMO CUE ════ -->
+  <section class="slide" data-notes="20 seconds. Your cue to switch from slides to terminal. 'At this point, with the panel's permission, we will transition to a live execution of our testing battery. We will run Unit, Integration, and Security tiers in real time against the codebase. Please direct your attention to the terminal.' Then ALT-TAB and run: bash /app/run_defense_tests.sh">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Live Defense · Terminal Demonstration</span></div>
+      <div class="slide-num">18 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="live-cue">
+        <div class="live-badge">
+          <span class="pulse-dot"></span>
+          <span>Live Demonstration · Switch to Terminal</span>
+        </div>
+        <h2 style="margin-bottom: 2px;">With the panel's permission — <span style="color: var(--innov-orange);">live execution</span> of our testing battery.</h2>
+        <p class="lead">We will now run the three technical testing tiers in real time, witnessed by the panel.</p>
+
+        <div class="demo-grid">
+          <div class="demo-tier">
+            <span class="tier-num">Tier 1</span>
+            <h3>Unit Testing</h3>
+            <div class="what">Validates cryptographic primitives in isolation — <b>AES-256-GCM</b>, <b>CP-ABE</b>, hashing.</div>
+            <div class="cmd">pytest -m unit -v</div>
+          </div>
+          <div class="demo-tier green">
+            <span class="tier-num">Tier 2</span>
+            <h3>Integration Testing</h3>
+            <div class="what">Full pipeline — <b>encrypt → IPFS → LPA batch → anchor → decrypt → revoke → audit</b>.</div>
+            <div class="cmd">pytest -m integration -v</div>
+          </div>
+          <div class="demo-tier blue">
+            <span class="tier-num">Tier 3</span>
+            <h3>Security Testing</h3>
+            <div class="what">Adversarial — <b>unauthorized decrypt</b>, <b>policy bypass</b>, <b>tamper detection</b>, <b>replay</b>.</div>
+            <div class="cmd">pytest -m security -v</div>
+          </div>
+        </div>
+
+        <div class="terminal-strip">
+          <span class="ts-line"><span class="ts-prompt">proponents@gen-c</span>:<span style="color:#5B9BD5;">~/app</span>$ <span class="ts-cmd">bash /app/run_defense_tests.sh</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 1 — Unit Tests        :  18 / 18 passing</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 2 — Integration Tests :  25 / 25 passing</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 3 — Security Tests    :  27 / 27 passing</span></span>
+          <span class="ts-line"><span class="ts-out">▶ Tier 4 — Live Attack Demo  :   6 / 6  defended</span></span>
+          <span class="ts-line"><span class="ts-prompt">proponents@gen-c</span>:<span style="color:#5B9BD5;">~/app</span>$ <span class="ts-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 19 · CHAPTER 4 · RESULTS ════ -->
+  <section class="slide" data-notes="50 seconds. Walk the panel through Alpha findings then Beta UAT findings. Emphasize 100% encryption integrity, zero collisions, 100% rejection of unauthorized access, 98% gas reduction, and the 3.531 weighted ISO mean.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 4 · Results &amp; Analysis</span></div>
+      <div class="slide-num">19 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Alpha · Beta · UAT</div>
+      <h2>Every objective declared in Chapter 1 is empirically met.</h2>
+
+      <div class="two-col" style="margin-top: 4px;">
+        <div class="mini-card green">
+          <span class="tag">Alpha · Technical Findings</span>
+          <ul class="bullets">
+            <li><b>100 / 100</b> records encrypted &amp; pinned without corruption</li>
+            <li><b>Zero</b> Merkle-root collisions across 1,000 batches</li>
+            <li><b>100 %</b> rejection of unauthorized decrypt across 20 trials</li>
+            <li>Access-request notification: <b>1.8 s avg</b></li>
+            <li>Merkle root + on-chain verification: <b>&lt; 15 s</b></li>
+            <li>LPA cost reduction at large batches: <b>up to 98 %</b></li>
+          </ul>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Beta · UAT (ISO/IEC 25010)</span>
+          <ul class="bullets">
+            <li>Functional Stability — <b>3.572</b> · Strongly Agree</li>
+            <li>Maintainability — <b>3.444</b> · Strongly Agree</li>
+            <li>Efficiency — <b>3.533</b> · Strongly Agree</li>
+            <li>Usability — <b>3.511</b> · Strongly Agree</li>
+            <li>Security — <b>3.569</b> · Strongly Agree</li>
+            <li>Reliability — <b>3.556</b> · Strongly Agree</li>
+            <li><b>Overall: 3.531 — Strongly Agree</b></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 14px;">
+        Across 50 evaluators, Gen C is empirically validated as a robust, privacy-preserving alternative to centralized EMR systems.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 20 · CHAPTER 5 · CONCLUSION ════ -->
+  <section class="slide" data-notes="35 seconds. Read the conclusion verbatim, then the three takeaways briefly. Emphasize: privacy is mathematical, scalability is economic, integrity is on-chain.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 5 · Summary of Findings &amp; Conclusion</span></div>
+      <div class="slide-num">20 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Section 5.2</div>
+      <h2>A capable, effective, and standards-aligned artefact.</h2>
+
+      <div class="card" style="margin-bottom: 14px;">
+        <span class="green-pill">Conclusion</span>
+        <p style="margin-top: 8px; color: var(--ink); font-size: 14.5px;">
+          We conclude that Gen C is a <b>capable and effective</b> decentralized solution that meets <b>ISO/IEC 25010</b> standards across functional stability, security, usability, and reliability. The integration of <b>AES-256-GCM</b>, <b>CP-ABE</b>, and <b>Layered Proof Aggregation</b> successfully addresses every Specific Objective declared in Chapter 1, reinforcing the system's potential for <b>real-world deployment in the Philippine healthcare sector</b>.
+        </p>
+      </div>
+
+      <div class="three-col">
+        <div class="mini-card green">
+          <span class="tag">Takeaway 1</span>
+          <h3>Privacy is cryptographic</h3>
+          <p>CP-ABE enforces RA 10173 §16/§20 mathematically — not procedurally.</p>
+        </div>
+        <div class="mini-card">
+          <span class="tag">Takeaway 2</span>
+          <h3>Scalability is economic</h3>
+          <p>LPA brings on-chain anchoring to &lt; $0.0001 per record — within reach of every Philippine hospital.</p>
+        </div>
+        <div class="mini-card blue">
+          <span class="tag">Takeaway 3</span>
+          <h3>Integrity is mathematical</h3>
+          <p>Merkle anchoring makes retroactive falsification — including the Alice Guo class of forgery — mathematically impossible.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 21 · CHAPTER 6 · RECOMMENDATIONS ════ -->
+  <section class="slide" data-notes="35 seconds. Briskly read the eight recommendations. Emphasize R1 (EHR integration), R2 (FIDO2), and R7 (DOH and NPC partnership) — those are the three the panel is most likely to ask follow-up questions on.">
+    <div class="slide-header">
+      <div class="feu-mark"><span class="dot"></span><span>Chapter 6 · Recommendations</span></div>
+      <div class="slide-num">21 / 22</div>
+    </div>
+    <div class="slide-content">
+      <div class="eyebrow">Section 6.1</div>
+      <h2>Eight recommendations to guide future work.</h2>
+
+      <div class="two-col" style="margin-top: 4px;">
+        <ul class="bullets">
+          <li><b>R 1.</b> Integrate Gen C with existing EHR systems used in local hospitals.</li>
+          <li><b>R 2.</b> Harden authentication with FIDO2 / biometric hardware keys.</li>
+          <li><b>R 3.</b> Expand into dedicated <b>iOS / Android</b> mobile clients for clinical staff.</li>
+          <li><b>R 4.</b> Use IPFS-pinned high-resolution X-ray, MRI, and DICOM imagery.</li>
+        </ul>
+        <ul class="bullets">
+          <li><b>R 5.</b> Conduct longitudinal trust studies on patient self-custody of keys.</li>
+          <li><b>R 6.</b> Implement continuous, automated smart-contract auditing.</li>
+          <li><b>R 7.</b> Partner with the <b>DOH</b> and <b>National Privacy Commission</b> for compliance.</li>
+          <li><b>R 8.</b> Add multi-modal explanations for non-technical end users.</li>
+        </ul>
+      </div>
+
+      <div class="gold-callout" style="margin-top: 14px;">
+        These recommendations are tractable, sequenced, and bounded — designed to take Gen C from a defended thesis artefact to deployed national-scale infrastructure.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SLIDE 22 · THANK YOU ════ -->
+  <section class="slide closing-slide" data-notes="Close with poise. 'On behalf of the proponents, we thank the panel for your time and your guidance. We respectfully welcome your questions, recommendations, and observations to further refine Gen C.' Stand still, smile, and wait for the panel.">
+    <div class="slide-content">
+      <div class="feu-mono">Far Eastern University · The Innovation College</div>
+      <h1>Thank <span class="accent">You</span></h1>
+      <div class="tagline">We respectfully invite the panel's questions, recommendations, and guidance to further refine Gen C.</div>
+    </div>
+  </section>
+
+</div>
+
+<div id="nav">
+  <button id="prev" aria-label="Previous slide" data-testid="defense-final-prev">◀</button>
+  <span class="counter"><span id="cur">01</span> / <span id="tot">22</span></span>
+  <button id="next" aria-label="Next slide" data-testid="defense-final-next">▶</button>
+</div>
+
+<button id="help-toggle" data-testid="defense-final-help">Shortcuts</button>
+<div id="help">
+  <div><kbd>→</kbd> <kbd>Space</kbd> Next slide</div>
+  <div><kbd>←</kbd> Previous slide</div>
+  <div><kbd>N</kbd> Toggle speaker notes</div>
+  <div><kbd>F</kbd> Fullscreen</div>
+  <div><kbd>Home</kbd> First slide</div>
+  <div><kbd>End</kbd> Last slide</div>
+  <div><kbd>1-9</kbd> Jump to slide N</div>
+</div>
+
+<div id="notes"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('cur');
+  const totEl = document.getElementById('tot');
+  const notes = document.getElementById('notes');
+  const help = document.getElementById('help');
+  totEl.textContent = String(total).padStart(2, '0');
+
+  function show(i) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides[cur].classList.remove('active');
+    cur = i;
+    slides[cur].classList.add('active');
+    counter.textContent = String(cur + 1).padStart(2, '0');
+    progress.style.width = `${((cur + 1) / total) * 100}%`;
+    const note = slides[cur].getAttribute('data-notes');
+    notes.innerHTML = note
+      ? `<div class="label">Speaker Notes · Slide ${cur + 1}</div>${note}`
+      : '';
+  }
+
+  document.getElementById('next').addEventListener('click', () => show(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => show(cur - 1));
+  document.getElementById('help-toggle').addEventListener('click', () => help.classList.toggle('shown'));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(total - 1);
+    else if (e.key === 'n' || e.key === 'N') notes.classList.toggle('shown');
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    else if (/^[1-9]$/.test(e.key)) show(parseInt(e.key, 10) - 1);
+    else if (e.key === '0') show(9);
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); }
+  }, { passive: true });
+
+  show(0);
+</script>
+
+</body>
+</html>
