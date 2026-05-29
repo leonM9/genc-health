@@ -450,11 +450,216 @@
   .gap-sm { gap: 8px; }
   .grow { flex: 1; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ─── VIDEO MODE ─── */
+  .scene.active.video-mode .card-mod,
+  .scene.active.video-mode .merkle-node,
+  .scene.active.video-mode .pipe-step,
+  .scene.active.video-mode .alert-card,
+  .scene.active.video-mode .success-card,
+  .scene.active.video-mode .modal-mock,
+  .scene.active.video-mode .audit-row,
+  .scene.active.video-mode .pane,
+  .scene.active.video-mode .scene-head .left > *,
+  .scene.active.video-mode .stat-row .stat,
+  .scene.active.video-mode .pill {
+    animation: fade-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .scene.active.video-mode .card-mod:nth-child(2),
+  .scene.active.video-mode .audit-row:nth-child(2) { animation-delay: 0.18s; }
+  .scene.active.video-mode .card-mod:nth-child(3),
+  .scene.active.video-mode .audit-row:nth-child(3) { animation-delay: 0.32s; }
+  .scene.active.video-mode .card-mod:nth-child(4),
+  .scene.active.video-mode .audit-row:nth-child(4) { animation-delay: 0.46s; }
+  .scene.active.video-mode .audit-row:nth-child(5) { animation-delay: 0.6s; }
+  .scene.active.video-mode .audit-row:nth-child(6) { animation-delay: 0.74s; }
+  .scene.active.video-mode .audit-row:nth-child(7) { animation-delay: 0.88s; }
+  .scene.active.video-mode .pipe-step:nth-child(2) { animation-delay: 0.2s; }
+  .scene.active.video-mode .pipe-step:nth-child(3) { animation-delay: 0.4s; }
+  .scene.active.video-mode .pipe-step:nth-child(4) { animation-delay: 0.6s; }
+  .scene.active.video-mode .pipe-step:nth-child(5) { animation-delay: 0.8s; }
+  .scene.active.video-mode .merkle-layer:nth-child(1) .merkle-node { animation-delay: 0.5s; }
+  .scene.active.video-mode .merkle-layer:nth-child(2) .merkle-node { animation-delay: 0.35s; }
+  .scene.active.video-mode .merkle-layer:nth-child(3) .merkle-node { animation-delay: 0.2s; }
+  .scene.active.video-mode .stat-row .stat:nth-child(2) { animation-delay: 0.2s; }
+  .scene.active.video-mode .stat-row .stat:nth-child(3) { animation-delay: 0.4s; }
+  .scene.active.video-mode .stat-row .stat:nth-child(4) { animation-delay: 0.6s; }
+
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(14px); filter: blur(2px); }
+    100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+
+  /* Cinematic vignette during playback */
+  body.playing::before {
+    content: ''; position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.45) 100%);
+    transition: opacity 0.6s ease;
+  }
+  body.playing .narration {
+    border-left: 4px solid var(--orange);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 32px rgba(251,146,60,0.2);
+  }
+  body.playing #nav { opacity: 0.15; transition: opacity 0.3s; }
+  body.playing #nav:hover { opacity: 1; }
+
+  /* ─── PLAY OVERLAY ─── */
+  #play-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: radial-gradient(ellipse at center, #0b1220 0%, #050813 100%);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 28px; cursor: pointer;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+  }
+  #play-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  #play-overlay .reel {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--orange); letter-spacing: 6px; font-weight: 700;
+    display: flex; align-items: center; gap: 14px;
+  }
+  #play-overlay .reel .bar { width: 36px; height: 2px; background: var(--orange); }
+  #play-overlay h1 {
+    font-family: 'Playfair Display', serif; font-size: clamp(48px, 6vw, 84px);
+    font-weight: 900; line-height: 1; text-align: center; max-width: 14ch;
+    color: var(--ink);
+  }
+  #play-overlay h1 .accent { color: var(--orange); }
+  #play-overlay .sub {
+    font-size: 15px; color: var(--muted); max-width: 56ch; text-align: center;
+    line-height: 1.6;
+  }
+  #play-overlay .play-btn {
+    width: 110px; height: 110px; border-radius: 50%;
+    border: 2px solid var(--orange); background: rgba(251,146,60,0.1);
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 0 rgba(251,146,60,0.5);
+    animation: play-pulse 2.5s ease-in-out infinite;
+  }
+  #play-overlay:hover .play-btn { background: rgba(251,146,60,0.2); transform: scale(1.05); }
+  #play-overlay .play-btn::after {
+    content: ''; width: 0; height: 0;
+    border-left: 28px solid var(--orange);
+    border-top: 18px solid transparent;
+    border-bottom: 18px solid transparent;
+    margin-left: 8px;
+  }
+  @keyframes play-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251,146,60,0.5); }
+    50% { box-shadow: 0 0 0 30px rgba(251,146,60,0); }
+  }
+  #play-overlay .duration {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 3px; margin-top: 4px;
+  }
+  #play-overlay .options {
+    margin-top: 18px; display: flex; gap: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; color: var(--muted); font-weight: 700;
+  }
+  #play-overlay .options label {
+    cursor: pointer; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.02); transition: all 0.2s;
+  }
+  #play-overlay .options label:hover { border-color: var(--orange); color: var(--orange); }
+  #play-overlay .options input { accent-color: var(--orange); }
+
+  /* Replay overlay */
+  #replay-overlay {
+    position: fixed; inset: 0; z-index: 400; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+    background: rgba(5,8,19,0.92);
+    backdrop-filter: blur(8px);
+    opacity: 0; transition: opacity 0.6s ease;
+  }
+  #replay-overlay.shown { opacity: 1; pointer-events: auto; }
+  #replay-overlay h2 {
+    font-family: 'Playfair Display', serif; font-size: clamp(36px, 4.5vw, 60px);
+    font-weight: 900; color: var(--ink); text-align: center;
+  }
+  #replay-overlay h2 .accent { color: var(--orange); }
+  #replay-overlay .replay-btn {
+    cursor: pointer;
+    background: var(--orange); color: #000;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+    padding: 14px 28px; border-radius: 999px;
+    border: none; transition: transform 0.2s;
+  }
+  #replay-overlay .replay-btn:hover { transform: scale(1.05); }
+  #replay-overlay .skip-row {
+    display: flex; gap: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: 2px;
+  }
+  #replay-overlay .skip-row .skip-btn {
+    cursor: pointer; background: transparent;
+    color: var(--muted); border: 1px solid var(--line);
+    padding: 8px 16px; border-radius: 999px; font: inherit;
+    text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
+    transition: all 0.2s;
+  }
+  #replay-overlay .skip-row .skip-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* Per-scene timeline strip */
+  #timeline {
+    position: fixed; top: 4px; left: 0; right: 0; z-index: 60;
+    display: flex; gap: 3px; padding: 0 14px;
+    opacity: 0; transition: opacity 0.4s;
+  }
+  body.playing #timeline { opacity: 1; }
+  #timeline .tl-bar {
+    flex: 1; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,0.08); overflow: hidden;
+    position: relative;
+  }
+  #timeline .tl-bar.done { background: rgba(251,146,60,0.4); }
+  #timeline .tl-bar.active .fill {
+    background: var(--orange);
+    box-shadow: 0 0 8px rgba(251,146,60,0.6);
+    height: 100%; transition: width linear;
+  }
+  #timeline .tl-bar .fill {
+    height: 0; width: 0;
+  }
 </style>
 </head>
 <body>
 
 <div id="progress"></div>
+
+<!-- Per-scene timeline strip (shown during playback) -->
+<div id="timeline"></div>
+
+<!-- Play overlay shown on first load (browser TTS requires user interaction to unlock) -->
+<div id="play-overlay" data-testid="play-overlay">
+  <div class="reel">
+    <span class="bar"></span>
+    <span>Gen C · Cinematic Demo Reel</span>
+    <span class="bar"></span>
+  </div>
+  <h1>Press <span class="accent">Play</span><br/>to begin.</h1>
+  <div class="sub">A 3-minute narrated walkthrough — onboarding, encrypted upload, attribute-based decryption, revocation, security defense, audit trail, and Merkle anchoring.</div>
+  <button class="play-btn" id="play-btn" aria-label="Play movie" data-testid="play-btn"></button>
+  <div class="duration">RUNTIME · ≈ 03:30  ·  13 SCENES</div>
+  <div class="options">
+    <label><input type="checkbox" id="opt-voice" checked> Voice-over (browser TTS)</label>
+    <label><input type="checkbox" id="opt-captions" checked> Captions</label>
+  </div>
+</div>
+
+<!-- Replay overlay shown after final scene -->
+<div id="replay-overlay" data-testid="replay-overlay">
+  <h2>End of <span class="accent">walkthrough</span>.</h2>
+  <button class="replay-btn" id="replay-btn" data-testid="replay-btn">▶ Replay from start</button>
+  <div class="skip-row">
+    <button class="skip-btn" id="skip-to-attacks" data-testid="skip-attacks">↦ Jump to attacks</button>
+    <button class="skip-btn" id="skip-to-anchor" data-testid="skip-anchor">↦ Jump to anchor</button>
+    <button class="skip-btn" id="skip-to-audit" data-testid="skip-audit">↦ Jump to audit log</button>
+  </div>
+</div>
 
 <div class="deck" id="deck">
 
@@ -1194,17 +1399,75 @@
   let autoTimer = null;
   let autoOn = false;
   let capHidden = false;
+  // VIDEO MODE STATE
+  let videoMode = false;
+  let videoTimer = null;
+  let currentUtterance = null;
+  let useVoice = true;
+  let useCaptions = true;
+
   const progress = document.getElementById('progress');
   const counter = document.getElementById('cur');
   document.getElementById('tot').textContent = String(total).padStart(2, '0');
 
-  function show(i) {
+  // Per-scene runtime (ms). Tuned to roughly match the narration length.
+  const sceneDurations = [
+    7000,   // 1 cover
+    11000,  // 2 admin dashboard
+    13000,  // 3 register doctor
+    16000,  // 4 encryption pipeline
+    14000,  // 5 patient inbox
+    14000,  // 6 patient signs
+    13000,  // 7 doctor decrypts
+    16000,  // 8 attack #1
+    14000,  // 9 patient revokes
+    16000,  // 10 attack #2 (post-revoke)
+    16000,  // 11 audit log
+    16000,  // 12 LPA anchor
+    9000    // 13 closing
+  ];
+
+  // Build the timeline strip
+  const timeline = document.getElementById('timeline');
+  for (let i = 0; i < total; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'tl-bar';
+    bar.innerHTML = '<div class="fill"></div>';
+    timeline.appendChild(bar);
+  }
+  const tlBars = timeline.querySelectorAll('.tl-bar');
+
+  function updateTimeline(activeIdx, durationMs) {
+    tlBars.forEach((bar, i) => {
+      bar.classList.remove('active', 'done');
+      const fill = bar.querySelector('.fill');
+      if (i < activeIdx) { bar.classList.add('done'); fill.style.width = '100%'; fill.style.transition = 'none'; }
+      else if (i === activeIdx) {
+        bar.classList.add('active');
+        fill.style.transition = 'none'; fill.style.width = '0%';
+        // force reflow then animate
+        void fill.offsetWidth;
+        fill.style.transition = `width ${durationMs}ms linear`;
+        fill.style.width = '100%';
+      } else { fill.style.width = '0%'; fill.style.transition = 'none'; }
+    });
+  }
+
+  function show(i, opts = {}) {
     i = Math.max(0, Math.min(total - 1, i));
-    slides[cur].classList.remove('active');
+    slides[cur].classList.remove('active', 'video-mode');
     cur = i;
-    slides[cur].classList.add('active');
+    const slide = slides[cur];
+    slide.classList.add('active');
+    if (videoMode) slide.classList.add('video-mode');
     counter.textContent = String(cur + 1).padStart(2, '0');
     progress.style.width = `${((cur + 1) / total) * 100}%`;
+    // Toggle caption visibility based on opt
+    if (!useCaptions || capHidden) {
+      slide.querySelectorAll('.narration').forEach(n => n.style.display = 'none');
+    } else {
+      slide.querySelectorAll('.narration').forEach(n => n.style.display = '');
+    }
   }
 
   function startAuto() {
@@ -1223,8 +1486,94 @@
     document.getElementById('auto').textContent = 'AUTO';
   }
 
-  document.getElementById('next').addEventListener('click', () => { stopAuto(); show(cur + 1); });
-  document.getElementById('prev').addEventListener('click', () => { stopAuto(); show(cur - 1); });
+  // ─── VIDEO MODE ENGINE ───
+  function getNarrationText(idx) {
+    const node = slides[idx].querySelector('.narration .text');
+    if (!node) return '';
+    return (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function speakScene(idx) {
+    if (!useVoice || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const text = getNarrationText(idx);
+      if (!text) return;
+      const u = new SpeechSynthesisUtterance(text);
+      // Pick a calm, clear English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => /Google US English|Samantha|Microsoft Aria|Microsoft Jenny|en-US/i.test(v.name + ' ' + v.lang));
+      if (preferred) u.voice = preferred;
+      u.lang = 'en-US';
+      u.rate = 1.0;
+      u.pitch = 1.0;
+      u.volume = 1.0;
+      currentUtterance = u;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* TTS optional */ }
+  }
+
+  function playScene(idx) {
+    if (!videoMode) return;
+    const dur = sceneDurations[idx] || 10000;
+    show(idx);
+    updateTimeline(idx, dur);
+    speakScene(idx);
+    clearTimeout(videoTimer);
+    if (idx < total - 1) {
+      videoTimer = setTimeout(() => playScene(idx + 1), dur);
+    } else {
+      // End of show
+      videoTimer = setTimeout(() => {
+        document.getElementById('replay-overlay').classList.add('shown');
+        document.body.classList.remove('playing');
+      }, dur);
+    }
+  }
+
+  function startVideo(fromScene = 0) {
+    videoMode = true;
+    document.body.classList.add('playing');
+    document.getElementById('replay-overlay').classList.remove('shown');
+    document.getElementById('play-overlay').classList.add('hidden');
+    stopAuto();
+    // Apply user options
+    useVoice = document.getElementById('opt-voice').checked;
+    useCaptions = document.getElementById('opt-captions').checked;
+    if (!useCaptions) {
+      document.querySelectorAll('.narration').forEach(n => n.style.display = 'none');
+    }
+    // Unlock TTS with a silent utterance (browser quirk)
+    if (useVoice && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    playScene(fromScene);
+  }
+
+  function stopVideo() {
+    videoMode = false;
+    document.body.classList.remove('playing');
+    clearTimeout(videoTimer);
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    slides.forEach(s => s.classList.remove('video-mode'));
+  }
+
+  // ─── EVENT WIRING ───
+  document.getElementById('play-overlay').addEventListener('click', (e) => {
+    // Only trigger on the big button or overlay background
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+    startVideo(0);
+  });
+
+  document.getElementById('replay-btn').addEventListener('click', () => startVideo(0));
+  document.getElementById('skip-to-attacks').addEventListener('click', () => startVideo(7));
+  document.getElementById('skip-to-anchor').addEventListener('click', () => startVideo(11));
+  document.getElementById('skip-to-audit').addEventListener('click', () => startVideo(10));
+
+  document.getElementById('next').addEventListener('click', () => { stopVideo(); stopAuto(); show(cur + 1); });
+  document.getElementById('prev').addEventListener('click', () => { stopVideo(); stopAuto(); show(cur - 1); });
   document.getElementById('auto').addEventListener('click', () => autoOn ? stopAuto() : startAuto());
   document.getElementById('hide-cap').addEventListener('click', () => {
     capHidden = !capHidden;
@@ -1233,17 +1582,31 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); stopAuto(); show(cur + 1); }
-    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); stopAuto(); show(cur - 1); }
-    else if (e.key === 'Home') { stopAuto(); show(0); }
-    else if (e.key === 'End') { stopAuto(); show(total - 1); }
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault(); stopVideo(); stopAuto(); show(cur + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); stopVideo(); stopAuto(); show(cur - 1);
+    } else if (e.key === 'Home') { stopVideo(); stopAuto(); show(0); }
+    else if (e.key === 'End') { stopVideo(); stopAuto(); show(total - 1); }
     else if (e.key === 'a' || e.key === 'A') autoOn ? stopAuto() : startAuto();
-    else if (e.key === 'c' || e.key === 'C') document.getElementById('hide-cap').click();
+    else if (e.key === 'p' || e.key === 'P') {
+      // Play / restart video
+      if (videoMode) stopVideo(); else startVideo(cur);
+    } else if (e.key === 'c' || e.key === 'C') document.getElementById('hide-cap').click();
     else if (e.key === 'f' || e.key === 'F') {
       if (document.fullscreenElement) document.exitFullscreen();
       else document.documentElement.requestFullscreen();
+    } else if (e.key === 'Escape') {
+      stopVideo();
+      document.getElementById('replay-overlay').classList.remove('shown');
     }
   });
+
+  // Preload voices (Chrome lazy-loads them)
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => { /* triggers voice list population */ };
+    try { window.speechSynthesis.getVoices(); } catch (e) {}
+  }
 
   show(0);
 </script>
