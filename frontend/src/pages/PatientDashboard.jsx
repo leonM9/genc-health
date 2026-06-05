@@ -237,7 +237,7 @@ export default function PatientDashboard() {
                       <div className="text-[10px] text-zinc-500 font-mono">{r.uploader_department}</div>
                     </TableCell>
                     <TableCell className="font-medium">{r.diagnosis}</TableCell>
-                    <TableCell className="max-w-[220px]"><Hash value={r.cid} testId={`rec-cid-${r.id}`} /></TableCell>
+                    <TableCell className="max-w-[220px]"><Hash value={r.cid} sensitive testId={`rec-cid-${r.id}`} /></TableCell>
                     <TableCell><StatusBadge status={r.anchor_status} /></TableCell>
                     <TableCell>
                       <div className="flex gap-2 flex-wrap">

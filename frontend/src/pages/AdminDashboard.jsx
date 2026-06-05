@@ -577,7 +577,7 @@ export default function AdminDashboard() {
                         <div className="text-xs text-zinc-400">{r.uploader_name}</div>
                         <div className="text-[10px] text-zinc-600 font-mono">{r.uploader_role}</div>
                       </TableCell>
-                      <TableCell><Hash value={r.cid} testId={`admin-rec-cid-${r.id}`} /></TableCell>
+                      <TableCell><Hash value={r.cid} sensitive testId={`admin-rec-cid-${r.id}`} /></TableCell>
                       <TableCell><StatusBadge status={r.anchor_status || "pending"} /></TableCell>
                       <TableCell className="text-right">
                         <button

@@ -170,6 +170,9 @@ class RecordCreate(BaseModel):
     diagnosis: str
     notes: Optional[str] = ""
     upload_request_id: Optional[str] = None  # optional link to a patient's request
+    # NEW · medico-legal access label + clinical category for smart-grant matching
+    label: str = "Doctor Only"      # "Doctor Only" or "Patient Only"
+    category: str = "General"        # "Cardiology" | "Radiology" | "Lab" | "General" etc.
 
 
 class AccessRequest(BaseModel):
@@ -184,6 +187,7 @@ class AccessRespond(BaseModel):
     signature: str
     message: str
     approve: bool
+    record_ids: Optional[List[str]] = None  # NEW · which records to share. None = all (legacy)
 
 
 class AccessRevoke(BaseModel):
@@ -559,6 +563,10 @@ async def records_create(p: RecordCreate):
     patient = await db.users.find_one({"address_lower": addr_norm(p.patient_address)}, {"_id": 0})
     if not patient or patient["role"] != "patient":
         raise HTTPException(400, "Target patient not registered")
+    # NEW · enforce medico-legal label
+    label_norm = (p.label or "").strip()
+    if label_norm not in ("Doctor Only", "Patient Only"):
+        raise HTTPException(400, "Record must be labeled 'Doctor Only' or 'Patient Only' (medico-legal requirement)")
     uploader_name = uploader["name"] if uploader else "System Administrator"
     uploader_department = (uploader.get("department") if uploader else "Admin") or "Admin"
     rec = {
@@ -570,6 +578,8 @@ async def records_create(p: RecordCreate):
         "policy": p.policy,
         "diagnosis": p.diagnosis,
         "notes": p.notes,
+        "label": label_norm,
+        "category": (p.category or "General").strip() or "General",
         "uploader_address": p.uploader_address,
         "uploader_address_lower": addr_norm(p.uploader_address),
         "uploader_name": uploader_name,
@@ -739,7 +749,7 @@ async def decrypt_key(p: DecryptKeyReq):
     # Policy evaluation
     allowed, reason = evaluate_policy(rec["policy"], attrs, rec)
     if not allowed:
-        # Check access grants for doctors
+        # Check access grants for doctors — honour per-record consent if record_ids is a list
         if attrs.get("role") == "doctor":
             grant = await db.access_grants.find_one({
                 "doctor_address_lower": req_addr,
@@ -747,8 +757,15 @@ async def decrypt_key(p: DecryptKeyReq):
                 "status": "approved",
             })
             if grant:
-                allowed = True
-                reason = "Granted via patient signature"
+                rids = grant.get("record_ids")
+                if rids is None:
+                    allowed = True
+                    reason = "Granted via patient signature (all records)"
+                elif isinstance(rids, list) and rec["id"] in rids:
+                    allowed = True
+                    reason = "Granted via patient signature (per-record consent)"
+                else:
+                    reason = "Patient grant exists but this record is not in the consent list"
     if not allowed:
         await audit_log_event(
             "record.decrypt.denied",
@@ -900,7 +917,8 @@ async def access_respond(p: AccessRespond):
         }},
     )
     if p.approve:
-        # Create or upsert grant
+        # Create or upsert grant — supports per-record consent via record_ids
+        record_ids = p.record_ids if isinstance(p.record_ids, list) else None
         await db.access_grants.update_one(
             {"doctor_address_lower": req["doctor_address_lower"], "patient_address_lower": req["patient_address_lower"]},
             {"$set": {
@@ -913,6 +931,7 @@ async def access_respond(p: AccessRespond):
                 "approved_at": utcnow(),
                 "signature": p.signature,
                 "message": p.message,
+                "record_ids": record_ids,  # null = legacy "all records"; [] = none; list = specific records
             }},
             upsert=True,
         )
@@ -1462,6 +1481,8 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Stable angina pectoris · Stage 1 hypertension · Dyslipidemia",
         "notes": "Patient seen for chest pain on exertion. Treatment plan initiated.",
         "color": (16, 80, 110),  # sky blue
+        "category": "Cardiology",
+        "access_label": "Doctor Only",
         "body": [
             ("CHIEF COMPLAINT",
              "Chest pain on exertion (3-week duration), radiating to left arm, dyspnea on stairs."),
@@ -1481,6 +1502,8 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Normal sinus rhythm · Occasional PVCs · No ischemic changes",
         "notes": "Resting ECG performed. No ST-elevation, no Q waves.",
         "color": (140, 60, 30),  # amber
+        "category": "Cardiology",
+        "access_label": "Doctor Only",
         "body": [
             ("RHYTHM", "Normal Sinus Rhythm · Rate 78 bpm · Regular"),
             ("INTERVALS", "PR 158 ms · QRS 92 ms · QT/QTc 386/426 ms"),
@@ -1496,6 +1519,8 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Mild cardiomegaly · Clear lung fields · No effusion",
         "notes": "PA upright chest film. Compared to prior 2024 study.",
         "color": (90, 90, 110),  # slate
+        "category": "Radiology",
+        "access_label": "Doctor Only",
         "body": [
             ("TECHNIQUE", "PA upright chest radiograph · 120 kVp · 4 mAs"),
             ("HEART", "Cardiothoracic ratio 0.52 — mild cardiomegaly"),
@@ -1512,6 +1537,8 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Borderline HbA1c · Elevated LDL · Otherwise within range",
         "notes": "12-hour fasting blood draw. Reference ranges per PHIC standard.",
         "color": (40, 110, 70),  # green
+        "category": "Laboratory",
+        "access_label": "Doctor Only",
         "body": [
             ("GLUCOSE / DIABETES",
              "Fasting glucose 104 mg/dL · HbA1c 5.9% (prediabetic range)"),
@@ -1533,6 +1560,8 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Vaccinations current · COVID-19 booster up to date",
         "notes": "Lifetime immunization record per DOH and PIDSP guidelines.",
         "color": (110, 40, 110),  # purple
+        "category": "Immunization",
+        "access_label": "Patient Only",
         "body": [
             ("COVID-19", "Pfizer 1st dose 2021-05 · 2nd 2021-06 · Booster 2023-11 · 2024 update 2024-10"),
             ("INFLUENZA", "2024-25 Quadrivalent · Administered 2024-09-15"),
@@ -1639,11 +1668,12 @@ def _render_medical_record_png(patient: dict, spec: dict, record_id: str, today:
 @api.post("/admin/seed-demo-scenario")
 async def admin_seed_demo_scenario(p: SimulateReq):
     """Admin-only: one-click seed of:
-       • 1 demo doctor (Dr. Sarah Garcia, Cardiology, St. Luke's)
-       • 1 demo patient (Juan Dela Cruz)
-       • 1 encrypted medical record attached to the patient (Pinata-pinned, anchored)
-       • Policy = Owner:patient_address  →  forces the doctor to request access flow
-    Returns both wallets' private keys so the demo can run end-to-end."""
+       • Doctor 1 (Cardiology) + Doctor 2 (Radiology) — deterministic wallets
+       • Patient 1, Patient 2, Patient 3 — deterministic wallets
+       • 5 encrypted medical records distributed across the 3 patients
+       • Each record carries a `label` (Doctor/Patient Only) + `category` (Cardio/Radiology/etc.)
+       • All 5 records anchored under one Merkle root — showcases LPA aggregation.
+    Returns every demo wallet's private key for the end-to-end thesis-defense walkthrough."""
     import secrets as _s, base64
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from datetime import datetime as _dt
@@ -1652,65 +1682,83 @@ async def admin_seed_demo_scenario(p: SimulateReq):
     if p.admin_address.lower() != ADMIN["address"].lower():
         raise HTTPException(403, "Admin only")
 
-    # 1) Generate wallets (deterministic via fixed seeds so re-runs are idempotent)
-    doc_seed = b"genc-demo-doctor-sarah-garcia"
-    pat_seed = b"genc-demo-patient-juan-dela-cruz"
-    doc_pk = "0x" + hashlib.sha256(doc_seed).hexdigest()
-    pat_pk = "0x" + hashlib.sha256(pat_seed).hexdigest()
-    doctor_acct = Account.from_key(doc_pk)
-    patient_acct = Account.from_key(pat_pk)
+    # 1) Deterministic wallets for every demo persona
+    def _wallet(seed: bytes):
+        pk = "0x" + hashlib.sha256(seed).hexdigest()
+        return Account.from_key(pk), pk
 
-    # 2) Register / refresh demo users (idempotent upsert)
-    doc_doc = {
-        "id": str(uuid.uuid4()),
-        "address": doctor_acct.address,
-        "address_lower": doctor_acct.address.lower(),
-        "role": "doctor",
-        "name": "Dr. Sarah V. Garcia",
-        "department": "Cardiology",
-        "hospital": "St. Luke's Medical Center",
-        "did": f"did:genc:doctor:{doctor_acct.address[2:10]}",
-        "extra": {"demo_seed": True},
-        "created_at": utcnow(),
-    }
-    pat_doc = {
-        "id": str(uuid.uuid4()),
-        "address": patient_acct.address,
-        "address_lower": patient_acct.address.lower(),
-        "role": "patient",
-        "name": "Juan Miguel Dela Cruz",
-        "did": f"did:genc:patient:{patient_acct.address[2:10]}",
-        "extra": {"demo_seed": True, "date_of_birth": "1987-03-14", "blood_type": "O+"},
-        "created_at": utcnow(),
-    }
-    await db.users.update_one({"address_lower": doctor_acct.address.lower()}, {"$set": doc_doc}, upsert=True)
-    await db.users.update_one({"address_lower": patient_acct.address.lower()}, {"$set": pat_doc}, upsert=True)
+    doctor_seeds = [
+        (b"genc-demo-doctor-1-cardiology-2026", "Doctor 1", "Cardiology",  "FEU-NRMF Medical Center"),
+        (b"genc-demo-doctor-2-radiology-2026",  "Doctor 2", "Radiology",   "St. Luke's Medical Center"),
+    ]
+    patient_seeds = [
+        (b"genc-demo-patient-1-2026", "Patient 1", "1987-03-14", "O+"),
+        (b"genc-demo-patient-2-2026", "Patient 2", "1992-07-22", "A+"),
+        (b"genc-demo-patient-3-2026", "Patient 3", "1978-11-05", "B-"),
+    ]
 
-    # 3) Remove any previous demo records so re-runs stay clean
-    await db.records.delete_many({"patient_address_lower": patient_acct.address.lower(), "demo_seed": True})
+    doctors_out = []
+    for seed, name, dept, hosp in doctor_seeds:
+        acct, pk = _wallet(seed)
+        doc = {
+            "id": str(uuid.uuid4()),
+            "address": acct.address,
+            "address_lower": acct.address.lower(),
+            "role": "doctor",
+            "name": name,
+            "department": dept,
+            "hospital": hosp,
+            "did": f"did:genc:doctor:{acct.address[2:10]}",
+            "extra": {"demo_seed": True},
+            "created_at": utcnow(),
+        }
+        await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
+        doctors_out.append({
+            "address": acct.address, "private_key": pk, "name": name,
+            "role": "doctor", "department": dept, "hospital": hosp,
+        })
+
+    patients_out = []
+    for seed, name, dob, blood in patient_seeds:
+        acct, pk = _wallet(seed)
+        doc = {
+            "id": str(uuid.uuid4()),
+            "address": acct.address,
+            "address_lower": acct.address.lower(),
+            "role": "patient",
+            "name": name,
+            "did": f"did:genc:patient:{acct.address[2:10]}",
+            "extra": {"demo_seed": True, "date_of_birth": dob, "blood_type": blood},
+            "created_at": utcnow(),
+        }
+        await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
+        patients_out.append({"address": acct.address, "private_key": pk, "name": name, "role": "patient"})
+
+    # 2) Wipe prior demo records / anchors for clean re-runs
+    demo_patient_addrs = [p["address"].lower() for p in patients_out]
+    await db.records.delete_many({"patient_address_lower": {"$in": demo_patient_addrs}, "demo_seed": True})
     await db.lpa_anchors.delete_many({"demo_seed": True})
 
+    # 3) Distribute the 5 records across the 3 patients (round-robin)
     today = _dt.utcnow().strftime("%B %d, %Y")
-    patient_meta = {
-        "name": pat_doc["name"],
-        "dob": "March 14, 1987",
-        "blood": "O+",
-    }
-
-    # 4-7) Loop: render PNG -> AES encrypt -> Pinata pin -> Mongo insert (5 records)
     seeded_records = []
     seeded_cids = []
-    for spec in DEMO_RECORD_SPECS:
-        record_id = str(uuid.uuid4())
-        plaintext = _render_medical_record_png(patient_meta, spec, record_id, today)
+    record_specs_with_patient = []
+    for i, spec in enumerate(DEMO_RECORD_SPECS):
+        record_specs_with_patient.append((spec, patients_out[i % len(patients_out)]))
 
-        # AES-256-GCM encrypt — IV || ciphertext || tag (same format as frontend aesEncryptFile)
+    for spec, patient in record_specs_with_patient:
+        pat_addr = patient["address"]
+        pat_addr_lower = pat_addr.lower()
+        patient_acct_meta = {"name": patient["name"], "dob": "(seeded)", "blood": "(seeded)"}
+        record_id = str(uuid.uuid4())
+        plaintext = _render_medical_record_png(patient_acct_meta, spec, record_id, today)
+
         aes_key = AESGCM.generate_key(bit_length=256)
         iv = _s.token_bytes(12)
         ciphertext = AESGCM(aes_key).encrypt(iv, plaintext, None)
         encrypted_payload = iv + ciphertext
 
-        # Pin to Pinata (fallback to local storage if it fails)
         cid = None
         if PINATA_JWT:
             try:
@@ -1735,7 +1783,7 @@ async def admin_seed_demo_scenario(p: SimulateReq):
                 "_demo_plaintext_b64": base64.b64encode(encrypted_payload).decode(),
             })
 
-        policy = f"Owner:{patient_acct.address.lower()}"
+        policy = f"Owner:{pat_addr_lower}"
         encrypted_key_b64 = base64.b64encode(aes_key).decode()
         rec = {
             "id": record_id,
@@ -1746,14 +1794,16 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "policy": policy,
             "diagnosis": spec["diagnosis"],
             "notes": spec["notes"],
+            "label": spec.get("access_label", "Doctor Only"),
+            "category": spec.get("category", "General"),
             "uploader_address": ADMIN["address"],
             "uploader_address_lower": ADMIN["address"].lower(),
-            "uploader_name": "Dr. Sarah V. Garcia",
-            "uploader_department": "Cardiology",
-            "uploader_role": "doctor",
-            "patient_address": patient_acct.address,
-            "patient_address_lower": patient_acct.address.lower(),
-            "patient_name": pat_doc["name"],
+            "uploader_name": "System Administrator",
+            "uploader_department": "Admin",
+            "uploader_role": "admin",
+            "patient_address": pat_addr,
+            "patient_address_lower": pat_addr_lower,
+            "patient_name": patient["name"],
             "created_at": utcnow(),
             "anchor_status": "pending",
             "demo_seed": True,
@@ -1761,15 +1811,13 @@ async def admin_seed_demo_scenario(p: SimulateReq):
         await db.records.insert_one(rec)
         seeded_cids.append(cid)
         seeded_records.append({
-            "id": record_id,
-            "cid": cid,
-            "file_name": spec["file_name"],
-            "diagnosis": spec["diagnosis"],
-            "policy": policy,
-            "label": spec["label"],
+            "id": record_id, "cid": cid, "file_name": spec["file_name"],
+            "diagnosis": spec["diagnosis"], "policy": policy,
+            "label": spec.get("access_label"), "category": spec.get("category"),
+            "patient": patient["name"],
         })
 
-    # 8) Anchor all 5 leaves under ONE Merkle root — showcases LPA aggregation
+    # 4) Anchor all 5 leaves under ONE Merkle root — showcases LPA aggregation
     merkle_root = "0x" + hashlib.sha256(("|".join(seeded_cids)).encode()).hexdigest()
     anchor_tx = "0x" + _s.token_hex(32)
     anchor_block = await _next_block()
@@ -1799,22 +1847,13 @@ async def admin_seed_demo_scenario(p: SimulateReq):
 
     return {
         "ok": True,
-        "doctor": {
-            "address": doctor_acct.address,
-            "private_key": doc_pk,
-            "name": doc_doc["name"],
-            "role": "doctor",
-            "department": doc_doc["department"],
-            "hospital": doc_doc["hospital"],
-        },
-        "patient": {
-            "address": patient_acct.address,
-            "private_key": pat_pk,
-            "name": pat_doc["name"],
-            "role": "patient",
-        },
+        "doctors": doctors_out,
+        "patients": patients_out,
+        # backwards-compat for old UI that expects a single "doctor"/"patient":
+        "doctor": doctors_out[0],
+        "patient": patients_out[0],
         "records": seeded_records,
-        "record": seeded_records[0],  # keep backwards-compat with existing modal
+        "record": seeded_records[0] if seeded_records else None,
         "anchor": {
             "merkle_root": merkle_root,
             "tx_hash": anchor_tx,
@@ -1822,11 +1861,11 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "leaf_count": len(seeded_cids),
         },
         "instructions": [
-            "1. Copy the DOCTOR's private key and log in via 'Import Private Key' on the login page.",
-            "2. From the Doctor Dashboard, search for patient 'Juan' and click 'Request History'.",
-            "3. Log out, then log in with the PATIENT's private key.",
-            "4. From the Patient Dashboard, approve the doctor's access request.",
-            f"5. Log out, log back in as the doctor — open any of the {len(seeded_records)} granted records to decrypt and view.",
+            "1. Copy any DOCTOR's private key (Doctor 1 = Cardiology, Doctor 2 = Radiology) and log in.",
+            "2. From the Doctor Dashboard, request access from any of the 3 demo patients.",
+            "3. Log out, log in with that PATIENT's private key, approve the request.",
+            "4. Log back in as the doctor — decrypt records matching the consent.",
+            f"5. All {len(seeded_records)} records are anchored under one Merkle root.",
         ],
     }
 

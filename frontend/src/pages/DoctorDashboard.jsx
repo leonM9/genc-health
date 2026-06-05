@@ -381,7 +381,7 @@ export default function DoctorDashboard() {
                       <TableCell className="font-mono text-xs text-zinc-400">{new Date(r.created_at).toLocaleString()}</TableCell>
                       <TableCell>{r.patient_name} <span className="text-zinc-500 ml-1 text-[10px] font-mono">{shortAddr(r.patient_address)}</span></TableCell>
                       <TableCell className="font-medium">{r.diagnosis}</TableCell>
-                      <TableCell><Hash value={r.cid} testId={`d-cid-${r.id}`} /></TableCell>
+                      <TableCell><Hash value={r.cid} sensitive testId={`d-cid-${r.id}`} /></TableCell>
                       <TableCell>
                         <StatusBadge status={r.anchor_status} />
                         {r.merkle_root && <div className="mt-1.5"><Hash value={r.merkle_root} testId={`d-root-${r.id}`} /></div>}
