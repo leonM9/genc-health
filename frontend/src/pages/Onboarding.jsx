@@ -4,18 +4,26 @@ import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Hash } from "@/components/CryptoString";
-import { UserCircle, Stethoscope, ArrowRight, ShieldCheck } from "@phosphor-icons/react";
+import { UserCircle, Stethoscope, ArrowRight, ShieldCheck, User, Key } from "@phosphor-icons/react";
+
+const SPECIALTIES = [
+  "Cardiology", "Radiology", "Neurology", "General",
+  "Lab Results", "Imaging", "Prescription", "Pediatrics", "Family Medicine",
+];
 
 export default function Onboarding() {
-  const { session, refresh, buildSig, logout } = useWallet();
+  const { session, refresh, buildSig, registerCredentials, logout } = useWallet();
   const nav = useNavigate();
   const [role, setRole] = useState(null);
   const [name, setName] = useState(session?.name || "");
   const [department, setDepartment] = useState("");
   const [hospital, setHospital] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!session) {
@@ -30,13 +38,16 @@ export default function Onboarding() {
   const submit = async () => {
     if (!role) return toast.error("Pick a role");
     if (!name.trim()) return toast.error("Name is required");
+    if (role === "doctor" && !department) return toast.error("Pick a specialty");
+    if (!username.trim() || username.trim().length < 3) return toast.error("Username (≥3 chars) required");
+    if (!password || password.length < 6) return toast.error("Password (≥6 chars) required");
     setBusy(true);
     try {
       let payload = {
         actor_address: session.address,
         role,
         name,
-        department: role === "doctor" ? department || "General Medicine" : null,
+        department: role === "doctor" ? department : null,
         hospital: role === "doctor" ? hospital || null : null,
       };
       if (session.auth !== "google") {
@@ -45,7 +56,15 @@ export default function Onboarding() {
         payload.actor_message = message;
       }
       const r = await api.post("/users/register", payload);
-      toast.success("Profile created", { description: r.data.did });
+      // Bind credentials AFTER the profile exists so we can decide whether to
+      // auto-login by username/password on next visit.
+      try {
+        await registerCredentials(username.trim(), password);
+      } catch (e) {
+        // Profile created but credentials failed — surface but don't block.
+        toast.error("Credentials bind failed", { description: e?.response?.data?.detail || e.message });
+      }
+      toast.success("Profile + credentials created", { description: r.data.did });
       await refresh();
       setTimeout(() => nav("/dashboard"), 250);
     } catch (e) {
@@ -72,7 +91,7 @@ export default function Onboarding() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="eyebrow mb-3">step 02 // complete profile</div>
           <h1 className="heading-display text-4xl sm:text-5xl font-bold mb-3">Who are you on the network?</h1>
-          <p className="text-zinc-400 max-w-xl">Your wallet is the cryptographic identity. Tell us your role so we can wire the right portal.</p>
+          <p className="text-zinc-400 max-w-xl">Your wallet is the cryptographic identity. Pick a role, then bind a username + password so you never need to paste a private key again.</p>
 
           <div className="mt-6 glass rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             {session.picture && <img src={session.picture} alt="" className="w-10 h-10 rounded-full" />}
@@ -91,9 +110,7 @@ export default function Onboarding() {
                 key={r.id}
                 onClick={() => setRole(r.id)}
                 data-testid={`role-${r.id}-btn`}
-                className={`card-modern p-5 text-left transition hover:border-sky-400/50 ${
-                  role === r.id ? "border-sky-400/80 shadow-glow" : ""
-                }`}
+                className={`card-modern p-5 text-left transition hover:border-sky-400/50 ${role === r.id ? "border-sky-400/80 shadow-glow" : ""}`}
               >
                 <r.icon size={32} weight="duotone" className={role === r.id ? "text-sky-400" : "text-zinc-400"} />
                 <div className="mt-3 font-display font-bold text-xl">{r.label}</div>
@@ -115,14 +132,18 @@ export default function Onboarding() {
             </div>
             {role === "doctor" && (
               <div>
-                <Label className="eyebrow">department</Label>
-                <Input
-                  data-testid="onb-dept-input"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="mt-2 rounded-lg bg-zinc-900/60 border-white/5 font-mono"
-                  placeholder="Cardiology, Pediatrics…"
-                />
+                <Label className="eyebrow">specialty</Label>
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger data-testid="onb-specialty-select" className="mt-2 rounded-lg bg-zinc-900/60 border-white/5 font-mono">
+                    <SelectValue placeholder="pick a specialty" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                    {SPECIALTIES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-[10px] font-mono text-zinc-500 mt-1">used to auto-match consent on records of the same category</div>
               </div>
             )}
             {role === "doctor" && (
@@ -139,13 +160,47 @@ export default function Onboarding() {
             )}
           </div>
 
+          <div className="mt-8 card-modern p-5">
+            <div className="eyebrow text-sky-400 mb-2">step 03 // bind credentials</div>
+            <p className="text-xs text-zinc-400 mb-4">After this, you sign in with username + password. The wallet private key never appears on screen — export it any time from your dashboard.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="eyebrow">username</Label>
+                <div className="relative mt-1.5">
+                  <User size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Input
+                    data-testid="onb-username-input"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. maria.dc"
+                    className="pl-9 rounded-lg bg-zinc-900/60 border-white/5 font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="eyebrow">password</Label>
+                <div className="relative mt-1.5">
+                  <Key size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Input
+                    data-testid="onb-password-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="≥ 6 characters"
+                    className="pl-9 rounded-lg bg-zinc-900/60 border-white/5 font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={submit}
-            disabled={busy || !role || !name}
+            disabled={busy || !role || !name || !username || !password}
             data-testid="onb-submit-btn"
             className="mt-8 h-12 px-7 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold"
           >
-            {busy ? "Creating identity…" : "Create my DID"}
+            {busy ? "Creating identity…" : "Create my DID & sign in"}
             <ArrowRight size={16} weight="bold" />
           </button>
         </motion.div>

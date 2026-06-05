@@ -16,6 +16,18 @@ from datetime import datetime, timezone
 import requests
 from eth_account import Account
 from eth_account.messages import encode_defunct
+import bcrypt as _bcrypt
+
+# Constrained label / category vocab — enforced at upload time
+ALLOWED_LABELS = {"Doctor Only", "Patient Only"}
+ALLOWED_CATEGORIES = {
+    "Cardiology", "Radiology", "Neurology", "General",
+    "Lab Results", "Imaging", "Prescription", "Immunization", "Laboratory",
+}
+ALLOWED_SPECIALTIES = {
+    "Cardiology", "Radiology", "Neurology", "General",
+    "Lab Results", "Imaging", "Prescription", "Pediatrics", "Family Medicine",
+}
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -454,6 +466,147 @@ async def _upsert_user(p, addr: str):
     return doc
 
 
+# ─────────────────────────────────────────────────────────────────────
+#  USERNAME / PASSWORD CREDENTIALS — the wallet private key never appears
+#  in the login UI anymore. It is stored server-side per credentials row
+#  and only released after a password check (login or explicit export).
+# ─────────────────────────────────────────────────────────────────────
+def _hash_password(plain: str) -> str:
+    return _bcrypt.hashpw(plain.encode("utf-8"), _bcrypt.gensalt(rounds=10)).decode("utf-8")
+
+
+def _check_password(plain: str, hashed: str) -> bool:
+    try:
+        return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+class CredsRegisterReq(BaseModel):
+    """Bind a username + password to a wallet. Caller proves wallet ownership."""
+    wallet_address: str
+    wallet_private_key: str           # required so we can release it after future logins
+    wallet_signature: str             # signs `wallet_message` from this wallet
+    wallet_message: str
+    username: str
+    password: str
+
+
+class CredsLoginReq(BaseModel):
+    username: str
+    password: str
+
+
+@api.post("/auth/credentials/register")
+async def credentials_register(p: CredsRegisterReq):
+    if not verify_sig(p.wallet_address, p.wallet_message, p.wallet_signature):
+        raise HTTPException(401, "Invalid wallet signature")
+    uname = (p.username or "").strip().lower()
+    if not uname or len(uname) < 3:
+        raise HTTPException(400, "Username must be at least 3 characters")
+    if not p.password or len(p.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    # Sanity-check the supplied PK actually matches the wallet
+    try:
+        if Account.from_key(p.wallet_private_key).address.lower() != p.wallet_address.lower():
+            raise HTTPException(400, "Private key does not match wallet address")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(400, "Invalid private key")
+    # Username must be unique
+    existing = await db.credentials.find_one({"username": uname})
+    if existing and existing.get("wallet_address_lower") != p.wallet_address.lower():
+        raise HTTPException(409, "Username already taken")
+    doc = {
+        "id": existing.get("id") if existing else str(uuid.uuid4()),
+        "username": uname,
+        "wallet_address": p.wallet_address,
+        "wallet_address_lower": p.wallet_address.lower(),
+        "wallet_private_key": p.wallet_private_key,
+        "password_hash": _hash_password(p.password),
+        "created_at": existing.get("created_at") if existing else utcnow(),
+        "updated_at": utcnow(),
+    }
+    await db.credentials.update_one(
+        {"wallet_address_lower": p.wallet_address.lower()},
+        {"$set": doc},
+        upsert=True,
+    )
+    await audit_log_event(
+        "credentials.register",
+        actor_address=p.wallet_address,
+        signature=p.wallet_signature,
+        message=p.wallet_message,
+        metadata={"username": uname},
+    )
+    return {"ok": True, "username": uname, "wallet_address": p.wallet_address}
+
+
+@api.post("/auth/credentials/login")
+async def credentials_login(p: CredsLoginReq):
+    uname = (p.username or "").strip().lower()
+    creds = await db.credentials.find_one({"username": uname}, {"_id": 0})
+    if not creds or not _check_password(p.password or "", creds["password_hash"]):
+        # Don't reveal whether username exists
+        raise HTTPException(401, "Invalid username or password")
+    addr = creds["wallet_address"]
+    # Resolve role
+    addr_l = addr.lower()
+    if addr_l == ADMIN["address"].lower():
+        role, profile = "admin", {"name": "System Administrator", "did": "did:genc:admin"}
+    else:
+        u = await db.users.find_one({"address_lower": addr_l}, {"_id": 0})
+        role = u["role"] if u else "unregistered"
+        profile = u
+    await audit_log_event(
+        "credentials.login",
+        actor_address=addr,
+        actor_role=role,
+        metadata={"username": uname},
+    )
+    return {
+        "username": uname,
+        "address": addr,
+        "wallet_private_key": creds["wallet_private_key"],
+        "role": role,
+        "profile": profile,
+    }
+
+
+class CredsExportReq(BaseModel):
+    username: str
+    password: str
+
+
+@api.post("/auth/credentials/export-key")
+async def credentials_export(p: CredsExportReq):
+    """Re-verify password and return the wallet private key. Audited."""
+    uname = (p.username or "").strip().lower()
+    creds = await db.credentials.find_one({"username": uname}, {"_id": 0})
+    if not creds or not _check_password(p.password or "", creds["password_hash"]):
+        raise HTTPException(401, "Invalid username or password")
+    await audit_log_event(
+        "credentials.export_key",
+        actor_address=creds["wallet_address"],
+        metadata={"username": uname, "ra_10173_clause": "§16 Right to Data Portability"},
+    )
+    return {
+        "wallet_address": creds["wallet_address"],
+        "wallet_private_key": creds["wallet_private_key"],
+        "username": uname,
+    }
+
+
+@api.get("/auth/credentials/check/{username}")
+async def credentials_check_username(username: str):
+    """Public availability check — does NOT confirm an existing user, returns shape only."""
+    uname = (username or "").strip().lower()
+    exists = await db.credentials.find_one({"username": uname}, {"_id": 0, "username": 1})
+    return {"username": uname, "available": exists is None}
+
+
+
 class AdminRegister(BaseModel):
     """Admin registers a user on behalf — for in-clinic onboarding flows."""
     admin_address: str
@@ -565,8 +718,11 @@ async def records_create(p: RecordCreate):
         raise HTTPException(400, "Target patient not registered")
     # NEW · enforce medico-legal label
     label_norm = (p.label or "").strip()
-    if label_norm not in ("Doctor Only", "Patient Only"):
-        raise HTTPException(400, "Record must be labeled 'Doctor Only' or 'Patient Only' (medico-legal requirement)")
+    if label_norm not in ALLOWED_LABELS:
+        raise HTTPException(400, f"Record must be labeled one of {sorted(ALLOWED_LABELS)} (medico-legal requirement)")
+    category_norm = (p.category or "General").strip() or "General"
+    if category_norm not in ALLOWED_CATEGORIES:
+        raise HTTPException(400, f"Category must be one of {sorted(ALLOWED_CATEGORIES)}")
     uploader_name = uploader["name"] if uploader else "System Administrator"
     uploader_department = (uploader.get("department") if uploader else "Admin") or "Admin"
     rec = {
@@ -579,7 +735,7 @@ async def records_create(p: RecordCreate):
         "diagnosis": p.diagnosis,
         "notes": p.notes,
         "label": label_norm,
-        "category": (p.category or "General").strip() or "General",
+        "category": category_norm,
         "uploader_address": p.uploader_address,
         "uploader_address_lower": addr_norm(p.uploader_address),
         "uploader_name": uploader_name,
@@ -1537,7 +1693,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Borderline HbA1c · Elevated LDL · Otherwise within range",
         "notes": "12-hour fasting blood draw. Reference ranges per PHIC standard.",
         "color": (40, 110, 70),  # green
-        "category": "Laboratory",
+        "category": "Lab Results",
         "access_label": "Doctor Only",
         "body": [
             ("GLUCOSE / DIABETES",
@@ -1688,17 +1844,17 @@ async def admin_seed_demo_scenario(p: SimulateReq):
         return Account.from_key(pk), pk
 
     doctor_seeds = [
-        (b"genc-demo-doctor-1-cardiology-2026", "Doctor 1", "Cardiology",  "FEU-NRMF Medical Center"),
-        (b"genc-demo-doctor-2-radiology-2026",  "Doctor 2", "Radiology",   "St. Luke's Medical Center"),
+        (b"genc-demo-doctor-1-cardiology-2026", "Doctor 1", "Cardiology",  "FEU-NRMF Medical Center", "doctor1", "doctor123"),
+        (b"genc-demo-doctor-2-radiology-2026",  "Doctor 2", "Radiology",   "St. Luke's Medical Center", "doctor2", "doctor123"),
     ]
     patient_seeds = [
-        (b"genc-demo-patient-1-2026", "Patient 1", "1987-03-14", "O+"),
-        (b"genc-demo-patient-2-2026", "Patient 2", "1992-07-22", "A+"),
-        (b"genc-demo-patient-3-2026", "Patient 3", "1978-11-05", "B-"),
+        (b"genc-demo-patient-1-2026", "Patient 1", "1987-03-14", "O+", "patient1", "patient123"),
+        (b"genc-demo-patient-2-2026", "Patient 2", "1992-07-22", "A+", "patient2", "patient123"),
+        (b"genc-demo-patient-3-2026", "Patient 3", "1978-11-05", "B-", "patient3", "patient123"),
     ]
 
     doctors_out = []
-    for seed, name, dept, hosp in doctor_seeds:
+    for seed, name, dept, hosp, uname, pw in doctor_seeds:
         acct, pk = _wallet(seed)
         doc = {
             "id": str(uuid.uuid4()),
@@ -1713,13 +1869,29 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "created_at": utcnow(),
         }
         await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
+        # Seed credentials too
+        await db.credentials.update_one(
+            {"wallet_address_lower": acct.address.lower()},
+            {"$set": {
+                "id": str(uuid.uuid4()),
+                "username": uname,
+                "wallet_address": acct.address,
+                "wallet_address_lower": acct.address.lower(),
+                "wallet_private_key": pk,
+                "password_hash": _hash_password(pw),
+                "created_at": utcnow(),
+                "updated_at": utcnow(),
+            }},
+            upsert=True,
+        )
         doctors_out.append({
             "address": acct.address, "private_key": pk, "name": name,
             "role": "doctor", "department": dept, "hospital": hosp,
+            "username": uname, "password": pw,
         })
 
     patients_out = []
-    for seed, name, dob, blood in patient_seeds:
+    for seed, name, dob, blood, uname, pw in patient_seeds:
         acct, pk = _wallet(seed)
         doc = {
             "id": str(uuid.uuid4()),
@@ -1732,7 +1904,24 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "created_at": utcnow(),
         }
         await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
-        patients_out.append({"address": acct.address, "private_key": pk, "name": name, "role": "patient"})
+        await db.credentials.update_one(
+            {"wallet_address_lower": acct.address.lower()},
+            {"$set": {
+                "id": str(uuid.uuid4()),
+                "username": uname,
+                "wallet_address": acct.address,
+                "wallet_address_lower": acct.address.lower(),
+                "wallet_private_key": pk,
+                "password_hash": _hash_password(pw),
+                "created_at": utcnow(),
+                "updated_at": utcnow(),
+            }},
+            upsert=True,
+        )
+        patients_out.append({
+            "address": acct.address, "private_key": pk, "name": name, "role": "patient",
+            "username": uname, "password": pw,
+        })
 
     # 2) Wipe prior demo records / anchors for clean re-runs
     demo_patient_addrs = [p["address"].lower() for p in patients_out]
@@ -1880,6 +2069,9 @@ async def admin_clear_demo_scenario(p: SimulateReq):
     a = await db.users.delete_many({"extra.demo_seed": True})
     b = await db.records.delete_many({"demo_seed": True})
     c = await db.lpa_anchors.delete_many({"demo_seed": True})
+    # Clear seeded credentials for demo accounts too
+    demo_usernames = ["doctor1", "doctor2", "patient1", "patient2", "patient3"]
+    await db.credentials.delete_many({"username": {"$in": demo_usernames}})
     await db.access_requests.delete_many({"patient_address": {"$regex": "(?i)juan"}})
     await db.access_grants.delete_many({"patient_address": {"$regex": "(?i)juan"}})
     return {"removed_users": a.deleted_count, "removed_records": b.deleted_count, "removed_anchors": c.deleted_count}
@@ -2178,6 +2370,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def _seed_admin_credentials():
+    """Ensure the admin can also log in with username/password for the panel demo."""
+    try:
+        existing = await db.credentials.find_one({"username": "admin"}, {"_id": 0})
+        if not existing:
+            await db.credentials.insert_one({
+                "id": str(uuid.uuid4()),
+                "username": "admin",
+                "wallet_address": ADMIN["address"],
+                "wallet_address_lower": ADMIN["address"].lower(),
+                "wallet_private_key": ADMIN["private_key"],
+                "password_hash": _hash_password("admin123"),
+                "created_at": utcnow(),
+                "updated_at": utcnow(),
+            })
+            log.info("Seeded admin credentials (username='admin', password='admin123')")
+    except Exception as e:
+        log.error(f"Admin credentials seed failed: {e}")
 
 
 @app.on_event("shutdown")

@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { Download, FileLock, BellRinging, X, Check, FolderLock, UploadSimple, PaperPlaneTilt, Certificate, Copy } from "@phosphor-icons/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function PatientDashboard() {
   const { session, buildSig } = useWallet();
@@ -59,13 +60,53 @@ export default function PatientDashboard() {
   };
   useEffect(() => { load(); }, []);
 
-  const respond = async (req, approve) => {
+  const [approveModal, setApproveModal] = useState(null); // request being approved
+  const [approveSelection, setApproveSelection] = useState({}); // {record_id: bool}
+  const [approveBusy, setApproveBusy] = useState(false);
+
+  const openApproveModal = (req) => {
+    // Auto-check records whose category matches the requesting doctor's specialty
+    const doc = doctors.find((d) => d.address.toLowerCase() === req.doctor_address_lower);
+    const specialty = (doc?.department || "").toLowerCase();
+    const sel = {};
+    for (const r of records) {
+      if (r.label === "Patient Only") continue; // patient-only cannot be shared
+      const cat = (r.category || "").toLowerCase();
+      sel[r.id] = specialty && cat === specialty;
+    }
+    setApproveSelection(sel);
+    setApproveModal(req);
+  };
+
+  const submitApprove = async () => {
+    if (!approveModal) return;
+    const recordIds = Object.entries(approveSelection).filter(([, v]) => v).map(([k]) => k);
+    setApproveBusy(true);
     try {
-      const { message, signature } = await buildSig(approve ? "grant-access" : "deny-access");
+      const { message, signature } = await buildSig("grant-access");
       await api.post("/access/respond", {
-        request_id: req.id, patient_address: session.address, signature, message, approve,
+        request_id: approveModal.id,
+        patient_address: session.address,
+        signature, message,
+        approve: true,
+        record_ids: recordIds,
       });
-      toast.success(approve ? "Access granted" : "Access denied", { description: shortAddr(req.doctor_address) });
+      toast.success(`Access granted (${recordIds.length} record${recordIds.length !== 1 ? "s" : ""})`, { description: shortAddr(approveModal.doctor_address) });
+      setApproveModal(null);
+      load();
+    } catch (e) {
+      toast.error("Failed", { description: e?.response?.data?.detail || e.message });
+    } finally { setApproveBusy(false); }
+  };
+
+  const respond = async (req, approve) => {
+    if (approve) return openApproveModal(req);
+    try {
+      const { message, signature } = await buildSig("deny-access");
+      await api.post("/access/respond", {
+        request_id: req.id, patient_address: session.address, signature, message, approve: false,
+      });
+      toast.success("Access denied", { description: shortAddr(req.doctor_address) });
       load();
     } catch (e) {
       toast.error("Failed", { description: e?.response?.data?.detail || e.message });
@@ -217,6 +258,7 @@ export default function PatientDashboard() {
                   <TableHead className="eyebrow">Date</TableHead>
                   <TableHead className="eyebrow">Provider</TableHead>
                   <TableHead className="eyebrow">Diagnosis</TableHead>
+                  <TableHead className="eyebrow">Label · Category</TableHead>
                   <TableHead className="eyebrow">CID</TableHead>
                   <TableHead className="eyebrow">Status</TableHead>
                   <TableHead className="eyebrow">Action</TableHead>
@@ -224,7 +266,7 @@ export default function PatientDashboard() {
               </TableHeader>
               <TableBody>
                 {records.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="py-16 text-center text-zinc-500 font-mono">
+                  <TableRow><TableCell colSpan={7} className="py-16 text-center text-zinc-500 font-mono">
                     <FileLock size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
                     No records yet. Use "Request Upload" to ask a doctor to add one.
                   </TableCell></TableRow>
@@ -233,10 +275,14 @@ export default function PatientDashboard() {
                   <TableRow key={r.id} className="border-white/5 hover:bg-white/[0.02]" data-testid={`record-row-${r.id}`}>
                     <TableCell className="font-mono text-xs text-zinc-400">{new Date(r.created_at).toLocaleString()}</TableCell>
                     <TableCell>
-                      <div className="font-medium">{r.uploader_name}</div>
-                      <div className="text-[10px] text-zinc-500 font-mono">{r.uploader_department}</div>
+                      <div className="font-medium text-base">{r.uploader_name}</div>
+                      <div className="text-[11px] text-zinc-500 font-mono">{r.uploader_department}</div>
                     </TableCell>
-                    <TableCell className="font-medium">{r.diagnosis}</TableCell>
+                    <TableCell className="font-medium text-base">{r.diagnosis}</TableCell>
+                    <TableCell className="text-[11px] font-mono">
+                      <span className={`inline-block px-2 py-0.5 rounded-full border ${r.label === "Patient Only" ? "border-amber/40 bg-amber/5 text-amber" : "border-sky-400/30 bg-sky-500/5 text-sky-300"}`}>{r.label || "Doctor Only"}</span>
+                      <div className="text-zinc-400 mt-1">{r.category || "General"}</div>
+                    </TableCell>
                     <TableCell className="max-w-[220px]"><Hash value={r.cid} sensitive testId={`rec-cid-${r.id}`} /></TableCell>
                     <TableCell><StatusBadge status={r.anchor_status} /></TableCell>
                     <TableCell>
@@ -526,6 +572,86 @@ export default function PatientDashboard() {
             <button onClick={downloadCert} disabled={!certData} data-testid="download-cert-btn"
               className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2">
               <Download size={14} weight="bold" /> Download .json
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* APPROVE ACCESS — per-record checklist with auto-match by doctor specialty */}
+      <Dialog open={!!approveModal} onOpenChange={(o) => !o && setApproveModal(null)}>
+        <DialogContent className="max-w-2xl rounded-2xl bg-zinc-950 border-sky-400/30" data-testid="approve-access-modal">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Share which records?</DialogTitle>
+          </DialogHeader>
+          {approveModal && (() => {
+            const doctor = doctors.find((d) => d.address.toLowerCase() === approveModal.doctor_address_lower);
+            const specialty = doctor?.department || "—";
+            const shareable = records.filter((r) => r.label !== "Patient Only");
+            const restricted = records.filter((r) => r.label === "Patient Only");
+            const toggleAll = (v) => {
+              const m = {};
+              for (const r of shareable) m[r.id] = v;
+              setApproveSelection(m);
+            };
+            const selectedCount = Object.values(approveSelection).filter(Boolean).length;
+            return (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-sky-400/30 bg-sky-500/5 p-3">
+                  <div className="eyebrow text-sky-400 mb-1">requesting doctor</div>
+                  <div className="font-medium text-sm">{doctor?.name || "Unknown"} · {specialty}</div>
+                  <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{doctor?.hospital || ""}</div>
+                  <div className="text-[10px] text-zinc-500 font-mono mt-1 break-all">{approveModal.doctor_address}</div>
+                  {approveModal.reason && <div className="text-xs text-zinc-400 mt-2">reason: {approveModal.reason}</div>}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-zinc-400">{selectedCount}/{shareable.length} record(s) selected · records matching <span className="text-sky-300">{specialty}</span> auto-checked</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => toggleAll(true)} data-testid="approve-select-all-btn" className="text-sky-400 hover:underline">select all</button>
+                    <button onClick={() => toggleAll(false)} data-testid="approve-clear-btn" className="text-zinc-500 hover:text-rose">clear</button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-white/5 overflow-hidden max-h-[300px] overflow-y-auto">
+                  {shareable.length === 0 && <div className="p-6 text-center text-zinc-500 text-sm">No shareable records.</div>}
+                  {shareable.map((r) => {
+                    const matches = (r.category || "").toLowerCase() === specialty.toLowerCase();
+                    return (
+                      <label key={r.id} className="flex items-start gap-3 p-3 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02] cursor-pointer" data-testid={`approve-rec-${r.id}`}>
+                        <Checkbox
+                          checked={!!approveSelection[r.id]}
+                          onCheckedChange={(v) => setApproveSelection((m) => ({ ...m, [r.id]: !!v }))}
+                          className="mt-1 rounded border-sky-400 data-[state=checked]:bg-sky-400 data-[state=checked]:text-zinc-950"
+                          data-testid={`approve-cb-${r.id}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium">{r.diagnosis}</div>
+                          <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{r.uploader_name} · {new Date(r.created_at).toLocaleDateString()}</div>
+                          <div className="flex gap-2 mt-1.5">
+                            <span className="inline-block px-2 py-0.5 rounded-full border border-sky-400/30 bg-sky-500/5 text-sky-300 font-mono text-[10px]">{r.label}</span>
+                            <span className={`inline-block px-2 py-0.5 rounded-full border font-mono text-[10px] ${matches ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-zinc-700 text-zinc-400"}`}>
+                              {r.category || "General"}{matches ? " · auto-match" : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {restricted.length > 0 && (
+                  <div className="rounded-lg border border-amber/30 bg-amber/5 p-3 text-[11px] text-amber">
+                    {restricted.length} record{restricted.length > 1 ? "s are" : " is"} labeled <span className="font-semibold">Patient Only</span> and cannot be shared with doctors (medico-legal).
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter className="gap-2 mt-2">
+            <button onClick={() => setApproveModal(null)} disabled={approveBusy} data-testid="approve-cancel-btn" className="btn-ghost-modern h-10 px-5 text-xs font-semibold">Cancel</button>
+            <button onClick={submitApprove} disabled={approveBusy} data-testid="approve-submit-btn" className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2">
+              <Check size={14} weight="bold" />
+              {approveBusy ? "Signing…" : "Sign & Share"}
             </button>
           </DialogFooter>
         </DialogContent>

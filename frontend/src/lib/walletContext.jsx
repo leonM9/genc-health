@@ -125,6 +125,57 @@ export function WalletProvider({ children }) {
     } finally { setLoading(false); }
   };
 
+  // NEW · Username + password login. The private key is fetched from the server
+  // ONLY after password verification and never appears in the URL/UI on login.
+  const loginWithCredentials = async (username, password) => {
+    setLoading(true);
+    try {
+      const r = await api.post("/auth/credentials/login", { username, password });
+      const wallet = new ethers.Wallet(r.data.wallet_private_key);
+      const s = {
+        address: r.data.address,
+        role: r.data.role,
+        profile: r.data.profile,
+        wallet,
+        auth: "credentials",
+        username: r.data.username,
+        demo: true,
+      };
+      localStorage.setItem(PK_STORAGE, wallet.privateKey);
+      persistLocal(s);
+      setSession(s);
+      return s;
+    } finally { setLoading(false); }
+  };
+
+  // Bind a username + password to the current wallet (used during onboarding).
+  const registerCredentials = async (username, password) => {
+    if (!session?.wallet) throw new Error("No wallet in session");
+    const message = `Gen C credentials-register :: ${new Date().toISOString()}`;
+    const signature = await session.wallet.signMessage(message);
+    const r = await api.post("/auth/credentials/register", {
+      wallet_address: session.address,
+      wallet_private_key: session.wallet.privateKey,
+      wallet_signature: signature,
+      wallet_message: message,
+      username,
+      password,
+    });
+    // Stash username so the dashboard's export-key flow knows who's logged in
+    const updated = { ...session, username: r.data.username, auth: "credentials" };
+    persistLocal(updated);
+    setSession(updated);
+    return r.data;
+  };
+
+  // Export the wallet private key after the user re-confirms their password.
+  const exportPrivateKey = async (password) => {
+    const uname = session?.username;
+    if (!uname) throw new Error("No credentials bound to this session yet");
+    const r = await api.post("/auth/credentials/export-key", { username: uname, password });
+    return r.data;
+  };
+
   const loginMetaMask = async () => {
     if (!window.ethereum) throw new Error("MetaMask not detected");
     setLoading(true);
@@ -189,6 +240,7 @@ export function WalletProvider({ children }) {
       value={{
         session, adminInfo, loading,
         loginDemo, loginAsAdmin, loginWithPrivateKey, loginMetaMask,
+        loginWithCredentials, registerCredentials, exportPrivateKey,
         exchangeGoogleSession,
         logout, signMessage, buildSig, refresh,
       }}

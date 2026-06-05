@@ -53,8 +53,8 @@ export default function AdminDashboard() {
   const [patForm, setPatForm] = useState({ address: "", name: "" });
   const [patGenPk, setPatGenPk] = useState(null);
 
-  // Upload record form
-  const [upForm, setUpForm] = useState({ patient: "", diagnosis: "", notes: "" });
+  // Upload record form — NEW label & category fields enforce medico-legal classification
+  const [upForm, setUpForm] = useState({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "General" });
   const [upFile, setUpFile] = useState(null);
   const [pipeline, setPipeline] = useState([]);
 
@@ -279,11 +279,12 @@ export default function AdminDashboard() {
         uploader_address: session.address, uploader_signature: signature, uploader_message: message,
         patient_address: patient.address, cid: up.data.cid, file_name: upFile.name, file_size: upFile.size,
         encrypted_key_b64: keyB64, policy, diagnosis: upForm.diagnosis, notes: upForm.notes,
+        label: upForm.label, category: upForm.category,
       });
       upPipeline("enqueue", "done", "Queued for next Merkle anchor");
       upPipeline("done", "done", `Record id :: ${r.data.id.slice(0, 8)}…`);
       toast.success("Record attached to patient", { description: patient.name });
-      setUpFile(null); setUpForm({ patient: "", diagnosis: "", notes: "" });
+      setUpFile(null); setUpForm({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "General" });
       load();
     } catch (e) {
       toast.error("Upload failed", { description: e?.response?.data?.detail || e.message });
@@ -474,6 +475,36 @@ export default function AdminDashboard() {
                   <Label className="eyebrow">diagnosis / title</Label>
                   <Input data-testid="up-diag-input" value={upForm.diagnosis} onChange={(e) => setUpForm({ ...upForm, diagnosis: e.target.value })}
                     placeholder="e.g. Annual physical exam" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="eyebrow">access label <span className="text-amber">*</span></Label>
+                    <Select value={upForm.label} onValueChange={(v) => setUpForm({ ...upForm, label: v })}>
+                      <SelectTrigger data-testid="up-label-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                        <SelectItem value="Doctor Only">Doctor Only</SelectItem>
+                        <SelectItem value="Patient Only">Patient Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="eyebrow">category <span className="text-amber">*</span></Label>
+                    <Select value={upForm.category} onValueChange={(v) => setUpForm({ ...upForm, category: v })}>
+                      <SelectTrigger data-testid="up-category-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                        {["Cardiology","Radiology","Neurology","General","Lab Results","Imaging","Prescription","Immunization"].map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono text-amber/80 -mt-2">
+                  Medico-legal: uploads without label &amp; category are rejected.
                 </div>
                 <div>
                   <Label className="eyebrow">notes</Label>
@@ -1014,77 +1045,99 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="eyebrow text-emerald-300 mb-1">demo scenario · ready</div>
-                  <h2 className="text-2xl font-bold text-emerald-100">Patient + Doctor + Record Seeded ✓</h2>
+                  <h2 className="text-2xl font-bold text-emerald-100">2 Doctors + 3 Patients + 5 Records Seeded ✓</h2>
                 </div>
                 <button onClick={() => setDemoScenario(null)} className="text-zinc-500 hover:text-zinc-200 text-xl">×</button>
               </div>
 
               <p className="text-xs text-zinc-400 mb-5">
-                Copy each wallet's private key and import it on the Login page (Sign in with Private Key) to act as that user during your survey demo.
+                Use the username/password for each persona to log in (no more pasting private keys!). The private key is still shown so you can demonstrate the export feature.
               </p>
 
-              {/* DOCTOR CARD */}
-              <div className="mb-3 rounded-lg border border-sky-400/30 bg-sky-950/30 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-widest text-sky-300">doctor · cardiology</div>
-                    <div className="font-bold text-sky-100">{demoScenario.doctor.name}</div>
-                    <div className="text-[11px] text-zinc-500">{demoScenario.doctor.hospital}</div>
+              {/* DOCTORS */}
+              {(demoScenario.doctors || [demoScenario.doctor]).map((doc, i) => (
+                <div key={doc.address} className="mb-3 rounded-lg border border-sky-400/30 bg-sky-950/30 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-sky-300">doctor · {doc.department || "—"}</div>
+                      <div className="font-bold text-sky-100">{doc.name}</div>
+                      <div className="text-[11px] text-zinc-500">{doc.hospital}</div>
+                    </div>
+                    <button onClick={async () => {
+                        const ok = await copyToClipboard(`${doc.username} / ${doc.password}`);
+                        if (ok) toast.success("Doctor credentials copied");
+                      }}
+                      data-testid={`copy-doctor-creds-btn-${i}`}
+                      className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 transition">
+                      Copy login
+                    </button>
                   </div>
-                  <button onClick={async () => {
-                      const ok = await copyToClipboard(demoScenario.doctor.private_key);
-                      if (ok) toast.success("Doctor private key copied");
-                      else toast.error("Copy blocked — long-press the key to select");
-                    }}
-                    data-testid="copy-doctor-pk-btn"
-                    className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 transition">
-                    Copy PK
-                  </button>
-                </div>
-                <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
-                <div className="font-mono text-[11px] text-zinc-300 break-all mb-2">{demoScenario.doctor.address}</div>
-                <div className="text-[10px] text-zinc-500 font-mono mb-1">private key</div>
-                <div className="font-mono text-[11px] text-zinc-300 break-all bg-black/40 p-2 rounded border border-zinc-800">{demoScenario.doctor.private_key}</div>
-              </div>
-
-              {/* PATIENT CARD */}
-              <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-950/30 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-widest text-amber-300">patient</div>
-                    <div className="font-bold text-amber-100">{demoScenario.patient.name}</div>
-                    <div className="text-[11px] text-zinc-500">DOB 1987-03-14 · Blood Type O+</div>
+                  <div className="grid grid-cols-2 gap-3 text-[11px] font-mono mb-2">
+                    <div>
+                      <div className="text-[10px] text-zinc-500 mb-0.5">username</div>
+                      <div className="text-sky-200 bg-black/40 p-1.5 rounded">{doc.username}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-zinc-500 mb-0.5">password</div>
+                      <div className="text-sky-200 bg-black/40 p-1.5 rounded">{doc.password}</div>
+                    </div>
                   </div>
-                  <button onClick={async () => {
-                      const ok = await copyToClipboard(demoScenario.patient.private_key);
-                      if (ok) toast.success("Patient private key copied");
-                      else toast.error("Copy blocked — long-press the key to select");
-                    }}
-                    data-testid="copy-patient-pk-btn"
-                    className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 transition">
-                    Copy PK
-                  </button>
+                  <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
+                  <div className="font-mono text-[11px] text-zinc-300 break-all">{doc.address}</div>
                 </div>
-                <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
-                <div className="font-mono text-[11px] text-zinc-300 break-all mb-2">{demoScenario.patient.address}</div>
-                <div className="text-[10px] text-zinc-500 font-mono mb-1">private key</div>
-                <div className="font-mono text-[11px] text-zinc-300 break-all bg-black/40 p-2 rounded border border-zinc-800">{demoScenario.patient.private_key}</div>
-              </div>
+              ))}
 
-              {/* RECORD CARD */}
+              {/* PATIENTS */}
+              {(demoScenario.patients || [demoScenario.patient]).map((pat, i) => (
+                <div key={pat.address} className="mb-3 rounded-lg border border-amber-400/30 bg-amber-950/30 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-amber-300">patient</div>
+                      <div className="font-bold text-amber-100">{pat.name}</div>
+                    </div>
+                    <button onClick={async () => {
+                        const ok = await copyToClipboard(`${pat.username} / ${pat.password}`);
+                        if (ok) toast.success("Patient credentials copied");
+                      }}
+                      data-testid={`copy-patient-creds-btn-${i}`}
+                      className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 transition">
+                      Copy login
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-[11px] font-mono mb-2">
+                    <div>
+                      <div className="text-[10px] text-zinc-500 mb-0.5">username</div>
+                      <div className="text-amber-200 bg-black/40 p-1.5 rounded">{pat.username}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-zinc-500 mb-0.5">password</div>
+                      <div className="text-amber-200 bg-black/40 p-1.5 rounded">{pat.password}</div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-mono mb-1">address</div>
+                  <div className="font-mono text-[11px] text-zinc-300 break-all">{pat.address}</div>
+                </div>
+              ))}
+
+              {/* RECORDS LIST */}
               <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-950/30 p-4">
-                <div className="text-[10px] uppercase tracking-widest text-emerald-300 mb-1">encrypted medical record</div>
-                <div className="font-bold text-emerald-100">{demoScenario.record.file_name}</div>
-                <div className="text-[11px] text-zinc-400 mt-1">{demoScenario.record.diagnosis}</div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-[10px] font-mono">
-                  <div>
-                    <div className="text-zinc-500">IPFS CID</div>
-                    <div className="text-zinc-200 truncate">{demoScenario.record.cid}</div>
-                  </div>
-                  <div>
-                    <div className="text-zinc-500">access policy</div>
-                    <div className="text-zinc-200 truncate">{demoScenario.record.policy}</div>
-                  </div>
+                <div className="text-[10px] uppercase tracking-widest text-emerald-300 mb-2">encrypted medical records ({(demoScenario.records || []).length})</div>
+                <div className="space-y-1.5">
+                  {(demoScenario.records || []).map((rec) => (
+                    <div key={rec.id} className="flex items-start justify-between gap-3 text-[11px] font-mono p-2 bg-black/40 rounded">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-emerald-100 font-semibold truncate">{rec.file_name}</div>
+                        <div className="text-zinc-400 text-[10px]">{rec.diagnosis}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] text-zinc-500">{rec.patient}</div>
+                        <div className="flex gap-1 mt-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] border ${rec.label === "Patient Only" ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-sky-400/30 bg-sky-500/10 text-sky-300"}`}>{rec.label}</span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] border border-zinc-700 text-zinc-400">{rec.category}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useWallet } from "@/lib/walletContext";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight } from "@phosphor-icons/react";
+import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight, User, Key } from "@phosphor-icons/react";
 
 export default function Login() {
-  const { loginDemo, loginAsAdmin, loginMetaMask, loginWithPrivateKey, adminInfo, session } = useWallet();
-  const [pk, setPk] = useState("");
+  const { loginDemo, loginMetaMask, loginWithCredentials, session } = useWallet();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showImport, setShowImport] = useState(false);
+  const [showAlt, setShowAlt] = useState(false);
   const nav = useNavigate();
 
   if (session) nav("/dashboard");
@@ -23,8 +24,14 @@ export default function Login() {
       toast.success(`Authenticated`, { description: s.role === "unregistered" ? "Complete your profile" : `Welcome, ${s.role}` });
       setTimeout(() => nav(s.role === "unregistered" ? "/onboarding" : "/dashboard"), 300);
     } catch (e) {
-      toast.error(`${label} failed`, { description: e.message });
+      toast.error(`${label} failed`, { description: e?.response?.data?.detail || e.message });
     } finally { setBusy(false); }
+  };
+
+  const submitCredentials = (ev) => {
+    ev?.preventDefault?.();
+    if (!username || !password) return toast.error("Username and password required");
+    handle(() => loginWithCredentials(username.trim(), password), "Sign in");
   };
 
   const loginGoogle = () => {
@@ -36,12 +43,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-mesh relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-soft pointer-events-none" />
-      {/* Floating orbs */}
       <div className="absolute -top-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-sky-500/15 blur-3xl pointer-events-none animate-float" />
       <div className="absolute -bottom-32 -left-32 w-[24rem] h-[24rem] rounded-full bg-cyan-400/10 blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
 
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 py-8 lg:py-12 min-h-screen flex flex-col">
-        {/* Topbar */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-400 flex items-center justify-center shadow-glow">
@@ -58,14 +63,8 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Hero */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20 items-center py-12 lg:py-20">
-          <motion.div
-            className="lg:col-span-7"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
+          <motion.div className="lg:col-span-7" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
               <span className="eyebrow !text-zinc-300">RA 10173 // privacy by design</span>
@@ -74,9 +73,7 @@ export default function Login() {
             <h1 className="heading-display text-5xl sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold leading-[0.95]">
               Your health,<br />
               encrypted under{" "}
-              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">
-                your keys
-              </span>.
+              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">your keys</span>.
             </h1>
             <p className="mt-7 max-w-xl text-zinc-400 text-base sm:text-lg leading-relaxed">
               A decentralized medical-record protocol that anchors hashes to a private EVM-compatible permissioned ledger via Layered Proof Aggregation. No plaintext ever touches the database, ledger, or middleware.
@@ -98,50 +95,52 @@ export default function Login() {
             </div>
           </motion.div>
 
-          {/* Right card */}
-          <motion.div
-            className="lg:col-span-5"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-          >
+          <motion.div className="lg:col-span-5" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15 }}>
             <div className="glass-strong rounded-3xl p-7 sm:p-9 shadow-card">
               <div className="eyebrow mb-2">step 01 // identity</div>
               <h2 className="heading-display text-3xl font-bold mb-1.5">Sign in</h2>
-              <p className="text-sm text-zinc-400 mb-7">No passwords. Wallet signature or Google.</p>
+              <p className="text-sm text-zinc-400 mb-7">Username &amp; password. Your wallet stays sealed until you authenticate.</p>
 
-              <div className="space-y-3">
+              <form onSubmit={submitCredentials} className="space-y-3">
+                <div>
+                  <Label className="eyebrow">username</Label>
+                  <div className="relative mt-1.5">
+                    <User size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <Input
+                      data-testid="login-username-input"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="doctor1 / patient1 / admin"
+                      autoComplete="username"
+                      className="pl-9 h-11 rounded-lg bg-zinc-900/60 border-white/5 font-mono text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="eyebrow">password</Label>
+                  <div className="relative mt-1.5">
+                    <Key size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <Input
+                      data-testid="login-password-input"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="pl-9 h-11 rounded-lg bg-zinc-900/60 border-white/5 font-mono text-sm"
+                    />
+                  </div>
+                </div>
                 <button
-                  data-testid="login-google-btn"
-                  onClick={loginGoogle}
+                  type="submit"
+                  data-testid="login-credentials-btn"
                   disabled={busy}
-                  className="w-full h-12 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold tracking-tight"
+                  className="w-full h-12 btn-primary-modern flex items-center justify-center gap-2 text-sm font-semibold tracking-tight"
                 >
-                  <GoogleLogo size={20} weight="bold" />
-                  Continue with Google
+                  {busy ? "signing in…" : "Sign in"}
                   <ArrowRight size={16} weight="bold" className="opacity-80" />
                 </button>
-
-                <button
-                  data-testid="login-metamask-btn"
-                  onClick={() => handle(loginMetaMask, "MetaMask")}
-                  disabled={busy}
-                  className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
-                >
-                  <Wallet size={20} weight="duotone" className="text-sky-400" />
-                  Connect MetaMask
-                </button>
-
-                <button
-                  data-testid="login-demo-btn"
-                  onClick={() => handle(loginDemo, "Demo wallet")}
-                  disabled={busy}
-                  className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
-                >
-                  <Lightning size={20} weight="duotone" className="text-cyan-300" />
-                  Create Demo Wallet
-                </button>
-              </div>
+              </form>
 
               <div className="my-6 flex items-center gap-3">
                 <div className="flex-1 h-px bg-white/5" />
@@ -151,57 +150,53 @@ export default function Login() {
 
               <div className="space-y-3">
                 <button
-                  data-testid="login-admin-btn"
-                  onClick={() => handle(loginAsAdmin, "Admin")}
-                  disabled={busy || !adminInfo}
-                  className="w-full h-11 rounded-lg border border-amber/30 bg-amber/5 text-amber font-semibold text-sm hover:bg-amber/10 transition flex items-center justify-center gap-2"
+                  data-testid="login-google-btn"
+                  onClick={loginGoogle}
+                  disabled={busy}
+                  className="w-full h-11 btn-ghost-modern flex items-center justify-center gap-3 text-xs font-semibold"
                 >
-                  <ShieldCheck size={16} weight="bold" />
-                  Sign-in as Admin
+                  <GoogleLogo size={18} weight="bold" />
+                  Continue with Google
                 </button>
 
-                {!showImport ? (
+                {!showAlt ? (
                   <button
-                    onClick={() => setShowImport(true)}
-                    data-testid="show-import-btn"
+                    onClick={() => setShowAlt(true)}
+                    data-testid="show-wallet-options-btn"
                     className="w-full text-xs font-mono text-zinc-500 hover:text-sky-400 transition py-2"
                   >
-                    + import existing private key
+                    + wallet options (MetaMask / new wallet)
                   </button>
                 ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      data-testid="login-pk-input"
-                      placeholder="0x…"
-                      value={pk}
-                      onChange={(e) => setPk(e.target.value)}
-                      className="rounded-lg bg-zinc-900/60 border-white/5 font-mono text-xs h-11"
-                    />
-                    <Button
-                      data-testid="login-pk-btn"
-                      onClick={() => handle(() => loginWithPrivateKey(pk), "Import")}
-                      disabled={busy || !pk}
-                      className="rounded-lg btn-primary-modern h-11 px-5 text-xs"
+                  <>
+                    <button
+                      data-testid="login-metamask-btn"
+                      onClick={() => handle(loginMetaMask, "MetaMask")}
+                      disabled={busy}
+                      className="w-full h-11 btn-ghost-modern flex items-center justify-center gap-3 text-xs font-semibold"
                     >
-                      Sign
-                    </Button>
-                  </div>
+                      <Wallet size={18} weight="duotone" className="text-sky-400" />
+                      Connect MetaMask
+                    </button>
+                    <button
+                      data-testid="login-demo-btn"
+                      onClick={() => handle(loginDemo, "Demo wallet")}
+                      disabled={busy}
+                      className="w-full h-11 btn-ghost-modern flex items-center justify-center gap-3 text-xs font-semibold"
+                    >
+                      <Lightning size={18} weight="duotone" className="text-cyan-300" />
+                      Generate new wallet
+                    </button>
+                    <div className="text-[10px] font-mono text-zinc-500 leading-relaxed pt-1">
+                      New wallets must complete onboarding to bind a username/password.
+                    </div>
+                  </>
                 )}
               </div>
-
-              {adminInfo && (
-                <div className="mt-7 pt-6 border-t border-white/5">
-                  <div className="eyebrow mb-2 text-amber">admin wallet // thesis demo</div>
-                  <div className="crypto-text text-[10px]" data-testid="admin-address-display">
-                    {adminInfo.address}
-                  </div>
-                </div>
-              )}
             </div>
           </motion.div>
         </div>
 
-        {/* Footer strip */}
         <div className="border-t border-white/5 pt-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-zinc-500 font-mono">
           <div>Gen C // decentralized medical records protocol</div>
           <div className="flex gap-4 items-center">

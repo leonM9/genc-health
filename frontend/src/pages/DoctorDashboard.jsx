@@ -5,13 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { useWallet } from "@/lib/walletContext";
 import { Hash, StatusBadge } from "@/components/CryptoString";
 import { aesEncryptFile, aesDecryptBlob, importKeyB64, generateAesKey, exportKeyB64, buildPolicy, shortAddr } from "@/lib/crypto";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Tray, X, Download, LockOpen } from "@phosphor-icons/react";
+import { MagnifyingGlass, UploadSimple, FileLock, ShieldStar, CloudArrowUp, TreeStructure, Anchor, Tray, X, Download, LockOpen, Eye, EyeSlash } from "@phosphor-icons/react";
 
 const STAGE_ICONS = {
   encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor,
@@ -30,6 +31,8 @@ export default function DoctorDashboard() {
   const [file, setFile] = useState(null);
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
+  const [recLabel, setRecLabel] = useState("Doctor Only");
+  const [recCategory, setRecCategory] = useState("General");
   const [pipeline, setPipeline] = useState([]);
   const [decrypting, setDecrypting] = useState(null);
 
@@ -152,11 +155,12 @@ export default function DoctorDashboard() {
         patient_address: selected.address, cid: up.data.cid, file_name: file.name, file_size: file.size,
         encrypted_key_b64: keyB64, policy, diagnosis, notes,
         upload_request_id: linkedRequest?.id || null,
+        label: recLabel, category: recCategory,
       });
       updatePipeline("enqueue", "done", "Queued for next Merkle anchor");
       updatePipeline("done", "done", `Record id :: ${r.data.id.slice(0, 8)}…`);
       toast.success("Record uploaded", { description: r.data.cid });
-      setFile(null); setDiagnosis(""); setNotes(""); setLinkedRequest(null); load();
+      setFile(null); setDiagnosis(""); setNotes(""); setLinkedRequest(null); setRecLabel("Doctor Only"); setRecCategory("General"); load();
     } catch (e) {
       console.error(e);
       toast.error("Upload failed", { description: e?.response?.data?.detail || e.message });
@@ -300,6 +304,37 @@ export default function DoctorDashboard() {
                     className="rounded-lg bg-zinc-900/60 border-white/5 mt-1.5" />
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="eyebrow">access label <span className="text-amber">*</span></Label>
+                    <Select value={recLabel} onValueChange={setRecLabel}>
+                      <SelectTrigger data-testid="rec-label-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                        <SelectItem value="Doctor Only">Doctor Only</SelectItem>
+                        <SelectItem value="Patient Only">Patient Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="eyebrow">category <span className="text-amber">*</span></Label>
+                    <Select value={recCategory} onValueChange={setRecCategory}>
+                      <SelectTrigger data-testid="rec-category-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                        {["Cardiology","Radiology","Neurology","General","Lab Results","Imaging","Prescription","Immunization"].map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono text-amber/80">
+                  Patient-Only records won&apos;t appear in doctor decrypt views unless explicitly shared.
+                </div>
+
                 <div>
                   <Label className="eyebrow">clinical notes</Label>
                   <Textarea data-testid="notes-input" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
@@ -360,96 +395,147 @@ export default function DoctorDashboard() {
         </TabsContent>
 
         <TabsContent value="records" className="space-y-8">
-          <div>
-            <div className="eyebrow mb-3">uploaded by you</div>
-            <div className="card-modern overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/5 hover:bg-transparent">
-                    <TableHead className="eyebrow">Date</TableHead>
-                    <TableHead className="eyebrow">Patient</TableHead>
-                    <TableHead className="eyebrow">Diagnosis</TableHead>
-                    <TableHead className="eyebrow">CID</TableHead>
-                    <TableHead className="eyebrow">Anchor</TableHead>
-                    <TableHead className="eyebrow">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {records.uploaded.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-zinc-500 font-mono py-12">No uploads yet</TableCell></TableRow>}
-                  {records.uploaded.map((r) => (
-                    <TableRow key={r.id} className="border-white/5 hover:bg-white/[0.02]" data-testid={`my-rec-${r.id}`}>
-                      <TableCell className="font-mono text-xs text-zinc-400">{new Date(r.created_at).toLocaleString()}</TableCell>
-                      <TableCell>{r.patient_name} <span className="text-zinc-500 ml-1 text-[10px] font-mono">{shortAddr(r.patient_address)}</span></TableCell>
-                      <TableCell className="font-medium">{r.diagnosis}</TableCell>
-                      <TableCell><Hash value={r.cid} sensitive testId={`d-cid-${r.id}`} /></TableCell>
-                      <TableCell>
-                        <StatusBadge status={r.anchor_status} />
-                        {r.merkle_root && <div className="mt-1.5"><Hash value={r.merkle_root} testId={`d-root-${r.id}`} /></div>}
-                      </TableCell>
-                      <TableCell>
-                        <button
-                          onClick={() => decryptAndDownload(r)}
-                          disabled={decrypting === r.id}
-                          data-testid={`decrypt-uploaded-${r.id}`}
-                          className="px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
-                        >
-                          {decrypting === r.id ? (
-                            <><LockOpen size={11} weight="bold" className="animate-pulse" />decrypting…</>
-                          ) : (
-                            <><Download size={11} weight="bold" />decrypt</>
-                          )}
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+          {(() => {
+            // Group all records (uploaded + accessible) by patient address.
+            const allRecs = [
+              ...records.uploaded.map((r) => ({ ...r, _source: "uploaded" })),
+              ...records.accessible.map((r) => ({ ...r, _source: "accessible" })),
+            ];
+            const groups = new Map();
+            for (const r of allRecs) {
+              const key = r.patient_address_lower || r.patient_address?.toLowerCase() || "unknown";
+              if (!groups.has(key)) groups.set(key, { name: r.patient_name || "Unknown", recs: [] });
+              groups.get(key).recs.push(r);
+            }
+            const patientGroups = Array.from(groups.entries());
 
-          <div>
-            <div className="eyebrow mb-3">granted access ({records.accessible.length})</div>
-            <div className="card-modern overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/5 hover:bg-transparent">
-                    <TableHead className="eyebrow">Patient</TableHead>
-                    <TableHead className="eyebrow">Uploaded By</TableHead>
-                    <TableHead className="eyebrow">Diagnosis</TableHead>
-                    <TableHead className="eyebrow">CID</TableHead>
-                    <TableHead className="eyebrow">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {records.accessible.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-12">No granted records</TableCell></TableRow>}
-                  {records.accessible.map((r) => (
-                    <TableRow key={r.id} className="border-white/5">
-                      <TableCell>{r.patient_name}</TableCell>
-                      <TableCell>{r.uploader_name}</TableCell>
-                      <TableCell className="font-medium">{r.diagnosis}</TableCell>
-                      <TableCell><Hash value={r.cid} testId={`g-cid-${r.id}`} /></TableCell>
-                      <TableCell>
-                        <button
-                          onClick={() => decryptAndDownload(r)}
-                          disabled={decrypting === r.id}
-                          data-testid={`decrypt-granted-${r.id}`}
-                          className="px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-400/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
-                        >
-                          {decrypting === r.id ? (
-                            <><LockOpen size={11} weight="bold" className="animate-pulse" />decrypting…</>
-                          ) : (
-                            <><Download size={11} weight="bold" />decrypt & view</>
-                          )}
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+            // Bucket Patient-Only records separately so the doctor sees what is
+            // restricted (and can request additional consent if needed).
+            const patientOnly = allRecs.filter((r) => r.label === "Patient Only");
+
+            return (
+              <>
+                <div>
+                  <div className="eyebrow mb-3">my patients ({patientGroups.length})</div>
+                  {patientGroups.length === 0 && (
+                    <div className="card-modern p-12 text-center text-zinc-500 font-mono text-sm">No records linked to your patients yet.</div>
+                  )}
+                  <div className="space-y-3">
+                    {patientGroups.map(([addr, g]) => (
+                      <PatientGroup key={addr} addr={addr} group={g} session={session} onDecrypt={decryptAndDownload} decrypting={decrypting} />
+                    ))}
+                  </div>
+                </div>
+
+                {patientOnly.length > 0 && (
+                  <div>
+                    <div className="eyebrow mb-3 text-amber">patient-only records (restricted)</div>
+                    <div className="card-modern p-4 border border-amber/30 bg-amber/5 text-[12px] text-zinc-300 leading-relaxed">
+                      {patientOnly.length} record{patientOnly.length > 1 ? "s are" : " is"} labeled <span className="text-amber font-semibold">Patient Only</span>. By medico-legal policy these stay sealed for the doctor until the patient explicitly approves per-record sharing.
+                      <ul className="mt-2 list-disc pl-5">
+                        {patientOnly.map((r) => (
+                          <li key={r.id} className="font-mono text-[11px]">
+                            <span className="text-zinc-100">{r.patient_name}</span> — {r.diagnosis} <span className="text-zinc-500">· {r.category}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </Layout>
+  );
+}
+
+
+function PatientGroup({ addr, group, session, onDecrypt, decrypting }) {
+  const [open, setOpen] = useState(false);
+  const [revealedCid, setRevealedCid] = useState({});
+  // Doctor-visible records exclude the patient-only label by default.
+  const visible = group.recs.filter((r) => r.label !== "Patient Only");
+  const hidden = group.recs.filter((r) => r.label === "Patient Only");
+  return (
+    <div className="card-modern overflow-hidden" data-testid={`patient-group-${addr}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        data-testid={`patient-group-toggle-${addr}`}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition"
+      >
+        <div className="text-left">
+          <div className="font-display font-bold text-lg">{group.name}</div>
+          <div className="text-[11px] font-mono text-zinc-500 mt-0.5">
+            {shortAddr(addr)} · {group.recs.length} record{group.recs.length !== 1 ? "s" : ""}
+            {hidden.length > 0 && <span className="text-amber ml-2">· {hidden.length} patient-only restricted</span>}
+          </div>
+        </div>
+        <span className={`text-zinc-400 text-xs font-mono transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {open && (
+        <div className="border-t border-white/5">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-white/5 hover:bg-transparent">
+                <TableHead className="eyebrow">Date</TableHead>
+                <TableHead className="eyebrow">Diagnosis</TableHead>
+                <TableHead className="eyebrow">Label · Category</TableHead>
+                <TableHead className="eyebrow">CID</TableHead>
+                <TableHead className="eyebrow">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visible.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-zinc-500 font-mono py-8">No accessible records — all {hidden.length} item(s) for this patient are Patient-Only.</TableCell></TableRow>
+              )}
+              {visible.map((r) => {
+                const isRevealed = !!revealedCid[r.id];
+                const maskedCid = r.cid ? `${r.cid.slice(0, 6)}${"*".repeat(Math.max(0, r.cid.length - 10))}${r.cid.slice(-4)}` : "—";
+                return (
+                  <TableRow key={r.id} className="border-white/5" data-testid={`doc-rec-${r.id}`}>
+                    <TableCell className="font-mono text-xs text-zinc-400">{new Date(r.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="font-medium text-sm">{r.diagnosis}</TableCell>
+                    <TableCell className="text-[11px] font-mono">
+                      <span className={`inline-block px-2 py-0.5 rounded-full border ${r.label === "Patient Only" ? "border-amber/40 bg-amber/5 text-amber" : "border-sky-400/30 bg-sky-500/5 text-sky-300"}`}>{r.label || "Doctor Only"}</span>
+                      <div className="text-zinc-500 mt-1">{r.category || "General"}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 rounded-lg bg-zinc-900/60 border border-white/5 px-3 py-2 max-w-[260px]">
+                        <span className="crypto-text truncate flex-1" data-testid={`cid-${r.id}`}>{isRevealed ? r.cid : maskedCid}</span>
+                        <button
+                          onClick={() => setRevealedCid((m) => ({ ...m, [r.id]: !m[r.id] }))}
+                          data-testid={`reveal-cid-${r.id}`}
+                          className="text-zinc-500 hover:text-amber-400 transition"
+                          title={isRevealed ? "Hide CID" : "Reveal CID"}
+                        >
+                          {isRevealed ? <EyeSlash size={14} weight="bold" /> : <Eye size={14} weight="bold" />}
+                        </button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => onDecrypt(r)}
+                        disabled={decrypting === r.id}
+                        data-testid={`decrypt-${r._source}-${r.id}`}
+                        className="px-3 py-1.5 rounded-md text-[11px] font-mono uppercase tracking-wider bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        {decrypting === r.id ? (
+                          <><LockOpen size={12} weight="bold" className="animate-pulse" />decrypting…</>
+                        ) : (
+                          <><Download size={12} weight="bold" />decrypt</>
+                        )}
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
   );
 }

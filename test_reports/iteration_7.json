@@ -1,0 +1,69 @@
+{
+  "summary": "Tested the username/password auth + label/category + seed-demo overhaul. Added 21 new pytest cases in /app/backend/tests/test_credentials_auth.py covering credentials register/login/export-key/check, seed-demo-scenario (2 doctors + 3 patients + 5 records with usernames/passwords), and /api/records label/category enforcement (400 on invalid). Full backend suite: 91/91 PASS (70 prior + 21 new). Frontend E2E verified via the public preview URL: primary username/password form, admin login → /admin, Export Key button in topbar, demo seed modal renders all 5 personas with their credentials (doctor1/doctor123, doctor2/doctor123, patient1-3/patient123) and 5 records labeled Doctor Only/Patient Only across Cardiology/Radiology/Lab Results/Immunization, doctor1 lands on /doctor showing 'Doctor 1 · Cardiology · FEU-NRMF Medical Center', patient1 lands on /patient, and the legacy 'Sign-in as Admin' button is REMOVED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Doctor dashboard (after credentials login)",
+        "issues": [
+          "Lingering non-blocking React warning still present in console: 'Cannot update a component while rendering a different component'. Already flagged in iteration_6 — not regression-introduced, but worth cleaning before thesis defense."
+        ]
+      }
+    ]
+  },
+  "verified_flows": [
+    "POST /api/auth/credentials/login admin/admin123 → 200, role=admin, address=ADMIN, wallet_private_key returned.",
+    "POST /api/auth/credentials/login admin/wrong-password → 401.",
+    "POST /api/auth/credentials/login nonexistent → 401 (does not leak existence).",
+    "POST /api/auth/credentials/register valid signature+PK+username+password → 200 then login roundtrip returns same PK.",
+    "POST /api/auth/credentials/register duplicate username → 409.",
+    "POST /api/auth/credentials/register password<6 chars → 400.",
+    "POST /api/auth/credentials/register PK mismatch with wallet_address → 401 (sig won't verify against the advertised address).",
+    "POST /api/auth/credentials/register tampered signature → 401.",
+    "POST /api/auth/credentials/export-key correct password → 200 returns wallet_private_key.",
+    "POST /api/auth/credentials/export-key wrong password → 401.",
+    "GET /api/auth/credentials/check/{username} returns {available: true} for fresh names, {available: false} for 'admin'.",
+    "POST /api/admin/seed-demo-scenario → returns 2 doctors (doctor1/doctor2 with departments Cardiology/Radiology, password doctor123), 3 patients (patient1-3, password patient123), and 5 records each with label∈{Doctor Only, Patient Only} and category∈{Cardiology, Radiology, Lab Results, Immunization}.",
+    "All 5 seeded personas can subsequently log in via /credentials/login — doctor1 returns department=Cardiology, doctor2 returns department=Radiology.",
+    "POST /api/records with label='Public' → 400 (only Doctor Only / Patient Only allowed).",
+    "POST /api/records with category='Astrology' → 400 (allowed set enforced).",
+    "POST /api/records with label='Patient Only' + category='Cardiology' → 200, persists both fields.",
+    "Frontend: Login page shows username/password as the primary form (data-testid login-username-input/password-input/credentials-btn). Wallet options collapsed behind show-wallet-options-btn. Google secondary. NO 'Sign-in as Admin' button anywhere.",
+    "Frontend: admin/admin123 lands at /admin, topbar shows 'ADMIN · admin · 0x1260…5D8B · Export Key · Disconnect'. seed-demo-scenario-btn opens a Shadcn dialog with title '2 Doctors + 3 Patients + 5 Records Seeded' and all five persona cards each show username + password fields + address + COPY LOGIN button (screenshot saved).",
+    "Frontend: After credentials login, Export Key dialog (data-testid export-pk-modal) is wired to /api/auth/credentials/export-key — wrong password leaves the PK hidden; right password unhides exported-private-key element.",
+    "Frontend: doctor1/doctor123 lands at /doctor and the header reads 'Doctor 1 · Cardiology · FEU-NRMF Medical Center'. Topbar shows username='doctor1'."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_credentials_auth.py",
+    "/app/test_reports/pytest/credentials_results.xml",
+    "/app/test_reports/pytest/full_results.xml"
+  ],
+  "action_items": [
+    "(Low / cosmetic, still open from iter 6) Fix the React setState-in-render warning surfaced when navigating between pages after credentials login. Likely candidate: walletContext.loginWithCredentials -> setSession inside the same tick as nav() is being called during a render. Wrap navigation in queueMicrotask or move setSession into useEffect."
+  ],
+  "critical_code_review_comments": [
+    "Good: server.py separates ALLOWED_LABELS / ALLOWED_CATEGORIES / ALLOWED_SPECIALTIES vocab at the top of the file — easy to audit.",
+    "Good: /api/auth/credentials/register verifies wallet signature AND validates PK matches wallet_address before storing — defense in depth.",
+    "Good: /api/auth/credentials/login never reveals whether the username exists (single 401 for either missing user or wrong password).",
+    "Good: seed-demo-scenario seeds db.credentials AND db.users atomically per persona using upsert keyed on wallet_address_lower — re-running is idempotent.",
+    "Good: All endpoints exclude Mongo _id via {_id:0} projection or doc.pop('_id', None).",
+    "Maintainability: backend/server.py is now 2399 lines. Should be split into routers (auth_creds, records, lpa, certificate, admin_seed). Same comment as iter 6, still applicable.",
+    "Maintainability: AdminDashboard.jsx is 1336 lines and PatientDashboard.jsx is 707 — consider extracting PatientGroup, ApproveAccessModal, ExportKeyDialog into their own files.",
+    "Security note (non-blocking): wallet_private_key is stored at rest in plaintext inside db.credentials. For a thesis prototype this is acceptable and explicitly called out by the export flow, but in production it should be at minimum encrypted with a KMS-wrapped key. Recommend a comment in the schema documenting this trade-off."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_credentials_auth.py (new — 21 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (91/91 pytest; +21 new credentials/seed/label tests)",
+    "frontend": "~90% on tested flows — primary login form, admin login, seed-demo modal, doctor login, patient login, export-key wiring all visually verified. Per-record approve-access modal could not be exercised because no pending request existed by the time patient1 was visited (previous test runs already consumed/auto-granted); the backend pytest already covers the data path."
+  },
+  "test_credentials": "admin/admin123 (auto-seeded), then after /admin/seed-demo-scenario: doctor1/doctor123 (Cardiology), doctor2/doctor123 (Radiology), patient1-3/patient123.",
+  "seed_data_creation": "Each pytest run uses uuid suffix → fresh wallets for register/export/label tests. The /admin/seed-demo-scenario fixture has module scope and is idempotent (upsert on wallet_address_lower).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend coverage of the new credentials flow lives in /app/backend/tests/test_credentials_auth.py (21 tests, ~10s). Combined suite: pytest /app/backend/tests/ -v → 91 PASS in ~80s. For frontend: log in via the primary username/password form (admin/admin123 → /admin → click seed-demo-scenario-btn → use any seeded persona). To exercise the approval modal end-to-end fresh: (1) seed demo, (2) clear-demo-scenario, (3) re-seed, (4) doctor1 → Patients tab → click req-*-btn for patient1, (5) patient1 → Access tab → approve-* button. The setState-in-render console warning is still present and is the only open low-priority cleanup item.",
+  "rca_of_the_issue": "N/A — no critical defects observed. All requested features are wired correctly end-to-end (verified by pytest + visual + dashboard headers showing specialty/department)."
+}
