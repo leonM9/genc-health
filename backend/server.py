@@ -698,6 +698,67 @@ async def credentials_check_username(username: str):
     return {"username": uname, "available": exists is None}
 
 
+# ─────────────────────────────────────────────────────────────────────
+#  VAULT ANATOMY (panel demo aid)
+#  Renders the at-rest shape of a credentials row so the thesis panel
+#  can see *visually* that no plaintext private key is stored. Admin-
+#  signed; never returns plaintext — only the salt/iv/ciphertext columns
+#  the DB physically holds.
+# ─────────────────────────────────────────────────────────────────────
+class VaultAnatomyReq(BaseModel):
+    admin_address: str
+    signature: str
+    message: str
+
+
+@api.post("/admin/vault-anatomy")
+async def admin_vault_anatomy_list(p: VaultAnatomyReq):
+    """Admin-only: list every credentials row with the at-rest columns it
+    physically stores. Used by the Admin dashboard's Vault Anatomy panel."""
+    if not verify_sig(p.admin_address, p.message, p.signature):
+        raise HTTPException(401, "Invalid signature")
+    if addr_norm(p.admin_address) != ADMIN["address"].lower():
+        raise HTTPException(403, "Admin only")
+    rows = []
+    async for r in db.credentials.find({}, {"_id": 0}):
+        # Snapshot the at-rest shape WITHOUT returning anything decryptable
+        pk_salt = r.get("pk_salt") or ""
+        pk_iv = r.get("pk_iv") or ""
+        pk_ct = r.get("pk_ciphertext") or ""
+        legacy = bool(r.get("wallet_private_key"))
+        rows.append({
+            "username": r["username"],
+            "wallet_address": r["wallet_address"],
+            # We surface only previews + lengths so the panel sees real shape but
+            # no useful material leaks (even though these aren't secret per se).
+            "password_hash_preview": (r.get("password_hash") or "")[:24] + "…",
+            "pk_salt_preview": (pk_salt[:16] + "…") if pk_salt else None,
+            "pk_iv_preview": (pk_iv[:16] + "…") if pk_iv else None,
+            "pk_ciphertext_preview": (pk_ct[:24] + "…") if pk_ct else None,
+            "pk_ciphertext_bytes": len(pk_ct) // 2 if pk_ct else 0,
+            "legacy_plaintext_present": legacy,  # MUST be false in production
+            "envelope_format": "AES-256-GCM(HKDF-SHA256(KMS||pwd, salt=row, info='genc-pk-wrap'))",
+            "created_at": r.get("created_at"),
+            "updated_at": r.get("updated_at"),
+        })
+    return {
+        "rows": rows,
+        "annotations": {
+            "password_hash": "bcrypt of password — defeats DB leak + master-key leak attacker (still has to brute-force).",
+            "pk_salt": "16-byte per-row random — defeats rainbow-table attacks on the wrap key.",
+            "pk_iv": "12-byte AES-GCM nonce — guarantees ciphertext uniqueness even if same PK+password is wrapped twice.",
+            "pk_ciphertext": "AES-256-GCM(wrap_key, iv, private_key). Tamper-evident — any byte flipped → 401 on unwrap.",
+            "kms_master_key": "Environment variable; never persisted. A DB leak alone cannot decrypt anything.",
+        },
+        "attacker_table": [
+            {"scenario": "MongoDB dump only", "outcome": "blocked", "why": "Needs KMS_MASTER_KEY (env-only) AND user password to derive wrap key."},
+            {"scenario": "Master key leak only", "outcome": "blocked", "why": "Still needs the user's password (bcrypt-protected) to derive wrap key."},
+            {"scenario": "Master key + DB", "outcome": "blocked", "why": "Wrap key requires password; passwords are bcrypt-hashed, brute-force only."},
+            {"scenario": "All three (master + DB + password)", "outcome": "WALLET COMPROMISED", "why": "Same risk surface as the user's own login — by design (Export Key audit logs this)."},
+        ],
+    }
+
+
 
 class AdminRegister(BaseModel):
     """Admin registers a user on behalf — for in-clinic onboarding flows."""

@@ -101,6 +101,15 @@ Driven by the testing-agent recommendation to remove plaintext private keys at r
   • export-key requires correct password
   • all 5 demo personas are envelope-stored
 
+## Vault Anatomy Widget (2026-06-17, panel demo aid)
+- New admin endpoint `POST /api/admin/vault-anatomy` returns every `db.credentials` row's at-rest shape (salt/iv/ciphertext previews + byte counts + `legacy_plaintext_present` flag) plus a threat-model attacker table.
+- New admin dashboard tab **Vault Anatomy** (`data-testid="tab-vault"`) visualizes:
+  1. **Threat model table** — 4 attacker scenarios (DB-only, master-key-only, master+DB, all-three) with outcome + reasoning
+  2. **Column annotations** — what each column defeats (pk_salt, pk_iv, pk_ciphertext, password_hash, kms_master_key)
+  3. **Per-row at-rest snapshot** — every credentials row showing it carries only ciphertext (32B PK + 16B GCM tag = 48B), with a green "none" badge for zero-plaintext rows and a red "LEAK" badge if any legacy plaintext is still present
+- Purpose: 10-second visual proof to a non-crypto-savvy thesis panel that the envelope encryption story is real.
+
+
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
 - P2: Replace blocking `requests` with `httpx.AsyncClient` in Pinata + Google handlers

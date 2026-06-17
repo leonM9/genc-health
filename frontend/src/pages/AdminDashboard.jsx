@@ -19,7 +19,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy, Lightning, Trash, ClipboardText } from "@phosphor-icons/react";
+import { Cube, ArrowsClockwise, Anchor, Users, TreeStructure, Stack, Stethoscope, UserCircle, UserPlus, UploadSimple, FileLock, ShieldStar, CloudArrowUp, Sparkle, Copy, Lightning, Trash, ClipboardText, Vault } from "@phosphor-icons/react";
 
 const STAGE_ICONS = { encrypting: FileLock, uploading: CloudArrowUp, policy: ShieldStar, enqueue: TreeStructure, done: Anchor };
 
@@ -39,6 +39,9 @@ export default function AdminDashboard() {
   const [auditEvent, setAuditEvent] = useState("all");
   const [auditAddr, setAuditAddr] = useState("");
   const [auditLoading, setAuditLoading] = useState(false);
+  // Vault anatomy state
+  const [vault, setVault] = useState(null);
+  const [vaultLoading, setVaultLoading] = useState(false);
   const [preview, setPreview] = useState({ root: "", layers: [] });
   const [anchoring, setAnchoring] = useState(false);
   const [polygonAnchoring, setPolygonAnchoring] = useState(false);
@@ -88,6 +91,21 @@ export default function AdminDashboard() {
       toast.error("Audit fetch failed", { description: e?.response?.data?.detail || e.message });
     } finally {
       setAuditLoading(false);
+    }
+  };
+
+  const loadVaultAnatomy = async () => {
+    setVaultLoading(true);
+    try {
+      const { message, signature } = await buildSig("vault-anatomy");
+      const r = await api.post("/admin/vault-anatomy", {
+        admin_address: session.address, signature, message,
+      });
+      setVault(r.data);
+    } catch (e) {
+      toast.error("Vault anatomy fetch failed", { description: e?.response?.data?.detail || e.message });
+    } finally {
+      setVaultLoading(false);
     }
   };
   useEffect(() => { load(); }, []);
@@ -324,6 +342,7 @@ export default function AdminDashboard() {
             { v: "upload", l: "Attach File", i: UploadSimple },
             { v: "records", l: `Records (${adminRecords.length})`, i: FileLock },
             { v: "audit", l: "Audit Log", i: ClipboardText },
+            { v: "vault", l: "Vault Anatomy", i: Vault },
             { v: "register-doctor", l: "Register Doctor", i: Stethoscope },
             { v: "register-patient", l: "Register Patient", i: UserPlus },
             { v: "anchors", l: "Anchored Roots", i: Anchor },
@@ -780,6 +799,126 @@ export default function AdminDashboard() {
             </div>
           </div>
         </TabsContent>
+
+        {/* Vault Anatomy — defense-in-depth visualization of credentials at-rest */}
+        <TabsContent value="vault" className="space-y-6">
+          <div className="card-modern p-6">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div className="eyebrow text-emerald-300 mb-1">defense-in-depth · at-rest cryptography</div>
+                <h3 className="heading-display text-2xl font-bold">Vault Anatomy</h3>
+                <p className="text-sm text-zinc-400 mt-2 max-w-3xl leading-relaxed">
+                  Below is the literal byte-shape of every row in <span className="font-mono text-sky-300">db.credentials</span>. <span className="text-zinc-100 font-medium">No wallet private key is ever stored in plaintext.</span> Each row carries only an HKDF-derived AES-256-GCM ciphertext that requires <em>both</em> the user&apos;s password <em>and</em> the server&apos;s <span className="font-mono text-sky-300">KMS_MASTER_KEY</span> to unwrap.
+                </p>
+              </div>
+              <button onClick={loadVaultAnatomy} disabled={vaultLoading} data-testid="load-vault-anatomy-btn"
+                className="btn-primary-modern h-10 px-5 text-xs font-semibold flex items-center gap-2">
+                <Vault size={14} weight="bold" />
+                {vaultLoading ? "loading…" : vault ? "refresh" : "load anatomy"}
+              </button>
+            </div>
+          </div>
+
+          {vault && (
+            <>
+              {/* Attacker scenarios table */}
+              <div className="card-modern overflow-hidden" data-testid="vault-attacker-table">
+                <div className="p-4 border-b border-white/5">
+                  <div className="eyebrow text-amber">threat model · who can decrypt what</div>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/5 hover:bg-transparent">
+                      <TableHead className="eyebrow">Attacker has…</TableHead>
+                      <TableHead className="eyebrow">Outcome</TableHead>
+                      <TableHead className="eyebrow">Why</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {vault.attacker_table.map((row, i) => (
+                      <TableRow key={i} className="border-white/5">
+                        <TableCell className="font-medium text-sm">{row.scenario}</TableCell>
+                        <TableCell>
+                          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full border ${
+                            row.outcome === "blocked"
+                              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+                              : "border-rose/40 bg-rose/10 text-rose"
+                          }`}>{row.outcome}</span>
+                        </TableCell>
+                        <TableCell className="text-xs text-zinc-400">{row.why}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Column annotations */}
+              <div className="card-modern p-5" data-testid="vault-annotations">
+                <div className="eyebrow text-sky-400 mb-3">column purpose · per-byte audit</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {Object.entries(vault.annotations).map(([col, desc]) => (
+                    <div key={col} className="rounded-lg border border-white/5 bg-zinc-900/40 p-3">
+                      <div className="font-mono text-[11px] text-sky-300 mb-1">{col}</div>
+                      <div className="text-[11px] text-zinc-400 leading-relaxed">{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Per-row at-rest snapshot */}
+              <div className="card-modern overflow-hidden" data-testid="vault-rows">
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                  <div className="eyebrow text-emerald-300">credentials rows ({vault.rows.length})</div>
+                  <div className="text-[10px] font-mono text-zinc-500">{vault.rows[0]?.envelope_format}</div>
+                </div>
+                <div className="max-h-[480px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/5 hover:bg-transparent sticky top-0 bg-zinc-950/95 backdrop-blur">
+                        <TableHead className="eyebrow">Username</TableHead>
+                        <TableHead className="eyebrow">pk_salt</TableHead>
+                        <TableHead className="eyebrow">pk_iv</TableHead>
+                        <TableHead className="eyebrow">pk_ciphertext</TableHead>
+                        <TableHead className="eyebrow">Bytes</TableHead>
+                        <TableHead className="eyebrow">Plaintext?</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {vault.rows.map((row) => (
+                        <TableRow key={row.username} className="border-white/5" data-testid={`vault-row-${row.username}`}>
+                          <TableCell>
+                            <div className="font-mono text-xs font-medium">{row.username}</div>
+                            <div className="text-[10px] text-zinc-500 font-mono">{shortAddr(row.wallet_address)}</div>
+                          </TableCell>
+                          <TableCell className="font-mono text-[11px] text-zinc-300">{row.pk_salt_preview || <span className="text-zinc-600">—</span>}</TableCell>
+                          <TableCell className="font-mono text-[11px] text-zinc-300">{row.pk_iv_preview || <span className="text-zinc-600">—</span>}</TableCell>
+                          <TableCell className="font-mono text-[11px] text-zinc-300 max-w-[260px] truncate">{row.pk_ciphertext_preview || <span className="text-zinc-600">—</span>}</TableCell>
+                          <TableCell className="font-mono text-[11px] text-zinc-400">{row.pk_ciphertext_bytes}B</TableCell>
+                          <TableCell>
+                            {row.legacy_plaintext_present ? (
+                              <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border border-rose/40 bg-rose/10 text-rose">LEAK</span>
+                            ) : (
+                              <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 text-emerald-300">none</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!vault && !vaultLoading && (
+            <div className="card-modern p-12 text-center text-zinc-500 font-mono text-sm">
+              <Vault size={36} weight="duotone" className="mx-auto mb-3 text-zinc-700" />
+              Click "load anatomy" above to inspect the at-rest shape of every credentials row.
+            </div>
+          )}
+        </TabsContent>
+
+
 
         {/* Register Doctor */}
         <TabsContent value="register-doctor">
