@@ -54,6 +54,36 @@ A decentralized medical records dApp ("Gen C") for the Philippine Data Privacy A
   - "Merkle root anchored (simulated)" toast → "Merkle root anchored to permissioned ledger"
   - "SIMULATION RECEIPT" / "Records Simulated" / "FREE (simulation)" → "BATCH POPULATED" / "Batch Populated" / "FREE (synthetic batch)"
 
+## Auth + Medico-Legal Overhaul (2026-06-05)
+Driven by thesis advisor + practising MD feedback ("patients shouldn't see every record; CID exposure is sensitive; private key should not appear in login").
+
+### Backend
+- `db.credentials` collection — `{username, password_hash (bcrypt), wallet_address, wallet_private_key}` keyed on `wallet_address_lower`.
+- New endpoints under `/api/auth/credentials/*`:
+  - `POST /register` — wallet-signed bind of username + password
+  - `POST /login` — username + password → returns wallet + role + profile
+  - `POST /export-key` — re-verify password and release the private key (audited)
+  - `GET /check/{username}` — availability lookup
+- Admin credentials auto-seeded on backend startup: `admin / admin123`.
+- Whitelisted record vocabulary (rejected with HTTP 400 if violated):
+  - `ALLOWED_LABELS = {Doctor Only, Patient Only}`
+  - `ALLOWED_CATEGORIES = {Cardiology, Radiology, Neurology, General, Lab Results, Imaging, Prescription, Immunization, Laboratory}`
+- `/admin/seed-demo-scenario` now returns **2 doctors + 3 patients + 5 records** each with `username/password` + appropriate label & category.
+
+### Frontend
+- **Login**: username/password is the primary form (Phosphor User + Key icons). MetaMask + new-wallet collapsed behind "+ wallet options". Inline private-key input REMOVED. "Sign-in as Admin" button REMOVED.
+- **Onboarding**: adds Specialty dropdown for doctors (Cardiology, Radiology, …) and a mandatory Username + Password block. After saving the role, `registerCredentials` binds the wallet to the chosen creds.
+- **Layout topbar**: persistent **Export Key** button. Opens a password-gated modal that calls `/auth/credentials/export-key` and reveals/copies/downloads the wallet private key.
+- **Doctor Dashboard**: record table re-grouped into a per-patient collapsible card (`PatientGroup`). CIDs render as `Qm****…last4` with a Phosphor Eye/EyeSlash reveal toggle. "Patient-Only" records are siphoned into a separate **Patient-Only Records (Restricted)** notice so the doctor never decrypts something the patient hasn't shared explicitly.
+- **Doctor & Admin upload forms**: Access Label + Category dropdowns required.
+- **Patient Dashboard**: "Approve & Sign" now opens a per-record checkbox modal. Records whose `category` matches the requesting doctor's `department` are auto-checked with an "auto-match" badge. Selection passes through `record_ids` to `/access/respond` so the doctor only sees what the patient explicitly ticked.
+- **Demo modal**: lists all 5 personas with username + password + address + COPY LOGIN button instead of raw private keys.
+
+### Test status (iter 7)
+- Backend: **91/91 pytest** (70 prior + 21 new credentials/seed/label).
+- Frontend: primary login, admin → seed → doctor1 → patient1 round-trip visually verified.
+- Test credentials updated in `/app/memory/test_credentials.md`.
+
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle
 - P2: Replace blocking `requests` with `httpx.AsyncClient` in Pinata + Google handlers

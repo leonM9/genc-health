@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@/lib/walletContext";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -26,14 +26,15 @@ export default function Onboarding() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (!session) {
-    nav("/");
-    return null;
-  }
-  if (session.role && session.role !== "unregistered") {
-    nav("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (!session) {
+      nav("/");
+    } else if (session.role && session.role !== "unregistered") {
+      nav("/dashboard");
+    }
+  }, [session, nav]);
+
+  if (!session || (session.role && session.role !== "unregistered")) return null;
 
   const submit = async () => {
     if (!role) return toast.error("Pick a role");

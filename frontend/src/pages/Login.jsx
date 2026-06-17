@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@/lib/walletContext";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,9 @@ export default function Login() {
   const [showAlt, setShowAlt] = useState(false);
   const nav = useNavigate();
 
-  if (session) nav("/dashboard");
+  useEffect(() => {
+    if (session) nav("/dashboard");
+  }, [session, nav]);
 
   const handle = async (fn, label) => {
     setBusy(true);
