@@ -79,10 +79,27 @@ Driven by thesis advisor + practising MD feedback ("patients shouldn't see every
 - **Patient Dashboard**: "Approve & Sign" now opens a per-record checkbox modal. Records whose `category` matches the requesting doctor's `department` are auto-checked with an "auto-match" badge. Selection passes through `record_ids` to `/access/respond` so the doctor only sees what the patient explicitly ticked.
 - **Demo modal**: lists all 5 personas with username + password + address + COPY LOGIN button instead of raw private keys.
 
-### Test status (iter 7)
-- Backend: **91/91 pytest** (70 prior + 21 new credentials/seed/label).
+### Test status (iter 7 + iter 8)
+- Backend: **96/96 pytest** (91 prior + 5 new envelope-encryption tests).
 - Frontend: primary login, admin → seed → doctor1 → patient1 round-trip visually verified.
 - Test credentials updated in `/app/memory/test_credentials.md`.
+
+## Envelope Encryption Hardening (2026-06-17)
+Driven by the testing-agent recommendation to remove plaintext private keys at rest.
+
+- New helpers in `backend/server.py`: `_wrap_pk()` / `_unwrap_pk()` using
+  **AES-256-GCM** with a key derived from `HKDF(SHA-256, ikm = KMS_MASTER_KEY || ":" || password, salt = per-row 16B random, info = "genc-pk-wrap")`.
+- New optional env var **`KMS_MASTER_KEY`** (falls back to `ADMIN_SEED` if not set).
+- `db.credentials` rows now store `{pk_salt, pk_iv, pk_ciphertext}` instead of `wallet_private_key`. Defense-in-depth: DB leak alone reveals nothing; master-key leak alone reveals nothing.
+- Auto-migration: any pre-existing plaintext row is transparently re-wrapped on next login (or on startup for the admin row) and the `wallet_private_key` column is `$unset` immediately.
+- Demo seed (`/admin/seed-demo-scenario`) and `/auth/credentials/register` now go through `_wrap_pk()` before write.
+- Login + Export endpoints unwrap on demand after bcrypt-verifying the password. Wrong password → 401 (bcrypt rejects before unwrap so we never leak a "ciphertext invalid" signal that could distinguish error types).
+- New test file `backend/tests/test_envelope_encryption.py` (5 tests, **96/96 suite passing**) asserts:
+  • no plaintext PK in MongoDB after register/seed
+  • login round-trip returns the original PK
+  • wrong password → 401 with generic message
+  • export-key requires correct password
+  • all 5 demo personas are envelope-stored
 
 ## Prioritized Backlog
 - P2: Real Solidity contracts (UserRegistry.sol, MedicalAnchors.sol) + Sepolia testnet toggle

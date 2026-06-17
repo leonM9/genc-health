@@ -17,6 +17,10 @@ import requests
 from eth_account import Account
 from eth_account.messages import encode_defunct
 import bcrypt as _bcrypt
+import secrets as _secrets
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes as _crypto_hashes
 
 # Constrained label / category vocab — enforced at upload time
 ALLOWED_LABELS = {"Doctor Only", "Patient Only"}
@@ -28,6 +32,50 @@ ALLOWED_SPECIALTIES = {
     "Cardiology", "Radiology", "Neurology", "General",
     "Lab Results", "Imaging", "Prescription", "Pediatrics", "Family Medicine",
 }
+
+# ─────────────────────────────────────────────────────────────────────
+#  Envelope encryption for wallet private keys (defense-in-depth)
+#  Wrap key = HKDF(SHA-256, ikm = KMS_MASTER_KEY || ":" || password,
+#                  salt = per-user random 16B, info = "genc-pk-wrap")
+#  Property: DB leak alone reveals nothing (master key required).
+#  Property: Server-side leak alone reveals nothing (passwords required).
+#  No password recovery — by design, like a hardware-wallet seed.
+# ─────────────────────────────────────────────────────────────────────
+KMS_MASTER_KEY = os.environ.get(
+    "KMS_MASTER_KEY",
+    os.environ.get("ADMIN_SEED", "genc-fallback-kms-key"),
+).encode("utf-8")
+
+
+def _derive_wrap_key(password: str, user_salt: bytes) -> bytes:
+    ikm = KMS_MASTER_KEY + b"::" + password.encode("utf-8")
+    return HKDF(
+        algorithm=_crypto_hashes.SHA256(),
+        length=32,
+        salt=user_salt,
+        info=b"genc-pk-wrap",
+    ).derive(ikm)
+
+
+def _wrap_pk(private_key: str, password: str) -> Dict[str, str]:
+    """Return {pk_salt, pk_iv, pk_ciphertext} hex-encoded. No plaintext leaves this function."""
+    salt = _secrets.token_bytes(16)
+    iv = _secrets.token_bytes(12)
+    pk_hex = private_key[2:] if private_key.startswith("0x") else private_key
+    pk_bytes = bytes.fromhex(pk_hex)
+    key = _derive_wrap_key(password, salt)
+    ct = AESGCM(key).encrypt(iv, pk_bytes, None)
+    return {"pk_salt": salt.hex(), "pk_iv": iv.hex(), "pk_ciphertext": ct.hex()}
+
+
+def _unwrap_pk(blob: Dict[str, Any], password: str) -> str:
+    """Decrypt the wrapped PK using the password. Raises on tamper or wrong password."""
+    salt = bytes.fromhex(blob["pk_salt"])
+    iv = bytes.fromhex(blob["pk_iv"])
+    ct = bytes.fromhex(blob["pk_ciphertext"])
+    key = _derive_wrap_key(password, salt)
+    pk_bytes = AESGCM(key).decrypt(iv, ct, None)  # raises InvalidTag on wrong key
+    return "0x" + pk_bytes.hex()
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -518,19 +566,27 @@ async def credentials_register(p: CredsRegisterReq):
     existing = await db.credentials.find_one({"username": uname})
     if existing and existing.get("wallet_address_lower") != p.wallet_address.lower():
         raise HTTPException(409, "Username already taken")
+    wrapped = _wrap_pk(p.wallet_private_key, p.password)
     doc = {
         "id": existing.get("id") if existing else str(uuid.uuid4()),
         "username": uname,
         "wallet_address": p.wallet_address,
         "wallet_address_lower": p.wallet_address.lower(),
-        "wallet_private_key": p.wallet_private_key,
+        # Envelope-encrypted PK: AES-256-GCM(wrap_key, iv, pk) — see _wrap_pk()
+        "pk_salt": wrapped["pk_salt"],
+        "pk_iv": wrapped["pk_iv"],
+        "pk_ciphertext": wrapped["pk_ciphertext"],
         "password_hash": _hash_password(p.password),
         "created_at": existing.get("created_at") if existing else utcnow(),
         "updated_at": utcnow(),
     }
     await db.credentials.update_one(
         {"wallet_address_lower": p.wallet_address.lower()},
-        {"$set": doc},
+        {
+            "$set": doc,
+            # If this row was previously stored plaintext, drop the legacy field.
+            "$unset": {"wallet_private_key": ""},
+        },
         upsert=True,
     )
     await audit_log_event(
@@ -543,14 +599,49 @@ async def credentials_register(p: CredsRegisterReq):
     return {"ok": True, "username": uname, "wallet_address": p.wallet_address}
 
 
+async def _release_pk(creds: Dict[str, Any], password: str) -> str:
+    """Return the wallet private key for a row, decrypting it (or migrating it
+    from legacy plaintext storage to the new envelope format on the fly).
+    Raises HTTPException(401) on any failure — caller has already bcrypt-verified."""
+    # Modern: envelope-encrypted
+    if creds.get("pk_ciphertext") and creds.get("pk_salt") and creds.get("pk_iv"):
+        try:
+            return _unwrap_pk(creds, password)
+        except Exception:
+            # Wrap key mismatch — extremely unlikely after bcrypt verify; treat
+            # as auth failure so we don't reveal anything.
+            raise HTTPException(401, "Invalid username or password")
+    # Legacy: plaintext column → migrate on the fly, then delete the plaintext
+    legacy = creds.get("wallet_private_key")
+    if legacy:
+        wrapped = _wrap_pk(legacy, password)
+        await db.credentials.update_one(
+            {"_id": creds.get("_id")} if creds.get("_id") else {"username": creds["username"]},
+            {
+                "$set": {
+                    "pk_salt": wrapped["pk_salt"],
+                    "pk_iv": wrapped["pk_iv"],
+                    "pk_ciphertext": wrapped["pk_ciphertext"],
+                    "updated_at": utcnow(),
+                },
+                "$unset": {"wallet_private_key": ""},
+            },
+        )
+        log.info(f"Migrated legacy plaintext PK to envelope for username={creds['username']}")
+        return legacy
+    raise HTTPException(500, "Credential row has no key material")
+
+
 @api.post("/auth/credentials/login")
 async def credentials_login(p: CredsLoginReq):
     uname = (p.username or "").strip().lower()
-    creds = await db.credentials.find_one({"username": uname}, {"_id": 0})
+    # Keep _id in this query so the migration path can target the row efficiently.
+    creds = await db.credentials.find_one({"username": uname})
     if not creds or not _check_password(p.password or "", creds["password_hash"]):
         # Don't reveal whether username exists
         raise HTTPException(401, "Invalid username or password")
     addr = creds["wallet_address"]
+    private_key = await _release_pk(creds, p.password)
     # Resolve role
     addr_l = addr.lower()
     if addr_l == ADMIN["address"].lower():
@@ -568,7 +659,7 @@ async def credentials_login(p: CredsLoginReq):
     return {
         "username": uname,
         "address": addr,
-        "wallet_private_key": creds["wallet_private_key"],
+        "wallet_private_key": private_key,
         "role": role,
         "profile": profile,
     }
@@ -583,9 +674,10 @@ class CredsExportReq(BaseModel):
 async def credentials_export(p: CredsExportReq):
     """Re-verify password and return the wallet private key. Audited."""
     uname = (p.username or "").strip().lower()
-    creds = await db.credentials.find_one({"username": uname}, {"_id": 0})
+    creds = await db.credentials.find_one({"username": uname})
     if not creds or not _check_password(p.password or "", creds["password_hash"]):
         raise HTTPException(401, "Invalid username or password")
+    private_key = await _release_pk(creds, p.password)
     await audit_log_event(
         "credentials.export_key",
         actor_address=creds["wallet_address"],
@@ -593,7 +685,7 @@ async def credentials_export(p: CredsExportReq):
     )
     return {
         "wallet_address": creds["wallet_address"],
-        "wallet_private_key": creds["wallet_private_key"],
+        "wallet_private_key": private_key,
         "username": uname,
     }
 
@@ -1869,19 +1961,25 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "created_at": utcnow(),
         }
         await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
-        # Seed credentials too
+        # Seed credentials too — envelope-encrypted at rest
+        _w = _wrap_pk(pk, pw)
         await db.credentials.update_one(
             {"wallet_address_lower": acct.address.lower()},
-            {"$set": {
-                "id": str(uuid.uuid4()),
-                "username": uname,
-                "wallet_address": acct.address,
-                "wallet_address_lower": acct.address.lower(),
-                "wallet_private_key": pk,
-                "password_hash": _hash_password(pw),
-                "created_at": utcnow(),
-                "updated_at": utcnow(),
-            }},
+            {
+                "$set": {
+                    "id": str(uuid.uuid4()),
+                    "username": uname,
+                    "wallet_address": acct.address,
+                    "wallet_address_lower": acct.address.lower(),
+                    "pk_salt": _w["pk_salt"],
+                    "pk_iv": _w["pk_iv"],
+                    "pk_ciphertext": _w["pk_ciphertext"],
+                    "password_hash": _hash_password(pw),
+                    "created_at": utcnow(),
+                    "updated_at": utcnow(),
+                },
+                "$unset": {"wallet_private_key": ""},
+            },
             upsert=True,
         )
         doctors_out.append({
@@ -1904,18 +2002,24 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "created_at": utcnow(),
         }
         await db.users.update_one({"address_lower": acct.address.lower()}, {"$set": doc}, upsert=True)
+        _w = _wrap_pk(pk, pw)
         await db.credentials.update_one(
             {"wallet_address_lower": acct.address.lower()},
-            {"$set": {
-                "id": str(uuid.uuid4()),
-                "username": uname,
-                "wallet_address": acct.address,
-                "wallet_address_lower": acct.address.lower(),
-                "wallet_private_key": pk,
-                "password_hash": _hash_password(pw),
-                "created_at": utcnow(),
-                "updated_at": utcnow(),
-            }},
+            {
+                "$set": {
+                    "id": str(uuid.uuid4()),
+                    "username": uname,
+                    "wallet_address": acct.address,
+                    "wallet_address_lower": acct.address.lower(),
+                    "pk_salt": _w["pk_salt"],
+                    "pk_iv": _w["pk_iv"],
+                    "pk_ciphertext": _w["pk_ciphertext"],
+                    "password_hash": _hash_password(pw),
+                    "created_at": utcnow(),
+                    "updated_at": utcnow(),
+                },
+                "$unset": {"wallet_private_key": ""},
+            },
             upsert=True,
         )
         patients_out.append({
@@ -2374,21 +2478,44 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _seed_admin_credentials():
-    """Ensure the admin can also log in with username/password for the panel demo."""
+    """Ensure the admin can also log in with username/password for the panel demo.
+    Also migrate any legacy plaintext PK rows to the envelope format if we know
+    their password (i.e. the demo seeds and the admin row)."""
     try:
-        existing = await db.credentials.find_one({"username": "admin"}, {"_id": 0})
+        existing = await db.credentials.find_one({"username": "admin"})
         if not existing:
+            _w = _wrap_pk(ADMIN["private_key"], "admin123")
             await db.credentials.insert_one({
                 "id": str(uuid.uuid4()),
                 "username": "admin",
                 "wallet_address": ADMIN["address"],
                 "wallet_address_lower": ADMIN["address"].lower(),
-                "wallet_private_key": ADMIN["private_key"],
+                "pk_salt": _w["pk_salt"],
+                "pk_iv": _w["pk_iv"],
+                "pk_ciphertext": _w["pk_ciphertext"],
                 "password_hash": _hash_password("admin123"),
                 "created_at": utcnow(),
                 "updated_at": utcnow(),
             })
             log.info("Seeded admin credentials (username='admin', password='admin123')")
+        elif existing.get("wallet_private_key") and not existing.get("pk_ciphertext"):
+            # Legacy row from before envelope encryption — migrate in place.
+            _w = _wrap_pk(existing["wallet_private_key"], "admin123")
+            await db.credentials.update_one(
+                {"username": "admin"},
+                {
+                    "$set": {
+                        "pk_salt": _w["pk_salt"],
+                        "pk_iv": _w["pk_iv"],
+                        "pk_ciphertext": _w["pk_ciphertext"],
+                        "updated_at": utcnow(),
+                    },
+                    "$unset": {"wallet_private_key": ""},
+                },
+            )
+            log.info("Migrated legacy admin credentials to envelope encryption")
+    except Exception as e:
+        log.error(f"Admin credentials seed failed: {e}")
     except Exception as e:
         log.error(f"Admin credentials seed failed: {e}")
 
