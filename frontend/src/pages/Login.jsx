@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight, User, Key } from "@phosphor-icons/react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight, User, Key, UserPlus } from "@phosphor-icons/react";
 
 export default function Login() {
   const { loginDemo, loginMetaMask, loginWithCredentials, session } = useWallet();
@@ -13,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [showAlt, setShowAlt] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const nav = useNavigate();
 
   useEffect(() => {
@@ -142,6 +144,15 @@ export default function Login() {
                   {busy ? "signing in…" : "Sign in"}
                   <ArrowRight size={16} weight="bold" className="opacity-80" />
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRegister(true)}
+                  data-testid="open-register-btn"
+                  className="w-full text-center text-xs font-mono text-zinc-400 hover:text-sky-400 transition py-1.5"
+                >
+                  new here? <span className="text-sky-400 underline">create an account →</span>
+                </button>
               </form>
 
               <div className="my-6 flex items-center gap-3">
@@ -207,6 +218,63 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* CREATE ACCOUNT MODAL — explains the 3 onboarding paths */}
+      <Dialog open={showRegister} onOpenChange={setShowRegister}>
+        <DialogContent className="max-w-lg rounded-2xl bg-zinc-950 border-sky-400/30" data-testid="register-modal">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-2">
+              <UserPlus size={22} weight="duotone" className="text-sky-400" />
+              Create your Gen C account
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Gen C is wallet-based — your identity is an Ethereum wallet, not a traditional account. Pick how you want to get a wallet. The next step will let you bind a <span className="text-sky-300 font-mono">username + password</span> for easy logins, plus your role (Patient or Doctor).
+            </p>
+
+            <button
+              onClick={() => { setShowRegister(false); loginGoogle(); }}
+              data-testid="register-google-btn"
+              className="w-full h-12 btn-primary-modern flex items-center justify-center gap-3 text-sm font-semibold mt-2"
+            >
+              <GoogleLogo size={18} weight="bold" />
+              Sign up with Google
+              <ArrowRight size={14} weight="bold" className="opacity-80" />
+            </button>
+
+            <button
+              onClick={async () => {
+                setShowRegister(false);
+                await handle(loginDemo, "Generate wallet");
+              }}
+              disabled={busy}
+              data-testid="register-newwallet-btn"
+              className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
+            >
+              <Lightning size={18} weight="duotone" className="text-cyan-300" />
+              Generate a new wallet for me
+            </button>
+
+            <button
+              onClick={async () => {
+                setShowRegister(false);
+                await handle(loginMetaMask, "MetaMask");
+              }}
+              disabled={busy}
+              data-testid="register-metamask-btn"
+              className="w-full h-12 btn-ghost-modern flex items-center justify-center gap-3 text-sm font-semibold"
+            >
+              <Wallet size={18} weight="duotone" className="text-sky-400" />
+              I already have MetaMask
+            </button>
+
+            <div className="text-[11px] text-zinc-500 font-mono leading-relaxed pt-2 border-t border-white/5">
+              After your wallet is created, you&apos;ll be taken to a quick onboarding screen to pick your role, enter your name (and specialty if you&apos;re a doctor), and set a username + password. From then on you can sign in with just the username + password — your private key stays sealed and can be exported any time from your dashboard.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
