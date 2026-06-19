@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   const [patGenPk, setPatGenPk] = useState(null);
 
   // Upload record form — NEW label & category fields enforce medico-legal classification
-  const [upForm, setUpForm] = useState({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "General" });
+  const [upForm, setUpForm] = useState({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "Consultation Note", specialty: "" });
   const [upFile, setUpFile] = useState(null);
   const [pipeline, setPipeline] = useState([]);
 
@@ -297,12 +297,12 @@ export default function AdminDashboard() {
         uploader_address: session.address, uploader_signature: signature, uploader_message: message,
         patient_address: patient.address, cid: up.data.cid, file_name: upFile.name, file_size: upFile.size,
         encrypted_key_b64: keyB64, policy, diagnosis: upForm.diagnosis, notes: upForm.notes,
-        label: upForm.label, category: upForm.category,
+        label: upForm.label, category: upForm.category, specialty: upForm.specialty || null,
       });
       upPipeline("enqueue", "done", "Queued for next Merkle anchor");
       upPipeline("done", "done", `Record id :: ${r.data.id.slice(0, 8)}…`);
       toast.success("Record attached to patient", { description: patient.name });
-      setUpFile(null); setUpForm({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "General" });
+      setUpFile(null); setUpForm({ patient: "", diagnosis: "", notes: "", label: "Doctor Only", category: "Consultation Note", specialty: "" });
       load();
     } catch (e) {
       toast.error("Upload failed", { description: e?.response?.data?.detail || e.message });
@@ -509,18 +509,31 @@ export default function AdminDashboard() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="eyebrow">category <span className="text-amber">*</span></Label>
+                    <Label className="eyebrow">record type <span className="text-amber">*</span></Label>
                     <Select value={upForm.category} onValueChange={(v) => setUpForm({ ...upForm, category: v })}>
                       <SelectTrigger data-testid="up-category-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
-                        {["Cardiology","Radiology","Neurology","General","Lab Results","Imaging","Prescription","Immunization"].map((c) => (
+                        {["Consultation Note","Lab Result","Imaging Scan","Prescription","Diagnosis Report","Discharge Summary","Immunization Record","Other"].map((c) => (
                           <SelectItem key={c} value={c}>{c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label className="eyebrow">specialty tag (drives auto-match)</Label>
+                  <Select value={upForm.specialty} onValueChange={(v) => setUpForm({ ...upForm, specialty: v })}>
+                    <SelectTrigger data-testid="up-specialty-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                      <SelectValue placeholder="optional" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                      {["Cardiology","Radiology","Neurology","General","Pediatrics","Family Medicine","Internal Medicine","Oncology","Orthopedics","Dermatology","Obstetrics & Gynecology"].map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="text-[10px] font-mono text-amber/80 -mt-2">
                   Medico-legal: uploads without label &amp; category are rejected.
@@ -959,7 +972,7 @@ export default function AdminDashboard() {
                 <div>
                   <Label className="eyebrow">hospital / clinic</Label>
                   <Input data-testid="doc-hosp-input" value={docForm.hospital} onChange={(e) => setDocForm({ ...docForm, hospital: e.target.value })}
-                    placeholder="St. Luke's Medical Center" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5" />
+                    placeholder="Demo Thesis Medical Center" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5" />
                 </div>
                 <button onClick={() => adminRegister("doctor")} data-testid="doc-register-submit"
                   className="btn-primary-modern w-full h-12 flex items-center justify-center gap-2 text-sm font-semibold">

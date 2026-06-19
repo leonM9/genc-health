@@ -32,7 +32,14 @@ export default function DoctorDashboard() {
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
   const [recLabel, setRecLabel] = useState("Doctor Only");
-  const [recCategory, setRecCategory] = useState("General");
+  const [recCategory, setRecCategory] = useState("Consultation Note");
+  const [recSpecialty, setRecSpecialty] = useState("");
+  useEffect(() => {
+    if (!recSpecialty && session?.profile?.department) {
+      setRecSpecialty(session.profile.department);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.profile?.department]);
   const [pipeline, setPipeline] = useState([]);
   const [decrypting, setDecrypting] = useState(null);
 
@@ -148,19 +155,19 @@ export default function DoctorDashboard() {
       });
       updatePipeline("policy", "done", policy);
 
-      updatePipeline("enqueue", "active", "Submitting to LPA pending batch…");
+      updatePipeline("enqueue", "active", "Forwarding encrypted blob + metadata to Admin's LPA Aggregator…");
       const { message, signature } = await buildSig("upload-record");
       const r = await api.post("/records", {
         uploader_address: session.address, uploader_signature: signature, uploader_message: message,
         patient_address: selected.address, cid: up.data.cid, file_name: file.name, file_size: file.size,
         encrypted_key_b64: keyB64, policy, diagnosis, notes,
         upload_request_id: linkedRequest?.id || null,
-        label: recLabel, category: recCategory,
+        label: recLabel, category: recCategory, specialty: recSpecialty || null,
       });
-      updatePipeline("enqueue", "done", "Queued for next Merkle anchor");
+      updatePipeline("enqueue", "done", "Accepted by Admin · queued in next Merkle batch");
       updatePipeline("done", "done", `Record id :: ${r.data.id.slice(0, 8)}…`);
-      toast.success("Record uploaded", { description: r.data.cid });
-      setFile(null); setDiagnosis(""); setNotes(""); setLinkedRequest(null); setRecLabel("Doctor Only"); setRecCategory("General"); load();
+      toast.success("Forwarded to Admin LPA Pool", { description: `Record ${r.data.id.slice(0,8)}… queued for anchoring` });
+      setFile(null); setDiagnosis(""); setNotes(""); setLinkedRequest(null); setRecLabel("Doctor Only"); setRecCategory("Consultation Note"); load();
     } catch (e) {
       console.error(e);
       toast.error("Upload failed", { description: e?.response?.data?.detail || e.message });
@@ -169,6 +176,7 @@ export default function DoctorDashboard() {
   };
 
   const pendingInbox = uploadReqs.filter((u) => u.status === "pending");
+  const patients = users.filter((u) => u.role === "patient");
 
   return (
     <Layout
@@ -286,15 +294,35 @@ export default function DoctorDashboard() {
 
               <div className="space-y-4">
                 <div>
-                  <Label className="eyebrow">selected patient</Label>
-                  <div className="mt-1.5 rounded-lg border border-white/5 bg-zinc-900/40 p-3 min-h-[50px]" data-testid="selected-patient-box">
-                    {selected ? (
-                      <div>
-                        <div className="font-medium text-sm">{selected.name}</div>
-                        <div className="text-[10px] text-sky-400 font-mono">{selected.did}</div>
-                      </div>
-                    ) : (<div className="text-zinc-500 font-mono text-xs">choose a patient from the patients tab</div>)}
-                  </div>
+                  <Label className="eyebrow">patient <span className="text-amber">*</span></Label>
+                  <Select
+                    value={selected?.address || ""}
+                    onValueChange={(addr) => {
+                      const p = users.find((u) => u.address === addr);
+                      if (p) { setSelected(p); setLinkedRequest(null); }
+                    }}
+                  >
+                    <SelectTrigger data-testid="upload-patient-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                      <SelectValue placeholder="choose a patient…" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg bg-zinc-900 border-white/10 max-h-72">
+                      {patients.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-zinc-500 font-mono">No patients registered yet</div>
+                      )}
+                      {patients.map((p) => (
+                        <SelectItem key={p.address} value={p.address}>
+                          <span className="font-medium">{p.name}</span>
+                          <span className="text-zinc-500 ml-2 text-[10px] font-mono">{p.address.slice(0,6)}…{p.address.slice(-4)}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selected && (
+                    <div className="mt-2 rounded-lg border border-sky-400/30 bg-sky-500/5 p-2.5" data-testid="selected-patient-box">
+                      <div className="font-medium text-sm">{selected.name}</div>
+                      <div className="text-[10px] text-sky-400 font-mono">{selected.did}</div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -318,21 +346,37 @@ export default function DoctorDashboard() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="eyebrow">category <span className="text-amber">*</span></Label>
+                    <Label className="eyebrow">record type <span className="text-amber">*</span></Label>
                     <Select value={recCategory} onValueChange={setRecCategory}>
                       <SelectTrigger data-testid="rec-category-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
-                        {["Cardiology","Radiology","Neurology","General","Lab Results","Imaging","Prescription","Immunization"].map((c) => (
+                        {["Consultation Note","Lab Result","Imaging Scan","Prescription","Diagnosis Report","Discharge Summary","Immunization Record","Other"].map((c) => (
                           <SelectItem key={c} value={c}>{c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                <div>
+                  <Label className="eyebrow">specialty tag (drives auto-match)</Label>
+                  <Select value={recSpecialty} onValueChange={setRecSpecialty}>
+                    <SelectTrigger data-testid="rec-specialty-select" className="mt-1.5 rounded-lg bg-zinc-900/60 border-white/5">
+                      <SelectValue placeholder="auto: your specialty" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg bg-zinc-900 border-white/10">
+                      {["Cardiology","Radiology","Neurology","General","Pediatrics","Family Medicine","Internal Medicine","Oncology","Orthopedics","Dermatology","Obstetrics & Gynecology"].map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="text-[10px] font-mono text-zinc-500 mt-1">
+                    When a patient later approves a request from a doctor with this specialty, the record is auto-checked for sharing.
+                  </div>
+                </div>
                 <div className="text-[10px] font-mono text-amber/80">
-                  Patient-Only records won&apos;t appear in doctor decrypt views unless explicitly shared.
+                  Upload is forwarded to Admin&apos;s LPA Aggregator for batch Merkle anchoring. Patient-Only records won&apos;t appear in doctor decrypt views unless explicitly shared.
                 </div>
 
                 <div>

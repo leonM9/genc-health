@@ -155,7 +155,7 @@ export default function Onboarding() {
                   value={hospital}
                   onChange={(e) => setHospital(e.target.value)}
                   className="mt-2 rounded-lg bg-zinc-900/60 border-white/5 font-mono"
-                  placeholder="St. Luke's Medical Center, Makati Med…"
+                  placeholder="Demo Thesis Medical Center"
                 />
               </div>
             )}

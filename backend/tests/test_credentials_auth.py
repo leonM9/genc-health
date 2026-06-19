@@ -216,8 +216,11 @@ class TestSeedDemoScenario:
         assert labels_seen & {"Doctor Only"}
         assert labels_seen & {"Patient Only"}
         cats = {r.get("category") for r in recs}
-        assert cats <= {"Cardiology", "Radiology", "Lab Results", "Immunization", "General",
-                        "Neurology", "Imaging", "Prescription", "Laboratory"}
+        # Categories are now pure document types (specialty is a separate field)
+        assert cats <= {"Consultation Note", "Lab Result", "Imaging Scan", "Prescription",
+                        "Diagnosis Report", "Discharge Summary", "Immunization Record", "Other",
+                        # Legacy synonyms tolerated for back-compat:
+                        "Lab Results", "Imaging", "Immunization", "Laboratory", "General"}
         assert len(cats) >= 3  # at least 3 distinct categories
 
     def test_doctor1_can_login_with_seeded_credentials(self, seed_demo_response):
@@ -292,7 +295,7 @@ class TestRecordLabelCategoryEnforcement:
 
     def test_record_invalid_label_400(self):
         doc, doc_pk, pat = self._make_doctor_and_patient()
-        payload = self._upload_payload(doc, doc_pk, pat, label="Public", category="Cardiology")
+        payload = self._upload_payload(doc, doc_pk, pat, label="Public", category="Consultation Note")
         r = requests.post(f"{BASE_URL}/api/records", json=payload, timeout=15)
         assert r.status_code == 400
         assert "label" in r.text.lower()
@@ -305,9 +308,9 @@ class TestRecordLabelCategoryEnforcement:
 
     def test_record_valid_label_and_category_200(self):
         doc, doc_pk, pat = self._make_doctor_and_patient()
-        payload = self._upload_payload(doc, doc_pk, pat, label="Patient Only", category="Cardiology")
+        payload = self._upload_payload(doc, doc_pk, pat, label="Patient Only", category="Lab Result")
         r = requests.post(f"{BASE_URL}/api/records", json=payload, timeout=15)
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["label"] == "Patient Only"
-        assert body["category"] == "Cardiology"
+        assert body["category"] == "Lab Result"

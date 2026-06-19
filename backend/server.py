@@ -24,13 +24,17 @@ from cryptography.hazmat.primitives import hashes as _crypto_hashes
 
 # Constrained label / category vocab — enforced at upload time
 ALLOWED_LABELS = {"Doctor Only", "Patient Only"}
+# Category = document-type only (a paper of this kind). Specialty is a separate field.
 ALLOWED_CATEGORIES = {
-    "Cardiology", "Radiology", "Neurology", "General",
-    "Lab Results", "Imaging", "Prescription", "Immunization", "Laboratory",
+    "Consultation Note", "Lab Result", "Imaging Scan", "Prescription",
+    "Diagnosis Report", "Discharge Summary", "Immunization Record", "Other",
+    # Legacy synonyms — accepted for back-compat with previously-seeded records
+    "Lab Results", "Imaging", "Immunization", "Laboratory", "General",
 }
 ALLOWED_SPECIALTIES = {
     "Cardiology", "Radiology", "Neurology", "General",
-    "Lab Results", "Imaging", "Prescription", "Pediatrics", "Family Medicine",
+    "Pediatrics", "Family Medicine", "Internal Medicine", "Oncology",
+    "Orthopedics", "Dermatology", "Obstetrics & Gynecology",
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -232,7 +236,8 @@ class RecordCreate(BaseModel):
     upload_request_id: Optional[str] = None  # optional link to a patient's request
     # NEW · medico-legal access label + clinical category for smart-grant matching
     label: str = "Doctor Only"      # "Doctor Only" or "Patient Only"
-    category: str = "General"        # "Cardiology" | "Radiology" | "Lab" | "General" etc.
+    category: str = "Other"          # Document type — see ALLOWED_CATEGORIES
+    specialty: Optional[str] = None  # Optional medical specialty tag (auto-match driver)
 
 
 class AccessRequest(BaseModel):
@@ -873,9 +878,14 @@ async def records_create(p: RecordCreate):
     label_norm = (p.label or "").strip()
     if label_norm not in ALLOWED_LABELS:
         raise HTTPException(400, f"Record must be labeled one of {sorted(ALLOWED_LABELS)} (medico-legal requirement)")
-    category_norm = (p.category or "General").strip() or "General"
+    category_norm = (p.category or "Other").strip() or "Other"
     if category_norm not in ALLOWED_CATEGORIES:
         raise HTTPException(400, f"Category must be one of {sorted(ALLOWED_CATEGORIES)}")
+    # Specialty defaults to the uploading doctor's department (auto-match driver)
+    specialty_norm = (p.specialty or "").strip() or (uploader.get("department") if uploader else None)
+    if specialty_norm and specialty_norm not in ALLOWED_SPECIALTIES:
+        # Tolerate unknown specialties from legacy data, but normalize blanks
+        specialty_norm = specialty_norm or None
     uploader_name = uploader["name"] if uploader else "System Administrator"
     uploader_department = (uploader.get("department") if uploader else "Admin") or "Admin"
     rec = {
@@ -889,6 +899,7 @@ async def records_create(p: RecordCreate):
         "notes": p.notes,
         "label": label_norm,
         "category": category_norm,
+        "specialty": specialty_norm,
         "uploader_address": p.uploader_address,
         "uploader_address_lower": addr_norm(p.uploader_address),
         "uploader_name": uploader_name,
@@ -1723,7 +1734,7 @@ VISIT SUMMARY  — Cardiology Consultation
 ──────────────────────────────────────────────────────
 Date:           {today}
 Attending:      Dr. Sarah V. Garcia, MD · Cardiology
-Hospital:       St. Luke's Medical Center, Quezon City
+Hospital:       Demo Thesis Medical Center
 
 CHIEF COMPLAINT
    Chest pain on exertion (3-week duration), radiating
@@ -1790,7 +1801,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Stable angina pectoris · Stage 1 hypertension · Dyslipidemia",
         "notes": "Patient seen for chest pain on exertion. Treatment plan initiated.",
         "color": (16, 80, 110),  # sky blue
-        "category": "Cardiology",
+        "category": "Consultation Note", "specialty": "Cardiology",
         "access_label": "Doctor Only",
         "body": [
             ("CHIEF COMPLAINT",
@@ -1802,7 +1813,7 @@ DEMO_RECORD_SPECS = [
             ("TREATMENT PLAN",
              "Aspirin 81mg OD · Atorvastatin 40mg HS · Amlodipine 5mg OD · Mediterranean diet"),
             ("ATTENDING",
-             "Dr. Sarah V. Garcia, MD · PRC #0098431 · St. Luke's Medical Center"),
+             "Dr. Demo Cardiologist, MD · PRC #DEMO-0001 · Demo Thesis Medical Center"),
         ],
     },
     {
@@ -1811,7 +1822,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Normal sinus rhythm · Occasional PVCs · No ischemic changes",
         "notes": "Resting ECG performed. No ST-elevation, no Q waves.",
         "color": (140, 60, 30),  # amber
-        "category": "Cardiology",
+        "category": "Consultation Note", "specialty": "Cardiology",
         "access_label": "Doctor Only",
         "body": [
             ("RHYTHM", "Normal Sinus Rhythm · Rate 78 bpm · Regular"),
@@ -1828,7 +1839,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Mild cardiomegaly · Clear lung fields · No effusion",
         "notes": "PA upright chest film. Compared to prior 2024 study.",
         "color": (90, 90, 110),  # slate
-        "category": "Radiology",
+        "category": "Imaging Scan", "specialty": "Radiology",
         "access_label": "Doctor Only",
         "body": [
             ("TECHNIQUE", "PA upright chest radiograph · 120 kVp · 4 mAs"),
@@ -1846,7 +1857,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Borderline HbA1c · Elevated LDL · Otherwise within range",
         "notes": "12-hour fasting blood draw. Reference ranges per PHIC standard.",
         "color": (40, 110, 70),  # green
-        "category": "Lab Results",
+        "category": "Lab Result", "specialty": "General",
         "access_label": "Doctor Only",
         "body": [
             ("GLUCOSE / DIABETES",
@@ -1869,7 +1880,7 @@ DEMO_RECORD_SPECS = [
         "diagnosis": "Vaccinations current · COVID-19 booster up to date",
         "notes": "Lifetime immunization record per DOH and PIDSP guidelines.",
         "color": (110, 40, 110),  # purple
-        "category": "Immunization",
+        "category": "Immunization Record", "specialty": "General",
         "access_label": "Patient Only",
         "body": [
             ("COVID-19", "Pfizer 1st dose 2021-05 · 2nd 2021-06 · Booster 2023-11 · 2024 update 2024-10"),
@@ -1877,7 +1888,7 @@ DEMO_RECORD_SPECS = [
             ("TETANUS / Td", "Td booster 2022-04 (next due 2032)"),
             ("HEPATITIS B", "Complete 3-dose series · titer reactive 2018"),
             ("PNEUMOCOCCAL", "PCV-13 administered 2023-05 · PPSV-23 pending"),
-            ("ADMINISTERED BY", "St. Luke's Vaccination Clinic · Nurse R. Mendoza, RN"),
+            ("ADMINISTERED BY", "Demo Thesis Medical Center · Vaccination Unit"),
         ],
     },
 ]
@@ -1997,8 +2008,8 @@ async def admin_seed_demo_scenario(p: SimulateReq):
         return Account.from_key(pk), pk
 
     doctor_seeds = [
-        (b"genc-demo-doctor-1-cardiology-2026", "Doctor 1", "Cardiology",  "FEU-NRMF Medical Center", "doctor1", "doctor123"),
-        (b"genc-demo-doctor-2-radiology-2026",  "Doctor 2", "Radiology",   "St. Luke's Medical Center", "doctor2", "doctor123"),
+        (b"genc-demo-doctor-1-cardiology-2026", "Doctor 1", "Cardiology",  "Demo Thesis Medical Center", "doctor1", "doctor123"),
+        (b"genc-demo-doctor-2-radiology-2026",  "Doctor 2", "Radiology",   "Demo Thesis Medical Center", "doctor2", "doctor123"),
     ]
     patient_seeds = [
         (b"genc-demo-patient-1-2026", "Patient 1", "1987-03-14", "O+", "patient1", "patient123"),
@@ -2149,7 +2160,8 @@ async def admin_seed_demo_scenario(p: SimulateReq):
             "diagnosis": spec["diagnosis"],
             "notes": spec["notes"],
             "label": spec.get("access_label", "Doctor Only"),
-            "category": spec.get("category", "General"),
+            "category": spec.get("category", "Other"),
+            "specialty": spec.get("specialty"),
             "uploader_address": ADMIN["address"],
             "uploader_address_lower": ADMIN["address"].lower(),
             "uploader_name": "System Administrator",

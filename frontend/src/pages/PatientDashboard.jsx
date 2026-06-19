@@ -65,14 +65,15 @@ export default function PatientDashboard() {
   const [approveBusy, setApproveBusy] = useState(false);
 
   const openApproveModal = (req) => {
-    // Auto-check records whose category matches the requesting doctor's specialty
+    // Auto-check records whose specialty tag matches the requesting doctor's specialty.
+    // Falls back to category match (legacy records had specialty stored in category).
     const doc = doctors.find((d) => d.address.toLowerCase() === req.doctor_address_lower);
     const specialty = (doc?.department || "").toLowerCase();
     const sel = {};
     for (const r of records) {
       if (r.label === "Patient Only") continue; // patient-only cannot be shared
-      const cat = (r.category || "").toLowerCase();
-      sel[r.id] = specialty && cat === specialty;
+      const recSpec = (r.specialty || r.category || "").toLowerCase();
+      sel[r.id] = !!specialty && recSpec === specialty;
     }
     setApproveSelection(sel);
     setApproveModal(req);
@@ -615,7 +616,8 @@ export default function PatientDashboard() {
                 <div className="rounded-lg border border-white/5 overflow-hidden max-h-[300px] overflow-y-auto">
                   {shareable.length === 0 && <div className="p-6 text-center text-zinc-500 text-sm">No shareable records.</div>}
                   {shareable.map((r) => {
-                    const matches = (r.category || "").toLowerCase() === specialty.toLowerCase();
+                    const recSpec = (r.specialty || r.category || "").toLowerCase();
+                    const matches = recSpec === specialty.toLowerCase();
                     return (
                       <label key={r.id} className="flex items-start gap-3 p-3 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02] cursor-pointer" data-testid={`approve-rec-${r.id}`}>
                         <Checkbox
@@ -627,11 +629,14 @@ export default function PatientDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium">{r.diagnosis}</div>
                           <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{r.uploader_name} · {new Date(r.created_at).toLocaleDateString()}</div>
-                          <div className="flex gap-2 mt-1.5">
+                          <div className="flex flex-wrap gap-2 mt-1.5">
                             <span className="inline-block px-2 py-0.5 rounded-full border border-sky-400/30 bg-sky-500/5 text-sky-300 font-mono text-[10px]">{r.label}</span>
-                            <span className={`inline-block px-2 py-0.5 rounded-full border font-mono text-[10px] ${matches ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-zinc-700 text-zinc-400"}`}>
-                              {r.category || "General"}{matches ? " · auto-match" : ""}
-                            </span>
+                            <span className="inline-block px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-400 font-mono text-[10px]">{r.category || "Other"}</span>
+                            {r.specialty && (
+                              <span className={`inline-block px-2 py-0.5 rounded-full border font-mono text-[10px] ${matches ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-zinc-700 text-zinc-400"}`}>
+                                {r.specialty}{matches ? " · auto-match" : ""}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </label>
