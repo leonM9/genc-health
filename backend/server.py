@@ -1896,12 +1896,11 @@ DEMO_RECORD_SPECS = [
 
 def _render_medical_record_png(patient: dict, spec: dict, record_id: str, today: str) -> bytes:
     """Render a 'Gen C Certified' medical-record PNG (no external network).
-    Returns raw PNG bytes that can then be AES-encrypted and pinned to IPFS."""
+    Big readable fonts for thesis-defense projection. Returns PNG bytes."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except Exception as e:
         log.warning(f"PIL not available, falling back to text: {e}")
-        # text fallback
         return (
             f"GEN C CERTIFIED · {spec['label']}\n"
             f"Patient: {patient['name']} (DOB {patient['dob']})\n"
@@ -1911,55 +1910,69 @@ def _render_medical_record_png(patient: dict, spec: dict, record_id: str, today:
             + "\n".join(f"{k}: {v}" for k, v in spec["body"])
         ).encode("utf-8")
 
-    W, H = 800, 1050
-    PAD = 38
+    # Larger canvas + much bigger fonts so the panel can actually read it.
+    W, H = 1240, 1640
+    PAD = 56
     img = Image.new("RGB", (W, H), (15, 18, 26))
     d = ImageDraw.Draw(img)
 
     try:
-        font_bold = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 22)
-        font_h1 = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 32)
-        font_label = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", 12)
-        font_body = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 14)
-        font_mono = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf", 11)
+        FB = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+        FR = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+        FM = "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"
+        font_h0    = ImageFont.truetype(FB, 36)   # masthead
+        font_h1    = ImageFont.truetype(FB, 56)   # record title
+        font_h2    = ImageFont.truetype(FB, 32)   # section eyebrow
+        font_bold  = ImageFont.truetype(FB, 26)   # diagnosis line
+        font_label = ImageFont.truetype(FB, 22)   # field labels
+        font_body  = ImageFont.truetype(FR, 24)   # body copy
+        font_mono  = ImageFont.truetype(FM, 20)   # hash / IDs
+        font_small = ImageFont.truetype(FM, 18)   # footnote
     except Exception:
-        font_bold = font_h1 = font_label = font_body = font_mono = ImageFont.load_default()
+        font_h0 = font_h1 = font_h2 = font_bold = font_label = font_body = font_mono = font_small = ImageFont.load_default()
 
     accent = spec.get("color", (60, 130, 200))
+    text_main   = (235, 242, 252)
+    text_muted  = (155, 175, 205)
+    text_dim    = (115, 138, 170)
+    panel_bg    = (22, 26, 36)
+    panel_dim   = (28, 32, 44)
+    rule        = (60, 72, 96)
 
-    # Header strip
-    d.rectangle((0, 0, W, 72), fill=accent)
-    d.text((PAD, 20), "GEN C  ·  CERTIFIED MEDICAL RECORD", fill=(245, 250, 255), font=font_bold)
-    d.text((W - PAD - 220, 28), f"GENC-{record_id[:8].upper()}", fill=(245, 250, 255), font=font_mono)
+    # ─── Header band ────────────────────────────────────────────────────
+    d.rectangle((0, 0, W, 110), fill=accent)
+    d.text((PAD, 32), "GEN C  ·  CERTIFIED MEDICAL RECORD", fill=(248, 252, 255), font=font_h0)
+    d.text((W - PAD - 360, 48), f"GENC-{record_id[:8].upper()}", fill=(248, 252, 255), font=font_mono)
 
-    # Patient banner
-    by = 90
-    d.rectangle((PAD, by, W - PAD, by + 92), outline=(60, 70, 90), width=1, fill=(22, 26, 36))
-    d.text((PAD + 16, by + 12), spec["label"], fill=(220, 230, 245), font=font_h1)
-    d.text((PAD + 16, by + 56), f"Patient: {patient['name']}", fill=(160, 175, 200), font=font_body)
-    d.text((PAD + 16, by + 73), f"DOB {patient['dob']}  ·  Blood Type {patient['blood']}  ·  Date {today}",
-           fill=(120, 140, 170), font=font_body)
+    # ─── Patient banner ────────────────────────────────────────────────
+    by = 138
+    d.rectangle((PAD, by, W - PAD, by + 158), outline=rule, width=1, fill=panel_bg)
+    d.text((PAD + 24, by + 18), spec["label"], fill=text_main, font=font_h1)
+    d.text((PAD + 24, by + 90), f"Patient:  {patient['name']}", fill=text_muted, font=font_body)
+    d.text((PAD + 24, by + 122),
+           f"DOB {patient['dob']}   ·   Blood Type {patient['blood']}   ·   Date {today}",
+           fill=text_dim, font=font_body)
 
-    # Diagnosis stripe
-    dy = by + 110
-    d.rectangle((PAD, dy, W - PAD, dy + 46), fill=(28, 32, 44))
-    d.text((PAD + 14, dy + 8), "DIAGNOSIS", fill=(140, 160, 200), font=font_label)
-    d.text((PAD + 14, dy + 24), spec["diagnosis"], fill=(225, 235, 250), font=font_body)
+    # ─── Diagnosis stripe ──────────────────────────────────────────────
+    dy = by + 184
+    d.rectangle((PAD, dy, W - PAD, dy + 92), fill=panel_dim)
+    d.text((PAD + 22, dy + 14), "DIAGNOSIS", fill=(140, 175, 220), font=font_label)
+    d.text((PAD + 22, dy + 46), spec["diagnosis"], fill=text_main, font=font_bold)
 
-    # Body sections
-    y = dy + 70
-    section_h = 78
+    # ─── Body sections ─────────────────────────────────────────────────
+    y = dy + 122
+    CHAR_LIMIT = 78  # ~ fits at 24pt within W-2*PAD
+    section_h_one = 86
+    section_h_two = 116
     for label, val in spec["body"]:
-        # Label line
-        d.text((PAD, y), label, fill=(110, 170, 220), font=font_label)
-        # divider under label
-        d.line((PAD, y + 18, W - PAD, y + 18), fill=(40, 50, 70), width=1)
-        # value (wrap simply at ~85 chars)
+        d.text((PAD, y), label, fill=(120, 180, 230), font=font_h2)
+        d.line((PAD, y + 42, W - PAD, y + 42), fill=rule, width=1)
+        # Wrap text into max 2 lines
         wrapped = []
         words = val.split()
         line = ""
         for w in words:
-            if len(line) + len(w) > 78:
+            if len(line) + len(w) > CHAR_LIMIT:
                 wrapped.append(line.strip())
                 line = w + " "
             else:
@@ -1967,18 +1980,21 @@ def _render_medical_record_png(patient: dict, spec: dict, record_id: str, today:
         if line:
             wrapped.append(line.strip())
         for i, wl in enumerate(wrapped[:2]):
-            d.text((PAD, y + 24 + i * 20), wl, fill=(220, 230, 245), font=font_body)
-        y += section_h
+            d.text((PAD, y + 54 + i * 34), wl, fill=text_main, font=font_body)
+        y += section_h_two if len(wrapped) > 1 else section_h_one
+        if y > H - 230:
+            break
 
-    # Footer — signature + integrity
-    fy = H - 110
-    d.line((PAD, fy, W - PAD, fy), fill=(60, 70, 90), width=1)
+    # ─── Footer · integrity + compliance ───────────────────────────────
+    fy = H - 200
+    d.line((PAD, fy, W - PAD, fy), fill=rule, width=1)
     h_root = hashlib.sha256((spec["label"] + record_id + patient["name"]).encode()).hexdigest()
-    d.text((PAD, fy + 14), "RECORD INTEGRITY  ·  KECCAK256", fill=(110, 160, 200), font=font_label)
-    d.text((PAD, fy + 32), f"0x{h_root[:60]}", fill=(180, 220, 240), font=font_mono)
-    d.text((PAD, fy + 56), "Anchored to permissioned ledger  ·  AES-256-GCM client-side encrypted",
-           fill=(120, 140, 170), font=font_body)
-    d.text((PAD, fy + 76), "Protected under RA 10173 (Data Privacy Act of 2012)", fill=(140, 100, 80), font=font_mono)
+    d.text((PAD, fy + 22),  "RECORD INTEGRITY  ·  KECCAK-256", fill=(120, 175, 220), font=font_label)
+    d.text((PAD, fy + 56),  f"0x{h_root[:64]}", fill=(190, 225, 245), font=font_mono)
+    d.text((PAD, fy + 96),  "Anchored to permissioned ledger  ·  AES-256-GCM client-side encrypted",
+           fill=text_dim, font=font_body)
+    d.text((PAD, fy + 134), "Protected under RA 10173 (Data Privacy Act of 2012)",
+           fill=(220, 165, 110), font=font_small)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
