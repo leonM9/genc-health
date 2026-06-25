@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/themeContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight, User, Key, UserPlus } from "@phosphor-icons/react";
+import { Wallet, Lightning, ShieldCheck, Lock, Cube, Fingerprint, GoogleLogo, ArrowRight, User, Key, UserPlus, Sun, Moon } from "@phosphor-icons/react";
 
 export default function Login() {
   const { loginDemo, loginMetaMask, loginWithCredentials, session } = useWallet();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,9 +63,20 @@ export default function Login() {
               <div className="eyebrow mt-0.5">v0.2 // privacy protocol</div>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
-            network live
+          <div className="hidden sm:flex items-center gap-3 text-xs font-mono text-zinc-400">
+            <button
+              data-testid="theme-toggle-btn"
+              onClick={toggleTheme}
+              className="h-9 w-9 rounded-lg btn-ghost-modern flex items-center justify-center"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? <Sun size={14} weight="bold" /> : <Moon size={14} weight="bold" />}
+            </button>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
+              network live
+            </span>
           </div>
         </div>
 

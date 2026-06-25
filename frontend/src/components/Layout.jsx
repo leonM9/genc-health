@@ -7,10 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { SignOut, ShieldCheck, Pulse, Key, Eye, EyeSlash, Copy, Download } from "@phosphor-icons/react";
+import { useTheme } from "@/lib/themeContext";
+import { SignOut, ShieldCheck, Pulse, Key, Eye, EyeSlash, Copy, Download, Sun, Moon } from "@phosphor-icons/react";
 
 export default function Layout({ children, title, subtitle, role }) {
   const { session, logout, exportPrivateKey } = useWallet();
+  const { theme, toggle: toggleTheme } = useTheme();
   const nav = useNavigate();
   const [exportOpen, setExportOpen] = useState(false);
   const [exportPwd, setExportPwd] = useState("");
@@ -100,6 +102,16 @@ export default function Layout({ children, title, subtitle, role }) {
                   <span data-testid="connected-address">{shortAddr(session.address)}</span>
                 </div>
               </div>
+
+              <button
+                data-testid="theme-toggle-btn"
+                onClick={toggleTheme}
+                className="h-9 w-9 rounded-lg btn-ghost-modern flex items-center justify-center"
+                title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                aria-label="Toggle theme"
+              >
+                {theme === "dark" ? <Sun size={14} weight="bold" /> : <Moon size={14} weight="bold" />}
+              </button>
 
               {session.username && (
                 <button

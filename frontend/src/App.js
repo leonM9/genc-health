@@ -1,6 +1,7 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { WalletProvider, useWallet } from "@/lib/walletContext";
+import { ThemeProvider, useTheme } from "@/lib/themeContext";
 import { Toaster } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
 import Onboarding from "@/pages/Onboarding";
@@ -53,15 +54,22 @@ function AppRouter() {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster theme={theme} position="bottom-right" />;
+}
+
 function App() {
   return (
     <div className="App">
-      <WalletProvider>
-        <BrowserRouter>
-          <AppRouter />
-        </BrowserRouter>
-        <Toaster theme="dark" position="bottom-right" />
-      </WalletProvider>
+      <ThemeProvider>
+        <WalletProvider>
+          <BrowserRouter>
+            <AppRouter />
+          </BrowserRouter>
+          <ThemedToaster />
+        </WalletProvider>
+      </ThemeProvider>
     </div>
   );
 }

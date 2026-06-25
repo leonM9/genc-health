@@ -168,3 +168,109 @@ body {
 @layer base {
   [data-debug-wrapper="true"] { display: contents !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ *  LIGHT THEME OVERRIDES — activated by <body data-theme="light">.
+ *  Dark stays the default to preserve the original aesthetic; light
+ *  only repaints surfaces + text for the panelists who can't see
+ *  dark mode well in a bright defense room.
+ * ════════════════════════════════════════════════════════════════════ */
+body[data-theme="light"] {
+  background: #f4f6fb;
+  color: #0f172a;
+}
+body[data-theme="light"] {
+  --background: 220 25% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 88%;
+  --input: 220 13% 95%;
+  --ring: 199 89% 55%;
+}
+body[data-theme="light"] ::selection { background: #0284c7; color: #ffffff; }
+body[data-theme="light"] ::-webkit-scrollbar-thumb { background: #cbd5e1; border-color: #f4f6fb; }
+body[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #0284c7; }
+
+body[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+body[data-theme="light"] .glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(15, 23, 42, 0.10);
+}
+body[data-theme="light"] .crypto-text { color: #0284c7; }
+body[data-theme="light"] .eyebrow { color: #475569; }
+
+body[data-theme="light"] .bg-mesh { background-color: #f4f6fb; }
+body[data-theme="light"] .bg-mesh::before {
+  background:
+    radial-gradient(60% 50% at 20% 0%, rgba(56, 189, 248, 0.22) 0%, transparent 60%),
+    radial-gradient(40% 40% at 80% 10%, rgba(125, 211, 252, 0.18) 0%, transparent 60%),
+    radial-gradient(50% 60% at 50% 100%, rgba(14, 165, 233, 0.12) 0%, transparent 70%);
+}
+body[data-theme="light"] .bg-grid-soft::before {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+}
+
+body[data-theme="light"] .btn-primary-modern {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, 0 8px 24px -10px rgba(2,132,199,0.55);
+}
+body[data-theme="light"] .btn-ghost-modern {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  color: #0f172a;
+}
+body[data-theme="light"] .btn-ghost-modern:hover {
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.35);
+  color: #0284c7;
+}
+
+body[data-theme="light"] .card-modern {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,253,0.9) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+body[data-theme="light"] .stat-card {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(2,132,199,0.06) 0%, transparent 60%),
+    rgba(255,255,255,0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* Repaint the most-used zinc-on-dark surfaces in light mode.
+   Scoped to body[data-theme="light"] so dark mode is untouched. */
+body[data-theme="light"] .bg-zinc-900\/60,
+body[data-theme="light"] .bg-zinc-900\/40,
+body[data-theme="light"] .bg-zinc-900\/30 { background-color: rgba(255, 255, 255, 0.85) !important; }
+body[data-theme="light"] .bg-zinc-950,
+body[data-theme="light"] .bg-zinc-950\/95,
+body[data-theme="light"] .bg-zinc-950\/40 { background-color: #ffffff !important; }
+body[data-theme="light"] .text-zinc-100,
+body[data-theme="light"] .text-zinc-200 { color: #0f172a !important; }
+body[data-theme="light"] .text-zinc-300 { color: #1e293b !important; }
+body[data-theme="light"] .text-zinc-400 { color: #475569 !important; }
+body[data-theme="light"] .text-zinc-500 { color: #64748b !important; }
+body[data-theme="light"] .text-zinc-600 { color: #94a3b8 !important; }
+body[data-theme="light"] .text-zinc-700 { color: #cbd5e1 !important; }
+body[data-theme="light"] .border-white\/5,
+body[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10) !important; }
+body[data-theme="light"] .bg-white\/\[0\.02\]:hover { background-color: rgba(15, 23, 42, 0.04) !important; }
+
